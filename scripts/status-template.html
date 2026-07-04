@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>画词记忆 · 后端隧道</title>
+<link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #FFF9F0;
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(255, 210, 63, 0.1) 0%, transparent 40%),
+      radial-gradient(circle at 80% 70%, rgba(255, 94, 91, 0.08) 0%, transparent 40%);
+    min-height: 100vh;
+    color: #1B1340;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .container {
+    max-width: 640px;
+    width: 100%;
+    background: white;
+    border: 3px solid #1B1340;
+    border-radius: 24px;
+    box-shadow: 0 8px 24px rgba(27, 19, 64, 0.12);
+    padding: 32px 28px;
+  }
+  h1 {
+    font-family: "ZCOOL KuaiLe", system-ui, sans-serif;
+    font-size: 32px;
+    color: #1B1340;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .subtitle {
+    text-align: center;
+    color: #6B5D8A;
+    font-size: 14px;
+    margin-bottom: 28px;
+  }
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #3DDC97;
+    color: white;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 20px;
+  }
+  .status-badge::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    background: white;
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .url-box {
+    background: #FFF9F0;
+    border: 2px dashed #1B1340;
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 20px;
+  }
+  .url-label {
+    font-size: 12px;
+    color: #6B5D8A;
+    margin-bottom: 6px;
+  }
+  .url-value {
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 16px;
+    color: #1B1340;
+    word-break: break-all;
+    line-height: 1.5;
+    font-weight: 600;
+  }
+  .warning-box {
+    background: #FFF3CD;
+    border-left: 4px solid #FFD23F;
+    padding: 14px 16px;
+    border-radius: 8px;
+    margin: 20px 0;
+    font-size: 13px;
+    color: #1B1340;
+    line-height: 1.7;
+  }
+  .warning-box strong { color: #FF5E5B; }
+  .steps-card {
+    background: #F0F7FF;
+    border-left: 4px solid #3DDC97;
+    padding: 14px 16px;
+    border-radius: 8px;
+    margin: 16px 0;
+    font-size: 13px;
+    color: #1B1340;
+    line-height: 1.8;
+  }
+  .steps-card strong { color: #3DDC97; }
+  .steps-card ol {
+    margin-left: 20px;
+    margin-top: 8px;
+  }
+  .steps-card li {
+    margin-bottom: 4px;
+  }
+  .btn-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 20px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 14px 16px;
+    border: 2px solid #1B1340;
+    border-radius: 16px;
+    font-family: "ZCOOL KuaiLe", system-ui, sans-serif;
+    font-size: 16px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: transform 0.1s, box-shadow 0.1s;
+    box-shadow: 0 4px 0 rgba(27, 19, 64, 0.15);
+    background: white;
+    color: #1B1340;
+  }
+  .btn:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 rgba(27, 19, 64, 0.15);
+  }
+  .btn-primary {
+    background: #FF5E5B;
+    color: white;
+  }
+  .footer {
+    text-align: center;
+    color: #6B5D8A;
+    font-size: 12px;
+    margin-top: 24px;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔧 后端隧道已就绪</h1>
+    <p class="subtitle">这是后端 API 地址，需要配置到 Cloudflare Pages</p>
+
+    <div style="text-align:center;">
+      <span class="status-badge">隧道运行中</span>
+    </div>
+
+    <div class="url-box">
+      <div class="url-label">📋 公网隧道地址（后端 API）</div>
+      <div class="url-value" id="url">{{PUBLIC_URL}}</div>
+    </div>
+
+    <div class="warning-box">
+      <strong>⚠️ 这不是游戏页面地址！</strong><br>
+      这是后端服务的公网地址，前端（游戏页面）部署在 Cloudflare Pages 上。
+      朋友访问的是 Pages 域名（xxx.pages.dev），不是这个地址。
+    </div>
+
+    <div class="steps-card">
+      <strong>📋 配置步骤：</strong>
+      <ol>
+        <li>复制上面的公网隧道地址</li>
+        <li>打开 Cloudflare Dashboard → Pages → 你的项目</li>
+        <li>Settings → Environment Variables</li>
+        <li>更新 <code>VITE_API_BASE</code> 的值为这个地址</li>
+        <li>回到 Deployments，点最近一次部署右边的 "Retry deployment"</li>
+        <li>等待重新构建完成（约 1-2 分钟）</li>
+        <li>让朋友访问你的 Pages 域名（如 <code>small-game.pages.dev</code>）</li>
+      </ol>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-primary" onclick="copyUrl()">📋 复制隧道地址</button>
+      <a href="https://dash.cloudflare.com/?to=/:account/pages" target="_blank" class="btn">🚀 打开 CF Pages</a>
+    </div>
+
+    <div class="footer">
+      关闭启动窗口将停止后端服务 · 画词记忆 v1.0
+    </div>
+  </div>
+
+  <script>
+    function copyUrl() {
+      const url = document.getElementById('url').textContent;
+      navigator.clipboard.writeText(url).then(function() {
+        const btn = event.target;
+        const originalText = btn.textContent;
+        btn.textContent = '✅ 已复制';
+        setTimeout(function() { btn.textContent = originalText; }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>
