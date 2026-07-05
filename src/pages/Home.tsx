@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Pencil, LogIn, Sparkles, Palette, Brain } from "lucide-react";
+import { Pencil, LogIn, Sparkles, Palette, Brain, User } from "lucide-react";
 import { useRoomActions } from "@/hooks/useSocket";
 import { useGameStore } from "@/store/gameStore";
 
@@ -130,6 +130,13 @@ export default function Home() {
               >
                 <LogIn size={20} />
                 加入房间
+              </button>
+              <button
+                onClick={() => navigate("/solo")}
+                className="btn-press w-full py-3 mt-3 bg-mint text-ink font-display text-lg rounded-doodle border-2 border-ink shadow-pop flex items-center justify-center gap-2"
+              >
+                <User size={20} />
+                单人测试
               </button>
             </>
           ) : (

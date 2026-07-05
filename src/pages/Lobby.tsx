@@ -8,7 +8,7 @@ import PlayerCard from "@/components/PlayerCard";
 export default function Lobby() {
   const { roomId } = useParams<{ roomId: string }>();
   const { toggleReady, startGame, leaveRoom } = useRoomActions();
-  const { room, myId } = useGameStore();
+  const { room, myId, phase } = useGameStore();
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
 
@@ -29,12 +29,12 @@ export default function Lobby() {
     navigate("/");
   };
 
-  // 监听游戏开始
+  // 监听游戏开始：用 store 的 phase（game:state 事件更新的是 store.phase，不是 room.phase）
   useEffect(() => {
-    if (room?.phase && room.phase !== "WAITING") {
+    if (phase && phase !== "WAITING" && room?.roomId) {
       navigate(`/game/${room.roomId}`);
     }
-  }, [room?.phase, room?.roomId, navigate]);
+  }, [phase, room?.roomId, navigate]);
 
   if (!room) {
     return (

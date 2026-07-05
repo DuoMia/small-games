@@ -123,7 +123,7 @@ class RoomManagerClass {
     wordEntries.forEach((w) => room.usedWords.push(w.word));
 
     room.state = {
-      phase: "WORD_DISPLAY",
+      phase: "DRAWING", // 直接进入画图阶段（看词→画图循环在前端完成）
       currentRound: round,
       words: wordEntries.map((w) => w.word),
       wordEntries,

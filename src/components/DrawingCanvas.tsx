@@ -17,6 +17,7 @@ export interface DrawingCanvasHandle {
   clear: () => void;
   toDataURL: () => string;
   isEmpty: () => boolean;
+  getStrokes: () => Stroke[];
 }
 
 interface DrawingCanvasProps {
@@ -178,6 +179,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
         return canvas.toDataURL("image/jpeg", 0.7);
       },
       isEmpty: () => strokesRef.current.length === 0,
+      getStrokes: () => strokesRef.current,
     }));
 
     return (

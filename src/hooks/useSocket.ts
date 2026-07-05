@@ -27,6 +27,7 @@ export function useSocketConnection() {
     const onConnect = () => {
       setConnected(true);
       setMyId(socket.id || "");
+      setError(null); // 连接成功后清除之前的错误提示
     };
     const onDisconnect = () => setConnected(false);
     const onConnectError = () => setError("无法连接到服务器");
