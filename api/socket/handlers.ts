@@ -95,14 +95,21 @@ export function registerSocketHandlers(io: Io) {
 
     socket.on("drawing:upload", ({ roomId, drawings }) => {
       const result = RoomManager.uploadDrawings(roomId, socket.id, drawings);
-      if (!result) return;
+      if (!result) {
+        console.log(`[drawing:upload] ${socket.id} 提交失败（房间不存在或阶段错误）`);
+        return;
+      }
+      console.log(
+        `[drawing:upload] ${socket.id} 已提交，房间 ${roomId}，全部完成: ${result.allUploaded}`
+      );
       if (result.allUploaded) {
         const room = result.room;
+        // 广播阶段切换到 QUIZ
         io.to(roomId).emit("game:state", {
           phase: room.state.phase,
           currentRound: room.state.currentRound,
         });
-        // 发送第一道题
+        // 发送第一道题（确保 questions 已生成）
         const question = room.state.questions[0];
         if (question) {
           io.to(roomId).emit("quiz:question", {
@@ -110,7 +117,12 @@ export function registerSocketHandlers(io: Io) {
             wordIndex: question.wordIndex,
             totalQuestions: room.state.questions.length,
           });
+        } else {
+          console.error(`[drawing:upload] 房间 ${roomId} 题目生成失败，questions 为空`);
         }
+      } else {
+        // 通知房间内玩家：有人已提交，等待其余玩家
+        io.to(roomId).emit("drawing:wait", { playerId: socket.id });
       }
     });
 

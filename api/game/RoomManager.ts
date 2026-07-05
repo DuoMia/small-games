@@ -7,7 +7,7 @@ import type {
   PlayerView,
   WordEntry,
 } from "./types.js";
-import { pickRandomWords, generateQuestions } from "./WordBank.js";
+import { pickRandomWords, generateQuestions, wordBank } from "./WordBank.js";
 import { checkAnswer } from "./AnswerChecker.js";
 import {
   DEFAULT_DIFFICULTY,
@@ -152,10 +152,21 @@ class RoomManagerClass {
 
   /**
    * 开始新的一轮
+   * 按难度 category 筛选词库，排除已用过的词；词库不足时重置 usedWords
    */
   private startNewRound(room: Room, round: number) {
     const diffConfig = getDifficultyConfig(room.difficulty);
     const wordCount = room.wordsPerRound;
+
+    // 按难度筛选可用词库，判断已用词是否已耗尽该范围
+    const filteredBank = diffConfig.categories.length > 0
+      ? wordBank.filter((w) => diffConfig.categories.includes(w.category))
+      : wordBank;
+    // 若该难度下已用词占比超过 70%，重置 usedWords，让玩家重新见到词
+    if (room.usedWords.length > 0 && room.usedWords.length >= filteredBank.length * 0.7) {
+      room.usedWords = [];
+    }
+
     const wordEntries = pickRandomWords(
       wordCount,
       room.usedWords,
@@ -406,13 +417,14 @@ class RoomManagerClass {
 
   /**
    * 再玩一局
+   * 不清空 usedWords，让连续多局也不重复（startNewRound 内部会在词库快耗尽时自动重置）
    */
   restartGame(roomId: string, socketId: string): { room: Room; words: string[] } | null {
     const room = this.rooms.get(roomId);
     if (!room) return null;
     if (room.hostId !== socketId) return null;
 
-    // 重置玩家
+    // 重置玩家分数
     room.players.forEach((p) => {
       p.totalScore = 0;
       p.roundScore = 0;
@@ -420,7 +432,8 @@ class RoomManagerClass {
       p.answers = [];
       p.isReady = false;
     });
-    room.usedWords = [];
+    // 注意：不清空 usedWords，避免再玩一局时题目重复
+    // startNewRound 内部会判断词库是否快耗尽，自动重置
 
     this.startNewRound(room, 1);
     return { room, words: room.state.words };

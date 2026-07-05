@@ -107,6 +107,7 @@ export interface ServerToClientEvents {
   "game:state": (data: { phase: GamePhase; currentRound: number }) => void;
   "game:words": (data: { words: string[] }) => void;
   "game:config": (data: { viewTime: number; drawTime: number; wordDuration: number; totalQuestions: number }) => void;
+  "drawing:wait": (data: { playerId: string }) => void;
   "quiz:question": (data: { questionIndex: number; wordIndex: number; totalQuestions: number }) => void;
   "quiz:result": (data: { questionIndex: number; correct: boolean; correctAnswer: string; score: number }) => void;
   "quiz:opponent-answered": (data: { questionIndex: number }) => void;

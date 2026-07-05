@@ -179,6 +179,26 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
     playSfx(sfx.roundEnd);
   }, [mode, submitted, roomId, uploadDrawings, setDrawings, playSfx]);
 
+  // 提交后超时兜底：如果 20s 后仍在 DRAWING 阶段，提示可重试
+  const [waitTimeout, setWaitTimeout] = useState(false);
+  useEffect(() => {
+    if (!submitted) return;
+    setWaitTimeout(false);
+    const timer = setTimeout(() => {
+      // 仍处于 DRAWING 且已提交，说明对手可能掉线
+      const { phase } = useGameStore.getState();
+      if (phase === "DRAWING") setWaitTimeout(true);
+    }, 20000);
+    return () => clearTimeout(timer);
+  }, [submitted]);
+
+  const handleRetryUpload = () => {
+    if (!submitted) return;
+    const dataURLs = pagesRef.current.map((strokes) => strokesToDataURL(strokes));
+    uploadDrawings(roomId, dataURLs);
+    setWaitTimeout(false);
+  };
+
   const handleStrokesChange = useCallback(
     (strokes: Stroke[]) => {
       setPages((prev) => {
@@ -413,9 +433,23 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
           <div className="bg-white rounded-blob border-3 border-ink shadow-card p-8 text-center max-w-xs animate-bounce-in">
             <div className="text-5xl mb-3 animate-float">⏳</div>
             <h3 className="font-display text-2xl text-ink mb-1">画作已提交！</h3>
-            <p className="text-ink-muted text-sm">
-              等待对手完成画画，准备进入答题阶段...
-            </p>
+            {waitTimeout ? (
+              <>
+                <p className="text-coral text-sm mt-2 mb-4">
+                  对手似乎掉线了，迟迟未提交
+                </p>
+                <button
+                  onClick={handleRetryUpload}
+                  className="btn-press w-full py-3 bg-coral text-white font-display rounded-doodle border-2 border-ink shadow-soft"
+                >
+                  重新提交
+                </button>
+              </>
+            ) : (
+              <p className="text-ink-muted text-sm">
+                等待其余玩家完成绘画，准备进入答题阶段...
+              </p>
+            )}
           </div>
         </div>
       )}

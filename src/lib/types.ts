@@ -36,6 +36,10 @@ export interface GameConfig {
   totalQuestions: number;
 }
 
+export interface DrawingWaitData {
+  playerId: string;
+}
+
 export interface QuestionData {
   questionIndex: number;
   wordIndex: number;
