@@ -193,7 +193,7 @@ export default function Home() {
               icon={<Brain size={20} />}
               num="1"
               title="记忆词语"
-              desc="30个词语依次展示，每个5秒，记住顺序"
+              desc="看词3秒画图8秒，依次记忆30个词语"
               color="bg-coral-light"
             />
             <PlayStep

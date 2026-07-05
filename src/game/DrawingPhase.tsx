@@ -17,8 +17,8 @@ import {
 import { hasTextSuspicion } from "@/utils/textDetect";
 
 const TOTAL_PAGES = 30;
-const VIEW_TIME = 5; // 看词5秒
-const DRAW_TIME = 5; // 画图5秒
+const VIEW_TIME = 3; // 看词3秒
+const DRAW_TIME = 8; // 画图8秒
 const CANVAS_W = 600;
 const CANVAS_H = 450;
 

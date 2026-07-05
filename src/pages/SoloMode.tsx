@@ -28,8 +28,8 @@ interface WordEntry {
   category: string;
 }
 
-const VIEW_TIME = 5; // 看词5秒
-const DRAW_TIME = 5; // 画图5秒
+const VIEW_TIME = 3; // 看词3秒
+const DRAW_TIME = 8; // 画图8秒
 const CANVAS_W = 600;
 const CANVAS_H = 450;
 const QUIZ_COUNT = 10;
@@ -320,14 +320,14 @@ export default function SoloMode() {
               <div className="flex items-center gap-3 bg-coral-light rounded-doodle p-3 border-2 border-ink shadow-soft">
                 <div className="flex items-center justify-center w-10 h-10 rounded-full bg-coral border-2 border-ink font-display text-white">1</div>
                 <div className="flex-1">
-                  <div className="font-display text-ink">看词 5 秒</div>
+                  <div className="font-display text-ink">看词 3 秒</div>
                   <div className="text-xs text-ink-muted">词语依次展示，记住它们</div>
                 </div>
               </div>
               <div className="flex items-center gap-3 bg-sun rounded-doodle p-3 border-2 border-ink shadow-soft">
                 <div className="flex items-center justify-center w-10 h-10 rounded-full bg-ink border-2 border-ink font-display text-cream">2</div>
                 <div className="flex-1">
-                  <div className="font-display text-ink">画图 5 秒</div>
+                  <div className="font-display text-ink">画图 8 秒</div>
                   <div className="text-xs text-ink-muted">凭记忆作画，不能写文字！</div>
                 </div>
               </div>
