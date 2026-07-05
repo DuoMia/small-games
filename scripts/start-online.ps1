@@ -138,7 +138,12 @@ function Start-Tunnel {
     $script:tunnelTimeoutWarned = $false
     if (Test-Path $script:tunnelLogFile) { Remove-Item $script:tunnelLogFile -Force -ErrorAction SilentlyContinue }
 
-    $p = Start-Process -FilePath $CloudflaredExe -ArgumentList "tunnel --url http://localhost:$BackEndPort" -NoNewWindow -RedirectStandardError $script:tunnelLogFile -PassThru
+    # 关键修复：用 --config 指定自定义配置文件，覆盖 ~/.cloudflared/config.yml
+    # 原因：用户之前为 stock-helper 配置过 named tunnel，config.yml 中的 ingress 规则
+    #       只允许 kangupiao.top 域名，导致 trycloudflare.com 请求被拦截返回 404
+    # cf-quick.yml 只包含一个 catch-all ingress，把所有请求转发到本地后端
+    $QuickConfigPath = Join-Path $PSScriptRoot "cf-quick.yml"
+    $p = Start-Process -FilePath $CloudflaredExe -ArgumentList "tunnel","--config",$QuickConfigPath,"--url","http://localhost:$BackEndPort" -NoNewWindow -RedirectStandardError $script:tunnelLogFile -PassThru
     $script:tunnelPid = $p.Id
     Write-Log "隧道进程已启动 (PID: $($p.Id))"
     Write-Log "等待分配公网地址..."

@@ -1,0 +1,6 @@
+# Cloudflare Tunnel quick tunnel 配置
+# 作用：覆盖 ~/.cloudflared/config.yml 中可能存在的 named tunnel ingress 规则
+# （named tunnel 的 ingress 只允许特定域名，会导致 trycloudflare.com 请求返回 404）
+# 此配置只包含一个 catch-all ingress，把所有请求转发到本地后端
+ingress:
+  - service: http://localhost:3001
