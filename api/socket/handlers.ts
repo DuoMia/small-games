@@ -1,7 +1,7 @@
 import type { Server, Socket } from "socket.io";
 import type { ClientToServerEvents, ServerToClientEvents } from "../game/types.js";
 import { RoomManager } from "../game/RoomManager.js";
-import { getDifficultyConfig } from "../game/difficulty.js";
+import { VIEW_TIME, DRAW_TIME, WORD_DURATION } from "../game/difficulty.js";
 
 type Sock = Socket<ClientToServerEvents, ServerToClientEvents>;
 type Io = Server<ClientToServerEvents, ServerToClientEvents>;
@@ -69,17 +69,16 @@ export function registerSocketHandlers(io: Io) {
         return;
       }
       const { room, words } = result;
-      const diffConfig = getDifficultyConfig(room.difficulty);
       io.to(roomId).emit("game:state", {
         phase: room.state.phase,
         currentRound: room.state.currentRound,
       });
       io.to(roomId).emit("game:words", { words });
-      // 下发难度对应的时间参数 + 题量（题数=词数），前端据此驱动倒计时
+      // 下发统一的时间参数 + 题量（题数=词数），前端据此驱动倒计时
       io.to(roomId).emit("game:config", {
-        viewTime: diffConfig.viewTime,
-        drawTime: diffConfig.drawTime,
-        wordDuration: diffConfig.wordDuration,
+        viewTime: VIEW_TIME,
+        drawTime: DRAW_TIME,
+        wordDuration: WORD_DURATION,
         totalQuestions: room.wordsPerRound,
       });
     });
@@ -203,16 +202,15 @@ export function registerSocketHandlers(io: Io) {
       const result = RoomManager.restartGame(roomId, socket.id);
       if (!result) return;
       const room = result.room;
-      const diffConfig = getDifficultyConfig(room.difficulty);
       io.to(roomId).emit("game:state", {
         phase: room.state.phase,
         currentRound: room.state.currentRound,
       });
       io.to(roomId).emit("game:words", { words: result.words });
       io.to(roomId).emit("game:config", {
-        viewTime: diffConfig.viewTime,
-        drawTime: diffConfig.drawTime,
-        wordDuration: diffConfig.wordDuration,
+        viewTime: VIEW_TIME,
+        drawTime: DRAW_TIME,
+        wordDuration: WORD_DURATION,
         totalQuestions: room.wordsPerRound,
       });
     });

@@ -146,11 +146,8 @@ export default function Lobby() {
               </button>
             ))}
           </div>
-          <div className="mt-2 grid grid-cols-2 gap-x-2 text-xs text-ink-muted">
-            <span>看词 {diffConfig.viewTime}s</span>
-            <span>画图 {diffConfig.drawTime}s</span>
-            <span>每词 {diffConfig.wordDuration}s</span>
-            <span>词库 {diffConfig.categories.length === 0 ? "全部" : "筛选"}</span>
+          <div className="mt-2 text-xs text-ink-muted text-center">
+            词语：{diffConfig.categoryDesc}
           </div>
         </div>
 
@@ -236,7 +233,7 @@ export default function Lobby() {
           <p className="font-display text-ink text-sm mb-2">📋 游戏规则</p>
           <ul className="text-xs text-ink-muted space-y-1">
             <li>· 共3轮，每轮画 {wordsPerRound} 词 · 答 {wordsPerRound} 题</li>
-            <li>· 看词 {diffConfig.viewTime}s，画图 {diffConfig.drawTime}s</li>
+            <li>· 看词 3s，画图 8s</li>
             <li>· 画中不能有文字，否则警告！</li>
             <li>· 看画猜词，答对+1分</li>
             <li>· 3轮总分高者获胜</li>

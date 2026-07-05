@@ -26,6 +26,8 @@ import {
   DIFFICULTY_LIST,
   DEFAULT_DIFFICULTY,
   getDifficultyConfig,
+  VIEW_TIME,
+  DRAW_TIME,
   type Difficulty,
 } from "@/lib/difficulty";
 import wordBank from "../../api/data/words.json";
@@ -142,7 +144,7 @@ export default function SoloMode() {
   // 整体阶段
   const [stage, setStage] = useState<SoloStage>("intro");
 
-  // 难度选择（只影响时间+词库筛选，不影响题量）
+  // 难度选择（只影响词库筛选，不影响时间和题量）
   const [difficulty, setDifficulty] = useState<Difficulty>(DEFAULT_DIFFICULTY);
   const diffConfig = getDifficultyConfig(difficulty);
 
@@ -155,7 +157,7 @@ export default function SoloMode() {
   const [drawings, setDrawings] = useState<string[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [drawMode, setDrawMode] = useState<DrawMode>("view");
-  const [timeLeft, setTimeLeft] = useState(diffConfig.viewTime);
+  const [timeLeft, setTimeLeft] = useState(VIEW_TIME);
   const [pages, setPages] = useState<Stroke[][]>([]);
   const [color, setColor] = useState(COLORS[0].value);
   const [brushSize, setBrushSize] = useState(BRUSH_SIZES[1].value);
@@ -176,8 +178,8 @@ export default function SoloMode() {
 
   // 词数 = 题数，由用户独立选择
   const totalPages = quizCount;
-  const viewTime = diffConfig.viewTime;
-  const drawTime = diffConfig.drawTime;
+  const viewTime = VIEW_TIME;
+  const drawTime = DRAW_TIME;
 
   // 开始单人游戏
   const startSolo = () => {
@@ -410,6 +412,9 @@ export default function SoloMode() {
                   </button>
                 ))}
               </div>
+              <p className="text-center text-xs text-ink-muted mt-2">
+                词语：{diffConfig.categoryDesc}
+              </p>
             </div>
 
             {/* 题量选择 */}

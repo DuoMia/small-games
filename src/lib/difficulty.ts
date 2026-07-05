@@ -11,57 +11,53 @@ export interface DifficultyConfig {
   label: string;
   /** emoji 图标 */
   icon: string;
-  /** 看词时间（秒） */
-  viewTime: number;
-  /** 画图时间（秒） */
-  drawTime: number;
-  /** 双人模式 WordDisplay 阶段每词时间（秒） */
-  wordDuration: number;
   /** 词库筛选：按 category 白名单，空数组表示全词库 */
   categories: string[];
+  /** 词库筛选说明（给玩家看的） */
+  categoryDesc: string;
   /** 主题色（tailwind class） */
   color: string;
 }
+
+// 所有难度统一的时间参数（难度只影响词语难度，不影响时间）
+export const VIEW_TIME = 3; // 看词3秒
+export const DRAW_TIME = 8; // 画图8秒
+export const WORD_DURATION = 5; // 双人模式每词展示5秒
 
 export const DIFFICULTY_CONFIGS: Record<Difficulty, DifficultyConfig> = {
   easy: {
     key: "easy",
     label: "简单",
     icon: "🌱",
-    viewTime: 5,
-    drawTime: 15,
-    wordDuration: 8,
+    // 食物/动物/物品：具象、形状简单，最容易画
     categories: ["食物", "动物", "物品"],
+    categoryDesc: "食物 · 动物 · 物品",
     color: "bg-mint",
   },
   normal: {
     key: "normal",
     label: "中等",
     icon: "🌿",
-    viewTime: 3,
-    drawTime: 8,
-    wordDuration: 5,
     categories: [], // 全词库
+    categoryDesc: "全词库随机",
     color: "bg-sun",
   },
   hard: {
     key: "hard",
     label: "困难",
     icon: "🔥",
-    viewTime: 2,
-    drawTime: 5,
-    wordDuration: 3,
-    categories: ["物品", "自然", "交通", "建筑", "人物"],
+    // 交通/建筑/自然：结构复杂，难画
+    categories: ["交通", "建筑", "自然"],
+    categoryDesc: "交通 · 建筑 · 自然",
     color: "bg-coral",
   },
   nightmare: {
     key: "nightmare",
     label: "噩梦",
     icon: "💀",
-    viewTime: 1,
-    drawTime: 3,
-    wordDuration: 2,
-    categories: ["建筑", "人物", "物品"],
+    // 人物/建筑：最难画，五官比例、结构细节
+    categories: ["人物", "建筑"],
+    categoryDesc: "人物 · 建筑",
     color: "bg-ink",
   },
 };

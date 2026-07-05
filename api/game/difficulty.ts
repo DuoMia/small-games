@@ -7,52 +7,47 @@ export interface DifficultyConfig {
   key: Difficulty;
   label: string;
   icon: string;
-  viewTime: number;
-  drawTime: number;
-  wordDuration: number;
   categories: string[];
+  categoryDesc: string;
   color: string;
 }
+
+// 所有难度统一的时间参数
+export const VIEW_TIME = 3;
+export const DRAW_TIME = 8;
+export const WORD_DURATION = 5;
 
 export const DIFFICULTY_CONFIGS: Record<Difficulty, DifficultyConfig> = {
   easy: {
     key: "easy",
     label: "简单",
     icon: "🌱",
-    viewTime: 5,
-    drawTime: 15,
-    wordDuration: 8,
     categories: ["食物", "动物", "物品"],
+    categoryDesc: "食物 · 动物 · 物品",
     color: "bg-mint",
   },
   normal: {
     key: "normal",
     label: "中等",
     icon: "🌿",
-    viewTime: 3,
-    drawTime: 8,
-    wordDuration: 5,
     categories: [],
+    categoryDesc: "全词库随机",
     color: "bg-sun",
   },
   hard: {
     key: "hard",
     label: "困难",
     icon: "🔥",
-    viewTime: 2,
-    drawTime: 5,
-    wordDuration: 3,
-    categories: ["物品", "自然", "交通", "建筑", "人物"],
+    categories: ["交通", "建筑", "自然"],
+    categoryDesc: "交通 · 建筑 · 自然",
     color: "bg-coral",
   },
   nightmare: {
     key: "nightmare",
     label: "噩梦",
     icon: "💀",
-    viewTime: 1,
-    drawTime: 3,
-    wordDuration: 2,
-    categories: ["建筑", "人物", "物品"],
+    categories: ["人物", "建筑"],
+    categoryDesc: "人物 · 建筑",
     color: "bg-ink",
   },
 };
