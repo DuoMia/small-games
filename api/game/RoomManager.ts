@@ -9,11 +9,16 @@ import type {
 } from "./types.js";
 import { pickRandomWords, generateQuestions } from "./WordBank.js";
 import { checkAnswer } from "./AnswerChecker.js";
+import {
+  DEFAULT_DIFFICULTY,
+  getDifficultyConfig,
+  VALID_DIFFICULTIES,
+  type Difficulty,
+} from "./difficulty.js";
 
 const TOTAL_ROUNDS = 3;
-const WORDS_PER_ROUND = 30;
-const QUESTIONS_PER_ROUND = 10;
 const MAX_PLAYERS = 2;
+const VALID_WORD_COUNTS = [15, 20, 30, 40];
 
 class RoomManagerClass {
   private rooms = new Map<string, Room>();
@@ -56,6 +61,8 @@ class RoomManagerClass {
       state: this.createInitialState(),
       usedWords: [],
       createdAt: Date.now(),
+      wordsPerRound: 30,
+      difficulty: DEFAULT_DIFFICULTY,
     };
     this.rooms.set(roomId, room);
     return room;
@@ -101,6 +108,34 @@ class RoomManagerClass {
   }
 
   /**
+   * 设置题量（仅房主、仅 WAITING 阶段）
+   */
+  setWordsPerRound(roomId: string, socketId: string, count: number): Room | null {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+    if (room.hostId !== socketId) return null;
+    if (room.state.phase !== "WAITING") return null;
+    if (!VALID_WORD_COUNTS.includes(count)) return null;
+    if (room.wordsPerRound === count) return room;
+    room.wordsPerRound = count;
+    return room;
+  }
+
+  /**
+   * 设置难度（仅房主、仅 WAITING 阶段）
+   */
+  setDifficulty(roomId: string, socketId: string, difficulty: Difficulty): Room | null {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+    if (room.hostId !== socketId) return null;
+    if (room.state.phase !== "WAITING") return null;
+    if (!VALID_DIFFICULTIES.includes(difficulty)) return null;
+    if (room.difficulty === difficulty) return room;
+    room.difficulty = difficulty;
+    return room;
+  }
+
+  /**
    * 开始游戏（房主触发）
    */
   startGame(roomId: string, socketId: string): { room: Room; words: string[] } | null {
@@ -118,7 +153,13 @@ class RoomManagerClass {
    * 开始新的一轮
    */
   private startNewRound(room: Room, round: number) {
-    const wordEntries = pickRandomWords(WORDS_PER_ROUND, room.usedWords);
+    const diffConfig = getDifficultyConfig(room.difficulty);
+    const wordCount = room.wordsPerRound;
+    const wordEntries = pickRandomWords(
+      wordCount,
+      room.usedWords,
+      diffConfig.categories
+    );
     // 记录本轮用过的词，避免后续轮次重复
     wordEntries.forEach((w) => room.usedWords.push(w.word));
 
@@ -210,7 +251,8 @@ class RoomManagerClass {
    */
   private startQuiz(room: Room) {
     const wordEntries = room.state.wordEntries;
-    room.state.questions = generateQuestions(wordEntries, QUESTIONS_PER_ROUND);
+    const diffConfig = getDifficultyConfig(room.difficulty);
+    room.state.questions = generateQuestions(wordEntries, diffConfig.quizCount);
     room.state.phase = "QUIZ";
     room.state.currentQuestionIndex = 0;
     room.state.answers = {};
@@ -312,7 +354,7 @@ class RoomManagerClass {
     if (!allReady) return null;
 
     // 检查是否最后一题
-    if (room.state.currentQuestionIndex >= QUESTIONS_PER_ROUND - 1) {
+    if (room.state.currentQuestionIndex >= room.state.questions.length - 1) {
       // 进入回合结算
       room.state.phase = "ROUND_RESULT";
       return {
@@ -438,6 +480,8 @@ class RoomManagerClass {
       players: room.players.map((p) => this.toPlayerView(p)),
       phase: room.state.phase,
       currentRound: room.state.currentRound,
+      wordsPerRound: room.wordsPerRound,
+      difficulty: room.difficulty,
     };
   }
 

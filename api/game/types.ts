@@ -1,5 +1,7 @@
 // 游戏核心类型定义
 
+import type { Difficulty } from "./difficulty.js";
+
 export type GamePhase =
   | "WAITING"
   | "WORD_DISPLAY"
@@ -55,6 +57,8 @@ export interface Room {
   state: GameState;
   usedWords: string[];
   createdAt: number;
+  wordsPerRound: number;
+  difficulty: Difficulty;
 }
 
 // 客户端用的简化玩家信息
@@ -74,6 +78,8 @@ export interface RoomView {
   players: PlayerView[];
   phase: GamePhase;
   currentRound: number;
+  wordsPerRound: number;
+  difficulty: Difficulty;
 }
 
 // Socket 事件类型
@@ -81,6 +87,8 @@ export interface ClientToServerEvents {
   "room:create": (data: { nickname: string }) => void;
   "room:join": (data: { roomId: string; nickname: string }) => void;
   "room:ready": (data: { roomId: string }) => void;
+  "room:set-words-count": (data: { roomId: string; count: number }) => void;
+  "room:set-difficulty": (data: { roomId: string; difficulty: Difficulty }) => void;
   "game:start": (data: { roomId: string }) => void;
   "game:next-stage": (data: { roomId: string }) => void;
   "drawing:upload": (data: { roomId: string; drawings: string[] }) => void;
@@ -98,6 +106,7 @@ export interface ServerToClientEvents {
   "room:error": (data: { message: string }) => void;
   "game:state": (data: { phase: GamePhase; currentRound: number }) => void;
   "game:words": (data: { words: string[] }) => void;
+  "game:config": (data: { viewTime: number; drawTime: number; wordDuration: number; totalQuestions: number }) => void;
   "quiz:question": (data: { questionIndex: number; wordIndex: number; totalQuestions: number }) => void;
   "quiz:result": (data: { questionIndex: number; correct: boolean; correctAnswer: string; score: number }) => void;
   "quiz:opponent-answered": (data: { questionIndex: number }) => void;

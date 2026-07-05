@@ -1,6 +1,7 @@
 import type { Server, Socket } from "socket.io";
 import type { ClientToServerEvents, ServerToClientEvents } from "../game/types.js";
 import { RoomManager } from "../game/RoomManager.js";
+import { getDifficultyConfig } from "../game/difficulty.js";
 
 type Sock = Socket<ClientToServerEvents, ServerToClientEvents>;
 type Io = Server<ClientToServerEvents, ServerToClientEvents>;
@@ -37,6 +38,24 @@ export function registerSocketHandlers(io: Io) {
       }
     });
 
+    socket.on("room:set-words-count", ({ roomId, count }) => {
+      const room = RoomManager.setWordsPerRound(roomId, socket.id, count);
+      if (room) {
+        io.to(roomId).emit("room:updated", { room: RoomManager.toRoomView(room) });
+      } else {
+        socket.emit("room:error", { message: "无法修改题量" });
+      }
+    });
+
+    socket.on("room:set-difficulty", ({ roomId, difficulty }) => {
+      const room = RoomManager.setDifficulty(roomId, socket.id, difficulty);
+      if (room) {
+        io.to(roomId).emit("room:updated", { room: RoomManager.toRoomView(room) });
+      } else {
+        socket.emit("room:error", { message: "无法修改难度" });
+      }
+    });
+
     socket.on("room:leave", ({ roomId }) => {
       handleLeave(io, socket, roomId);
     });
@@ -50,11 +69,19 @@ export function registerSocketHandlers(io: Io) {
         return;
       }
       const { room, words } = result;
+      const diffConfig = getDifficultyConfig(room.difficulty);
       io.to(roomId).emit("game:state", {
         phase: room.state.phase,
         currentRound: room.state.currentRound,
       });
       io.to(roomId).emit("game:words", { words });
+      // 下发难度对应的时间/题量配置，前端据此驱动倒计时
+      io.to(roomId).emit("game:config", {
+        viewTime: diffConfig.viewTime,
+        drawTime: diffConfig.drawTime,
+        wordDuration: diffConfig.wordDuration,
+        totalQuestions: diffConfig.quizCount,
+      });
     });
 
     socket.on("game:next-stage", ({ roomId }) => {
@@ -176,11 +203,18 @@ export function registerSocketHandlers(io: Io) {
       const result = RoomManager.restartGame(roomId, socket.id);
       if (!result) return;
       const room = result.room;
+      const diffConfig = getDifficultyConfig(room.difficulty);
       io.to(roomId).emit("game:state", {
         phase: room.state.phase,
         currentRound: room.state.currentRound,
       });
       io.to(roomId).emit("game:words", { words: result.words });
+      io.to(roomId).emit("game:config", {
+        viewTime: diffConfig.viewTime,
+        drawTime: diffConfig.drawTime,
+        wordDuration: diffConfig.wordDuration,
+        totalQuestions: diffConfig.quizCount,
+      });
     });
 
     // ---------- 断线处理 ----------

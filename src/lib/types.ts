@@ -1,4 +1,6 @@
 // 前端共享类型定义
+import type { Difficulty } from "./difficulty";
+
 export type GamePhase =
   | "WAITING"
   | "WORD_DISPLAY"
@@ -23,6 +25,15 @@ export interface RoomView {
   players: PlayerView[];
   phase: GamePhase;
   currentRound: number;
+  wordsPerRound: number;
+  difficulty: Difficulty;
+}
+
+export interface GameConfig {
+  viewTime: number;
+  drawTime: number;
+  wordDuration: number;
+  totalQuestions: number;
 }
 
 export interface QuestionData {

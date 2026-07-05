@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { Send, Check, X, Loader2, ArrowRight } from "lucide-react";
 import { useGameStore } from "@/store/gameStore";
 import { useRoomActions } from "@/hooks/useSocket";
+import { useAudioStore } from "@/store/audioStore";
+import { sfx } from "@/audio/engine";
 
 export default function QuizPhase({ roomId }: { roomId: string }) {
   const {
@@ -15,6 +17,11 @@ export default function QuizPhase({ roomId }: { roomId: string }) {
     myId,
   } = useGameStore();
   const { submitAnswer, nextQuestion } = useRoomActions();
+  const { sfxEnabled } = useAudioStore();
+
+  const playSfx = (fn: () => void) => {
+    if (sfxEnabled) fn();
+  };
 
   const [answer, setAnswer] = useState("");
   const [inputShake, setInputShake] = useState(false);
@@ -43,10 +50,12 @@ export default function QuizPhase({ roomId }: { roomId: string }) {
   const handleSubmit = () => {
     if (!answer.trim() || quizResult) return;
     submitAnswer(roomId, q.questionIndex, answer.trim());
+    playSfx(sfx.click);
   };
 
   const handleNext = () => {
     nextQuestion(roomId);
+    playSfx(sfx.click);
   };
 
   const isAnswered = !!quizResult;

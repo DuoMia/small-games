@@ -12,9 +12,20 @@ const wordBank: WordEntry[] = JSON.parse(readFileSync(wordsPath, "utf-8"));
 
 /**
  * 从词库中随机抽取指定数量的不重复词语
+ * @param categories 可选，按 category 白名单筛选；空数组表示全词库
  */
-export function pickRandomWords(count: number, excludeWords: string[] = []): WordEntry[] {
-  const available = wordBank.filter((w) => !excludeWords.includes(w.word));
+export function pickRandomWords(
+  count: number,
+  excludeWords: string[] = [],
+  categories: string[] = []
+): WordEntry[] {
+  let available = wordBank.filter((w) => !excludeWords.includes(w.word));
+  // 按难度 category 筛选
+  if (categories.length > 0) {
+    const filtered = available.filter((w) => categories.includes(w.category));
+    // 兜底：筛选后不足则用全词库
+    available = filtered.length >= count ? filtered : available;
+  }
   const pool = available.length >= count ? available : wordBank;
   const shuffled = [...pool].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, count);

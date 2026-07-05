@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { useGameStore } from "@/store/gameStore";
 import { useRoomActions } from "@/hooks/useSocket";
+import { useAudioStore } from "@/store/audioStore";
+import { sfx } from "@/audio/engine";
 import {
   DrawingCanvas,
   type DrawingCanvasHandle,
@@ -16,9 +18,10 @@ import {
 } from "@/components/DrawingCanvas";
 import { hasTextSuspicion } from "@/utils/textDetect";
 
-const TOTAL_PAGES = 30;
-const VIEW_TIME = 3; // 看词3秒
-const DRAW_TIME = 8; // 画图8秒
+// 默认值（与 normal 难度保持一致），等待后端 game:config 下发后更新
+const DEFAULT_VIEW_TIME = 3;
+const DEFAULT_DRAW_TIME = 8;
+const DEFAULT_TOTAL_PAGES = 30;
 const CANVAS_W = 600;
 const CANVAS_H = 450;
 
@@ -76,15 +79,28 @@ function strokesToDataURL(strokes: Stroke[]): string {
 type Mode = "view" | "draw" | "done";
 
 export default function DrawingPhase({ roomId }: { roomId: string }) {
-  const { words, currentRound, setDrawings } = useGameStore();
+  const { words, currentRound, setDrawings, gameConfig, room } = useGameStore();
   const { uploadDrawings } = useRoomActions();
+  const { sfxEnabled } = useAudioStore();
   const canvasRef = useRef<DrawingCanvasHandle>(null);
+
+  // 难度对应的时间/题量（后端 game:config 下发，未收到前用默认值）
+  const viewTime = gameConfig?.viewTime ?? DEFAULT_VIEW_TIME;
+  const drawTime = gameConfig?.drawTime ?? DEFAULT_DRAW_TIME;
+  const totalPages = room?.wordsPerRound ?? DEFAULT_TOTAL_PAGES;
+
+  const playSfx = useCallback(
+    (fn: () => void) => {
+      if (sfxEnabled) fn();
+    },
+    [sfxEnabled]
+  );
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [mode, setMode] = useState<Mode>("view");
-  const [timeLeft, setTimeLeft] = useState(VIEW_TIME);
+  const [timeLeft, setTimeLeft] = useState(viewTime);
   const [pages, setPages] = useState<Stroke[][]>(() =>
-    Array.from({ length: TOTAL_PAGES }, () => [])
+    Array.from({ length: totalPages }, () => [])
   );
   const [color, setColor] = useState(COLORS[0].value);
   const [brushSize, setBrushSize] = useState(BRUSH_SIZES[1].value);
@@ -104,16 +120,30 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
     }
   }, []);
 
+  // 上一次的倒计时秒数（用于触发滴答音效）
+  const lastSecRef = useRef<number>(-1);
+
   // 倒计时驱动 view → draw → next
   useEffect(() => {
     if (mode === "done") return;
     const start = Date.now();
-    const duration = mode === "view" ? VIEW_TIME : DRAW_TIME;
+    const duration = mode === "view" ? viewTime : drawTime;
     setTimeLeft(duration);
+    lastSecRef.current = Math.ceil(duration);
     const interval = setInterval(() => {
       const elapsed = (Date.now() - start) / 1000;
       const left = Math.max(0, duration - elapsed);
       setTimeLeft(left);
+      // 滴答音效：每整秒触发
+      const sec = Math.ceil(left);
+      if (sec !== lastSecRef.current && sec > 0) {
+        lastSecRef.current = sec;
+        if (left <= 3 && left > 0) {
+          playSfx(sfx.tickUrgent);
+        } else {
+          playSfx(sfx.tick);
+        }
+      }
       if (left <= 0) {
         clearInterval(interval);
         if (mode === "view") {
@@ -127,7 +157,7 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
             return next;
           });
           checkTextAlert(currentStrokes, currentIndex);
-          if (currentIndex + 1 >= TOTAL_PAGES) {
+          if (currentIndex + 1 >= totalPages) {
             setMode("done");
           } else {
             setCurrentIndex((i) => i + 1);
@@ -137,7 +167,7 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
       }
     }, 100);
     return () => clearInterval(interval);
-  }, [mode, currentIndex, checkTextAlert]);
+  }, [mode, currentIndex, checkTextAlert, viewTime, drawTime, totalPages, playSfx]);
 
   // 所有词画完 → 自动提交
   useEffect(() => {
@@ -146,7 +176,8 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
     const dataURLs = pagesRef.current.map((strokes) => strokesToDataURL(strokes));
     setDrawings(dataURLs);
     uploadDrawings(roomId, dataURLs);
-  }, [mode, submitted, roomId, uploadDrawings, setDrawings]);
+    playSfx(sfx.roundEnd);
+  }, [mode, submitted, roomId, uploadDrawings, setDrawings, playSfx]);
 
   const handleStrokesChange = useCallback(
     (strokes: Stroke[]) => {
@@ -169,13 +200,14 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
       return next;
     });
     checkTextAlert(currentStrokes, currentIndex);
-    if (currentIndex + 1 >= TOTAL_PAGES) {
+    if (currentIndex + 1 >= totalPages) {
       setMode("done");
     } else {
       setCurrentIndex((i) => i + 1);
       setMode("view");
     }
-  }, [mode, currentIndex, checkTextAlert]);
+    playSfx(sfx.click);
+  }, [mode, currentIndex, checkTextAlert, totalPages, playSfx]);
 
   const drawnCount = pages.filter((p) => p.length > 0).length;
   const isView = mode === "view";
@@ -193,7 +225,7 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className="font-display text-ink text-sm">
-            {currentIndex + 1}/{TOTAL_PAGES}
+            {currentIndex + 1}/{totalPages}
           </span>
           <span
             className={`font-display text-lg ${
@@ -222,7 +254,10 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
             <strong>注意：</strong>画作中不能出现任何文字！用图画来表达词语。
           </p>
           <button
-            onClick={() => setShowWarning(false)}
+            onClick={() => {
+              setShowWarning(false);
+              playSfx(sfx.click);
+            }}
             className="text-ink-muted text-xs flex-shrink-0"
           >
             知道了
@@ -245,7 +280,7 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
             </div>
             {/* 倒计时圆点 */}
             <div className="flex items-center gap-1.5 mt-6">
-              {Array.from({ length: VIEW_TIME }, (_, i) => (
+              {Array.from({ length: viewTime }, (_, i) => (
                 <div
                   key={i}
                   className={`w-2.5 h-2.5 rounded-full transition-all ${
@@ -265,7 +300,7 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
                 #{currentIndex + 1}
               </span>
               <span className="text-xs text-ink-muted">
-                已画 {drawnCount}/{TOTAL_PAGES}
+                已画 {drawnCount}/{totalPages}
               </span>
             </div>
             <div className="flex-1 min-h-0 flex items-center justify-center">
@@ -305,6 +340,7 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
                   onClick={() => {
                     setColor(c.value);
                     setTool("pen");
+                    playSfx(sfx.uiTick);
                   }}
                   className={`w-7 h-7 rounded-full border-2 transition-all ${
                     color === c.value && tool === "pen"
@@ -317,7 +353,10 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
             </div>
             <div className="flex items-center gap-1.5">
               <button
-                onClick={() => setTool(tool === "pen" ? "eraser" : "pen")}
+                onClick={() => {
+                  setTool(tool === "pen" ? "eraser" : "pen");
+                  playSfx(sfx.uiTick);
+                }}
                 className={`btn-press p-2 rounded-doodle border-2 ${
                   tool === "eraser"
                     ? "bg-warn text-white border-ink"
@@ -327,13 +366,19 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
                 {tool === "eraser" ? <Eraser size={18} /> : <Pencil size={18} />}
               </button>
               <button
-                onClick={() => canvasRef.current?.undo()}
+                onClick={() => {
+                  canvasRef.current?.undo();
+                  playSfx(sfx.click);
+                }}
                 className="btn-press p-2 rounded-doodle border-2 border-ink bg-white text-ink"
               >
                 <Undo2 size={18} />
               </button>
               <button
-                onClick={() => canvasRef.current?.clear()}
+                onClick={() => {
+                  canvasRef.current?.clear();
+                  playSfx(sfx.click);
+                }}
                 className="btn-press p-2 rounded-doodle border-2 border-ink bg-white text-coral"
               >
                 <Trash2 size={18} />
@@ -345,7 +390,10 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
             {BRUSH_SIZES.map((b) => (
               <button
                 key={b.value}
-                onClick={() => setBrushSize(b.value)}
+                onClick={() => {
+                  setBrushSize(b.value);
+                  playSfx(sfx.uiTick);
+                }}
                 className={`flex-1 py-1.5 rounded-doodle border-2 font-display text-sm transition-all ${
                   brushSize === b.value
                     ? "bg-ink text-cream border-ink"

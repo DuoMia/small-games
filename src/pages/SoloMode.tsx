@@ -20,6 +20,14 @@ import {
   type Stroke,
 } from "@/components/DrawingCanvas";
 import { hasTextSuspicion } from "@/utils/textDetect";
+import { useAudioStore } from "@/store/audioStore";
+import { sfx } from "@/audio/engine";
+import {
+  DIFFICULTY_LIST,
+  DEFAULT_DIFFICULTY,
+  getDifficultyConfig,
+  type Difficulty,
+} from "@/lib/difficulty";
 import wordBank from "../../api/data/words.json";
 
 interface WordEntry {
@@ -28,11 +36,8 @@ interface WordEntry {
   category: string;
 }
 
-const VIEW_TIME = 3; // 看词3秒
-const DRAW_TIME = 8; // 画图8秒
 const CANVAS_W = 600;
 const CANVAS_H = 450;
-const QUIZ_COUNT = 10;
 
 const COLORS = [
   { name: "ink", value: "#1B1340" },
@@ -92,15 +97,20 @@ function strokesToDataURL(strokes: Stroke[]): string {
   return canvas.toDataURL("image/jpeg", 0.7);
 }
 
-function pickWords(count: number): WordEntry[] {
-  const shuffled = [...wordBank].sort(() => Math.random() - 0.5);
+function pickWords(count: number, categories: string[]): WordEntry[] {
+  let pool = [...wordBank];
+  if (categories.length > 0) {
+    const filtered = pool.filter((w) => categories.includes(w.category));
+    if (filtered.length >= count) pool = filtered;
+  }
+  const shuffled = pool.sort(() => Math.random() - 0.5);
   return shuffled.slice(0, count);
 }
 
 function genQuestions(words: WordEntry[], count: number): Question[] {
   const indices = Array.from({ length: words.length }, (_, i) => i)
     .sort(() => Math.random() - 0.5)
-    .slice(0, count);
+    .slice(0, Math.min(count, words.length));
   return indices.map((idx, i) => ({
     questionIndex: i,
     wordIndex: idx,
@@ -120,12 +130,21 @@ type DrawMode = "view" | "draw" | "done";
 
 export default function SoloMode() {
   const navigate = useNavigate();
+  const { sfxEnabled } = useAudioStore();
+
+  const playSfx = useCallback(
+    (fn: () => void) => {
+      if (sfxEnabled) fn();
+    },
+    [sfxEnabled]
+  );
 
   // 整体阶段
   const [stage, setStage] = useState<SoloStage>("intro");
 
-  // 题量选择（词语数量 = 画图数量）
-  const [totalPages, setTotalPages] = useState<number>(30);
+  // 难度选择
+  const [difficulty, setDifficulty] = useState<Difficulty>(DEFAULT_DIFFICULTY);
+  const diffConfig = getDifficultyConfig(difficulty);
 
   // 画图阶段状态
   const canvasRef = useRef<DrawingCanvasHandle>(null);
@@ -133,7 +152,7 @@ export default function SoloMode() {
   const [drawings, setDrawings] = useState<string[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [drawMode, setDrawMode] = useState<DrawMode>("view");
-  const [timeLeft, setTimeLeft] = useState(VIEW_TIME);
+  const [timeLeft, setTimeLeft] = useState(diffConfig.viewTime);
   const [pages, setPages] = useState<Stroke[][]>([]);
   const [color, setColor] = useState(COLORS[0].value);
   const [brushSize, setBrushSize] = useState(BRUSH_SIZES[1].value);
@@ -152,20 +171,27 @@ export default function SoloMode() {
   } | null>(null);
   const [score, setScore] = useState(0);
 
+  const totalPages = diffConfig.totalWords;
+  const quizCount = diffConfig.quizCount;
+  const viewTime = diffConfig.viewTime;
+  const drawTime = diffConfig.drawTime;
+
   // 开始单人游戏
   const startSolo = () => {
-    const picked = pickWords(totalPages);
+    const picked = pickWords(totalPages, diffConfig.categories);
     setWordEntries(picked);
     setPages(Array.from({ length: totalPages }, () => []));
     setDrawings([]);
     setCurrentIndex(0);
     setDrawMode("view");
+    setTimeLeft(viewTime);
     setShowWarning(true);
     setScore(0);
     setStage("draw");
+    playSfx(sfx.click);
   };
 
-  // 检测当前画布是否疑似含文字，若是则弹出提示
+  // 检测当前画布是否疑似含文字
   const checkTextAlert = useCallback(
     (strokes: Stroke[], idx: number) => {
       if (strokes.length > 0 && hasTextSuspicion(strokes)) {
@@ -176,17 +202,32 @@ export default function SoloMode() {
     []
   );
 
+  // 上一次的倒计时秒数（用于触发滴答音效）
+  const lastSecRef = useRef<number>(-1);
+
   // 画图阶段倒计时驱动 view → draw → next
   useEffect(() => {
     if (stage !== "draw") return;
     if (drawMode === "done") return;
     const start = Date.now();
-    const duration = drawMode === "view" ? VIEW_TIME : DRAW_TIME;
+    const duration = drawMode === "view" ? viewTime : drawTime;
     setTimeLeft(duration);
+    lastSecRef.current = Math.ceil(duration);
     const interval = setInterval(() => {
       const elapsed = (Date.now() - start) / 1000;
       const left = Math.max(0, duration - elapsed);
       setTimeLeft(left);
+      // 滴答音效：每整秒触发
+      const sec = Math.ceil(left);
+      if (sec !== lastSecRef.current && sec > 0) {
+        lastSecRef.current = sec;
+        // 最后 3 秒急促
+        if (left <= 3 && left > 0) {
+          playSfx(sfx.tickUrgent);
+        } else {
+          playSfx(sfx.tick);
+        }
+      }
       if (left <= 0) {
         clearInterval(interval);
         if (drawMode === "view") {
@@ -211,21 +252,21 @@ export default function SoloMode() {
       }
     }, 100);
     return () => clearInterval(interval);
-  }, [stage, drawMode, currentIndex, checkTextAlert]);
+  }, [stage, drawMode, currentIndex, checkTextAlert, viewTime, drawTime, totalPages, playSfx]);
 
   // 画图全部完成 → 生成 DataURL + 题目，进入答题
   useEffect(() => {
     if (stage !== "draw" || drawMode !== "done") return;
-    // 用最新的 pages 生成画作
     const finalPages = pagesRef.current;
     const dataURLs = finalPages.map((s) => strokesToDataURL(s));
     setDrawings(dataURLs);
-    setQuestions(genQuestions(wordEntries, QUIZ_COUNT));
+    setQuestions(genQuestions(wordEntries, quizCount));
     setQuizIndex(0);
     setAnswer("");
     setQuizResult(null);
     setStage("quiz");
-  }, [stage, drawMode, wordEntries]);
+    playSfx(sfx.roundEnd);
+  }, [stage, drawMode, wordEntries, quizCount, playSfx]);
 
   const handleStrokesChange = useCallback(
     (strokes: Stroke[]) => {
@@ -256,7 +297,8 @@ export default function SoloMode() {
       setCurrentIndex((i) => i + 1);
       setDrawMode("view");
     }
-  }, [drawMode, currentIndex, checkTextAlert]);
+    playSfx(sfx.click);
+  }, [drawMode, currentIndex, checkTextAlert, totalPages, playSfx]);
 
   // 答题：提交答案
   const handleSubmitAnswer = () => {
@@ -266,17 +308,20 @@ export default function SoloMode() {
     const correct = checkAnswer(answer.trim(), q.acceptedAnswers);
     setQuizResult({ correct, correctAnswer: q.correctAnswer });
     if (correct) setScore((s) => s + 1);
+    playSfx(correct ? sfx.correct : sfx.wrong);
   };
 
   // 答题：下一题
   const handleNextQuestion = () => {
-    if (quizIndex + 1 >= QUIZ_COUNT) {
+    if (quizIndex + 1 >= quizCount) {
       setStage("result");
+      playSfx(sfx.win);
       return;
     }
     setQuizIndex((i) => i + 1);
     setAnswer("");
     setQuizResult(null);
+    playSfx(sfx.click);
   };
 
   // 切题时重置输入
@@ -320,14 +365,14 @@ export default function SoloMode() {
               <div className="flex items-center gap-3 bg-coral-light rounded-doodle p-3 border-2 border-ink shadow-soft">
                 <div className="flex items-center justify-center w-10 h-10 rounded-full bg-coral border-2 border-ink font-display text-white">1</div>
                 <div className="flex-1">
-                  <div className="font-display text-ink">看词 3 秒</div>
+                  <div className="font-display text-ink">看词 {viewTime} 秒</div>
                   <div className="text-xs text-ink-muted">词语依次展示，记住它们</div>
                 </div>
               </div>
               <div className="flex items-center gap-3 bg-sun rounded-doodle p-3 border-2 border-ink shadow-soft">
                 <div className="flex items-center justify-center w-10 h-10 rounded-full bg-ink border-2 border-ink font-display text-cream">2</div>
                 <div className="flex-1">
-                  <div className="font-display text-ink">画图 8 秒</div>
+                  <div className="font-display text-ink">画图 {drawTime} 秒</div>
                   <div className="text-xs text-ink-muted">凭记忆作画，不能写文字！</div>
                 </div>
               </div>
@@ -335,8 +380,32 @@ export default function SoloMode() {
                 <div className="flex items-center justify-center w-10 h-10 rounded-full bg-mint border-2 border-ink font-display text-ink">3</div>
                 <div className="flex-1">
                   <div className="font-display text-ink">看画猜词</div>
-                  <div className="text-xs text-ink-muted">10 道题，看自己的画反推词语</div>
+                  <div className="text-xs text-ink-muted">{quizCount} 道题，看自己的画反推词语</div>
                 </div>
+              </div>
+            </div>
+
+            {/* 难度选择 */}
+            <div className="mb-4">
+              <p className="font-display text-ink text-sm mb-2">难度选择</p>
+              <div className="grid grid-cols-2 gap-2">
+                {DIFFICULTY_LIST.map((d) => (
+                  <button
+                    key={d.key}
+                    onClick={() => {
+                      setDifficulty(d.key);
+                      playSfx(sfx.uiTick);
+                    }}
+                    className={`py-2.5 rounded-doodle border-2 font-display text-sm transition-all flex items-center justify-center gap-1.5 ${
+                      difficulty === d.key
+                        ? "bg-coral text-white border-ink shadow-soft"
+                        : "bg-white text-ink border-ink/30"
+                    }`}
+                  >
+                    <span>{d.icon}</span>
+                    {d.label}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -347,7 +416,17 @@ export default function SoloMode() {
                 {[15, 30].map((n) => (
                   <button
                     key={n}
-                    onClick={() => setTotalPages(n)}
+                    onClick={() => {
+                      setDifficulty(
+                        n === 15 && difficulty === "normal"
+                          ? "easy"
+                          : difficulty
+                      );
+                      // 简单切换题量：15 词用 easy 配置，30 词用 normal
+                      if (n === 15) setDifficulty("easy");
+                      else setDifficulty("normal");
+                      playSfx(sfx.uiTick);
+                    }}
                     className={`flex-1 py-3 rounded-doodle border-2 font-display text-base transition-all ${
                       totalPages === n
                         ? "bg-coral text-white border-ink shadow-soft"
@@ -359,7 +438,7 @@ export default function SoloMode() {
                 ))}
               </div>
               <p className="text-center text-xs text-ink-muted mt-2">
-                共 {totalPages} 个词 · 答题 {QUIZ_COUNT} 题 · 每题 1 分
+                共 {totalPages} 个词 · 答题 {quizCount} 题 · 每题 1 分
               </p>
             </div>
 
@@ -371,7 +450,10 @@ export default function SoloMode() {
               开始测试
             </button>
             <button
-              onClick={() => navigate("/")}
+              onClick={() => {
+                playSfx(sfx.click);
+                navigate("/");
+              }}
               className="btn-press w-full py-2 mt-3 text-ink-muted font-body text-sm"
             >
               ← 返回首页
@@ -446,7 +528,7 @@ export default function SoloMode() {
                 </span>
               </div>
               <div className="flex items-center gap-1.5 mt-6">
-                {Array.from({ length: VIEW_TIME }, (_, i) => (
+                {Array.from({ length: viewTime }, (_, i) => (
                   <div
                     key={i}
                     className={`w-2.5 h-2.5 rounded-full transition-all ${
@@ -505,6 +587,7 @@ export default function SoloMode() {
                     onClick={() => {
                       setColor(c.value);
                       setTool("pen");
+                      playSfx(sfx.uiTick);
                     }}
                     className={`w-7 h-7 rounded-full border-2 transition-all ${
                       color === c.value && tool === "pen"
@@ -517,7 +600,10 @@ export default function SoloMode() {
               </div>
               <div className="flex items-center gap-1.5">
                 <button
-                  onClick={() => setTool(tool === "pen" ? "eraser" : "pen")}
+                  onClick={() => {
+                    setTool(tool === "pen" ? "eraser" : "pen");
+                    playSfx(sfx.uiTick);
+                  }}
                   className={`btn-press p-2 rounded-doodle border-2 ${
                     tool === "eraser"
                       ? "bg-warn text-white border-ink"
@@ -527,13 +613,19 @@ export default function SoloMode() {
                   {tool === "eraser" ? <Eraser size={18} /> : <Pencil size={18} />}
                 </button>
                 <button
-                  onClick={() => canvasRef.current?.undo()}
+                  onClick={() => {
+                    canvasRef.current?.undo();
+                    playSfx(sfx.uiTick);
+                  }}
                   className="btn-press p-2 rounded-doodle border-2 border-ink bg-white text-ink"
                 >
                   <Undo2 size={18} />
                 </button>
                 <button
-                  onClick={() => canvasRef.current?.clear()}
+                  onClick={() => {
+                    canvasRef.current?.clear();
+                    playSfx(sfx.uiTick);
+                  }}
                   className="btn-press p-2 rounded-doodle border-2 border-ink bg-white text-coral"
                 >
                   <Trash2 size={18} />
@@ -545,7 +637,10 @@ export default function SoloMode() {
               {BRUSH_SIZES.map((b) => (
                 <button
                   key={b.value}
-                  onClick={() => setBrushSize(b.value)}
+                  onClick={() => {
+                    setBrushSize(b.value);
+                    playSfx(sfx.uiTick);
+                  }}
                   className={`flex-1 py-1.5 rounded-doodle border-2 font-display text-sm transition-all ${
                     brushSize === b.value
                       ? "bg-ink text-cream border-ink"
@@ -586,7 +681,7 @@ export default function SoloMode() {
           <span className="font-display text-ink text-sm">单人测试 · 答题</span>
           <div className="flex items-center gap-2">
             <span className="font-display text-ink text-sm bg-sun px-3 py-1 rounded-full border-2 border-ink">
-              第 {quizIndex + 1} / {QUIZ_COUNT} 题
+              第 {quizIndex + 1} / {quizCount} 题
             </span>
             <span className="font-display text-mint text-sm bg-mint/10 px-3 py-1 rounded-full border-2 border-mint">
               {score} 分
@@ -686,7 +781,7 @@ export default function SoloMode() {
               onClick={handleNextQuestion}
               className="btn-press w-full py-3 bg-ink text-cream font-display text-lg rounded-doodle border-2 border-ink shadow-soft flex items-center justify-center gap-2"
             >
-              {quizIndex + 1 >= QUIZ_COUNT ? "查看结果" : "下一题"}
+              {quizIndex + 1 >= quizCount ? "查看结果" : "下一题"}
               <ArrowRight size={20} />
             </button>
           )}
@@ -697,16 +792,19 @@ export default function SoloMode() {
 
   /* ============ 结果页 ============ */
   if (stage === "result") {
-    const passed = score >= 6;
+    const passed = score >= quizCount * 0.6;
     return (
       <div className="paper-bg h-[100dvh] overflow-y-auto flex flex-col items-center justify-center px-5 py-8">
         <div className="w-full max-w-md bg-white rounded-blob shadow-card border-3 border-ink p-8 text-center animate-bounce-in">
           <div className="text-6xl mb-3 animate-float">
-            {score >= 8 ? "🏆" : passed ? "🎉" : "💪"}
+            {score >= quizCount * 0.8 ? "🏆" : passed ? "🎉" : "💪"}
           </div>
           <h2 className="font-display text-3xl text-ink mb-1">测试完成！</h2>
+          <p className="font-body text-ink-muted text-sm mb-2">
+            难度：{diffConfig.icon} {diffConfig.label}
+          </p>
           <p className="font-body text-ink-muted text-sm mb-6">
-            {score >= 8
+            {score >= quizCount * 0.8
               ? "记忆力超强！"
               : passed
               ? "不错的表现！"
@@ -716,7 +814,7 @@ export default function SoloMode() {
           <div className="bg-cream rounded-doodle border-2 border-ink p-5 mb-6">
             <div className="font-display text-5xl text-coral mb-1">
               {score}
-              <span className="text-2xl text-ink-muted"> / {QUIZ_COUNT}</span>
+              <span className="text-2xl text-ink-muted"> / {quizCount}</span>
             </div>
             <p className="font-body text-sm text-ink-muted">答对题数</p>
           </div>
@@ -729,7 +827,10 @@ export default function SoloMode() {
             再来一局
           </button>
           <button
-            onClick={() => navigate("/")}
+            onClick={() => {
+              playSfx(sfx.click);
+              navigate("/");
+            }}
             className="btn-press w-full py-3 bg-white text-ink font-display text-lg rounded-doodle border-2 border-ink shadow-soft flex items-center justify-center gap-2"
           >
             <Home size={20} />

@@ -1,6 +1,9 @@
 import { useEffect } from "react";
 import { connectSocket, disconnectSocket, getSocket } from "@/lib/socket";
 import { useGameStore } from "@/store/gameStore";
+import { useAudioStore } from "@/store/audioStore";
+import { sfx, unlockAudio } from "@/audio/engine";
+import type { Difficulty } from "@/lib/difficulty";
 
 /**
  * 初始化 Socket 连接并注册所有事件监听
@@ -13,6 +16,7 @@ export function useSocketConnection() {
     setError,
     setPhase,
     setWords,
+    setGameConfig,
     setCurrentQuestion,
     setQuizResult,
     setQuizReveal,
@@ -20,35 +24,76 @@ export function useSocketConnection() {
     setRoundResult,
     setGameOver,
   } = useGameStore();
+  const { sfxEnabled } = useAudioStore();
 
   useEffect(() => {
     const socket = connectSocket();
 
+    const playSfx = (fn: () => void) => {
+      if (sfxEnabled) fn();
+    };
+
     const onConnect = () => {
       setConnected(true);
       setMyId(socket.id || "");
-      setError(null); // 连接成功后清除之前的错误提示
+      setError(null);
+      // 连接成功后解锁音频
+      unlockAudio();
     };
     const onDisconnect = () => setConnected(false);
     const onConnectError = () => setError("无法连接到服务器");
 
     const onRoomCreated = () => {};
-    const onRoomJoined = ({ room }) => setRoom(room);
-    const onRoomUpdated = ({ room }) => setRoom(room);
+    let prevPlayerCount = 1;
+    const onRoomJoined = ({ room }) => {
+      setRoom(room);
+      // 对手加入提示（玩家数从 1 变 2）
+      if (room.players.length > prevPlayerCount) {
+        playSfx(sfx.opponentJoin);
+      }
+      prevPlayerCount = room.players.length;
+    };
+    const onRoomUpdated = ({ room }) => {
+      setRoom(room);
+      if (room.players.length > prevPlayerCount) {
+        playSfx(sfx.opponentJoin);
+      }
+      prevPlayerCount = room.players.length;
+    };
     const onRoomError = ({ message }) => setError(message);
 
     const onGameState = ({ phase, currentRound }) => {
       setPhase(phase, currentRound);
     };
     const onGameWords = ({ words }) => setWords(words);
+    const onGameConfig = (c) => setGameConfig(c);
 
     const onQuizQuestion = (q) => setCurrentQuestion(q);
-    const onQuizResult = (r) => setQuizResult(r);
-    const onQuizOpponentAnswered = () => setOpponentAnswered(true);
+    const onQuizResult = (r) => {
+      setQuizResult(r);
+      playSfx(r.correct ? sfx.correct : sfx.wrong);
+    };
+    const onQuizOpponentAnswered = () => {
+      setOpponentAnswered(true);
+      playSfx(sfx.opponentAnswered);
+    };
     const onQuizReveal = (r) => setQuizReveal(r);
 
-    const onRoundResult = (r) => setRoundResult(r);
-    const onGameOver = (g) => setGameOver(g);
+    const onRoundResult = (r) => {
+      setRoundResult(r);
+      playSfx(sfx.roundEnd);
+    };
+    const onGameOver = (g) => {
+      setGameOver(g);
+      const myId = useGameStore.getState().myId;
+      if (g.winnerId && g.winnerId === myId) {
+        playSfx(sfx.win);
+      } else if (g.winnerId === null) {
+        playSfx(sfx.roundEnd);
+      } else {
+        playSfx(sfx.lose);
+      }
+    };
     const onPlayerLeft = () => {
       // 房间状态会通过 room:updated 更新
     };
@@ -62,6 +107,7 @@ export function useSocketConnection() {
     socket.on("room:error", onRoomError);
     socket.on("game:state", onGameState);
     socket.on("game:words", onGameWords);
+    socket.on("game:config", onGameConfig);
     socket.on("quiz:question", onQuizQuestion);
     socket.on("quiz:result", onQuizResult);
     socket.on("quiz:opponent-answered", onQuizOpponentAnswered);
@@ -80,6 +126,7 @@ export function useSocketConnection() {
       socket.off("room:error", onRoomError);
       socket.off("game:state", onGameState);
       socket.off("game:words", onGameWords);
+      socket.off("game:config", onGameConfig);
       socket.off("quiz:question", onQuizQuestion);
       socket.off("quiz:result", onQuizResult);
       socket.off("quiz:opponent-answered", onQuizOpponentAnswered);
@@ -88,7 +135,7 @@ export function useSocketConnection() {
       socket.off("game:over", onGameOver);
       socket.off("player:left", onPlayerLeft);
     };
-  }, []);
+  }, [sfxEnabled]);
 
   return { socket: getSocket() };
 }
@@ -104,6 +151,10 @@ export function useRoomActions() {
     joinRoom: (roomId: string, nickname: string) =>
       socket.emit("room:join", { roomId, nickname }),
     toggleReady: (roomId: string) => socket.emit("room:ready", { roomId }),
+    setWordsCount: (roomId: string, count: number) =>
+      socket.emit("room:set-words-count", { roomId, count }),
+    setDifficulty: (roomId: string, difficulty: Difficulty) =>
+      socket.emit("room:set-difficulty", { roomId, difficulty }),
     startGame: (roomId: string) => socket.emit("game:start", { roomId }),
     leaveRoom: (roomId: string) => socket.emit("room:leave", { roomId }),
     nextStage: (roomId: string) => socket.emit("game:next-stage", { roomId }),

@@ -3,24 +3,39 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Copy, Check, Play, LogOut, Users } from "lucide-react";
 import { useRoomActions } from "@/hooks/useSocket";
 import { useGameStore } from "@/store/gameStore";
+import { useAudioStore } from "@/store/audioStore";
+import { sfx } from "@/audio/engine";
 import PlayerCard from "@/components/PlayerCard";
+import { DIFFICULTY_LIST, getDifficultyConfig } from "@/lib/difficulty";
 
 export default function Lobby() {
   const { roomId } = useParams<{ roomId: string }>();
-  const { toggleReady, startGame, leaveRoom } = useRoomActions();
+  const { toggleReady, startGame, leaveRoom, setWordsCount, setDifficulty } =
+    useRoomActions();
   const { room, myId, phase } = useGameStore();
+  const { sfxEnabled } = useAudioStore();
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
+
+  const playSfx = (fn: () => void) => {
+    if (sfxEnabled) fn();
+  };
 
   const me = room?.players.find((p) => p.id === myId);
   const opponent = room?.players.find((p) => p.id !== myId);
   const isHost = me?.isHost;
-  const bothReady = room?.players.length === 2 && room.players.every((p) => p.isReady);
+  const bothReady =
+    room?.players.length === 2 && room.players.every((p) => p.isReady);
+
+  const wordsPerRound = room?.wordsPerRound ?? 30;
+  const difficulty = room?.difficulty ?? "normal";
+  const diffConfig = getDifficultyConfig(difficulty);
 
   const handleCopy = () => {
     if (!roomId) return;
     navigator.clipboard.writeText(roomId);
     setCopied(true);
+    playSfx(sfx.click);
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -29,7 +44,6 @@ export default function Lobby() {
     navigate("/");
   };
 
-  // 监听游戏开始：用 store 的 phase（game:state 事件更新的是 store.phase，不是 room.phase）
   useEffect(() => {
     if (phase && phase !== "WAITING" && room?.roomId) {
       navigate(`/game/${room.roomId}`);
@@ -104,11 +118,84 @@ export default function Lobby() {
           )}
         </div>
 
+        {/* 难度选择（房主可改，非房主只读） */}
+        <div className="w-full bg-white rounded-doodle border-2 border-ink p-4 mb-3 shadow-soft">
+          <p className="font-display text-ink text-sm mb-2 flex items-center justify-between">
+            <span>难度选择</span>
+            {!isHost && <span className="text-xs text-ink-muted">房主设置</span>}
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {DIFFICULTY_LIST.map((d) => (
+              <button
+                key={d.key}
+                disabled={!isHost}
+                onClick={() => {
+                  if (roomId && isHost) {
+                    setDifficulty(roomId, d.key);
+                    playSfx(sfx.uiTick);
+                  }
+                }}
+                className={`py-2.5 rounded-doodle border-2 font-display text-sm transition-all flex items-center justify-center gap-1.5 ${
+                  difficulty === d.key
+                    ? "bg-coral text-white border-ink shadow-soft"
+                    : "bg-white text-ink border-ink/30"
+                } ${!isHost ? "cursor-not-allowed opacity-70" : "btn-press"}`}
+              >
+                <span>{d.icon}</span>
+                {d.label}
+              </button>
+            ))}
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-x-2 text-xs text-ink-muted">
+            <span>看词 {diffConfig.viewTime}s</span>
+            <span>画图 {diffConfig.drawTime}s</span>
+            <span>答题 {diffConfig.quizCount} 题</span>
+            <span>词库 {diffConfig.categories.length === 0 ? "全" : "筛选"}</span>
+          </div>
+        </div>
+
+        {/* 题量选择（房主可改，非房主只读） */}
+        <div className="w-full bg-white rounded-doodle border-2 border-ink p-4 mb-6 shadow-soft">
+          <p className="font-display text-ink text-sm mb-2 flex items-center justify-between">
+            <span>题量选择</span>
+            {!isHost && <span className="text-xs text-ink-muted">房主设置</span>}
+          </p>
+          <div className="flex gap-2">
+            {[15, 30].map((n) => (
+              <button
+                key={n}
+                disabled={!isHost}
+                onClick={() => {
+                  if (roomId && isHost) {
+                    setWordsCount(roomId, n);
+                    playSfx(sfx.uiTick);
+                  }
+                }}
+                className={`flex-1 py-3 rounded-doodle border-2 font-display text-base transition-all ${
+                  wordsPerRound === n
+                    ? "bg-coral text-white border-ink shadow-soft"
+                    : "bg-white text-ink border-ink/30"
+                } ${!isHost ? "cursor-not-allowed opacity-70" : "btn-press"}`}
+              >
+                {n} 词
+              </button>
+            ))}
+          </div>
+          <p className="text-center text-xs text-ink-muted mt-2">
+            共 {wordsPerRound} 个词 · 答题 {diffConfig.quizCount} 题
+          </p>
+        </div>
+
         {/* 操作按钮 */}
         <div className="w-full space-y-3">
           {isHost ? (
             <button
-              onClick={() => roomId && startGame(roomId)}
+              onClick={() => {
+                if (roomId && bothReady) {
+                  playSfx(sfx.click);
+                  startGame(roomId);
+                }
+              }}
               disabled={!bothReady}
               className="btn-press w-full py-4 bg-coral text-white font-display text-xl rounded-doodle shadow-pop border-2 border-ink disabled:opacity-40 flex items-center justify-center gap-2"
             >
@@ -117,11 +204,12 @@ export default function Lobby() {
             </button>
           ) : (
             <button
-              onClick={() => roomId && toggleReady(roomId)}
+              onClick={() => {
+                playSfx(sfx.click);
+                if (roomId) toggleReady(roomId);
+              }}
               className={`btn-press w-full py-4 font-display text-xl rounded-doodle shadow-pop border-2 border-ink flex items-center justify-center gap-2 ${
-                me?.isReady
-                  ? "bg-warn text-white"
-                  : "bg-mint text-ink"
+                me?.isReady ? "bg-warn text-white" : "bg-mint text-ink"
               }`}
             >
               {me?.isReady ? "取消准备" : "准备好了"}
@@ -130,7 +218,10 @@ export default function Lobby() {
 
           {isHost && (
             <button
-              onClick={() => roomId && toggleReady(roomId)}
+              onClick={() => {
+                playSfx(sfx.click);
+                if (roomId) toggleReady(roomId);
+              }}
               className={`btn-press w-full py-3 font-display text-lg rounded-doodle shadow-pop border-2 border-ink ${
                 me?.isReady ? "bg-warn text-white" : "bg-white text-ink"
               }`}
@@ -144,10 +235,10 @@ export default function Lobby() {
         <div className="w-full mt-6 bg-cream-dark rounded-doodle p-4 border-2 border-ink-muted">
           <p className="font-display text-ink text-sm mb-2">📋 游戏规则</p>
           <ul className="text-xs text-ink-muted space-y-1">
-            <li>· 共3轮，每轮30个词语</li>
-            <li>· 看词5秒/个，然后凭记忆作画</li>
+            <li>· 共3轮，每轮 {wordsPerRound} 个词语</li>
+            <li>· 看词 {diffConfig.viewTime}s，画图 {diffConfig.drawTime}s</li>
             <li>· 画中不能有文字，否则出局！</li>
-            <li>· 每轮10题，看画猜词，答对+1分</li>
+            <li>· 每轮 {diffConfig.quizCount} 题，看画猜词，答对+1分</li>
             <li>· 3轮总分高者获胜</li>
           </ul>
         </div>

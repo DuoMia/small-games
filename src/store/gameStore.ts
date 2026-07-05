@@ -3,6 +3,7 @@ import type {
   GamePhase,
   PlayerView,
   RoomView,
+  GameConfig,
   QuestionData,
   QuizResultData,
   QuizRevealData,
@@ -23,7 +24,8 @@ interface GameState {
   phase: GamePhase;
   currentRound: number;
   words: string[];
-  drawings: string[]; // 自己的30张画作
+  drawings: string[]; // 自己的画作
+  gameConfig: GameConfig | null; // 难度对应的时间/题量配置
 
   // 答题
   currentQuestion: QuestionData | null;
@@ -43,6 +45,7 @@ interface GameState {
   setPhase: (phase: GamePhase, round?: number) => void;
   setWords: (words: string[]) => void;
   setDrawings: (drawings: string[]) => void;
+  setGameConfig: (c: GameConfig | null) => void;
   setCurrentQuestion: (q: QuestionData | null) => void;
   setQuizResult: (r: QuizResultData | null) => void;
   setQuizReveal: (r: QuizRevealData | null) => void;
@@ -61,6 +64,7 @@ export const useGameStore = create<GameState>((set) => ({
   currentRound: 0,
   words: [],
   drawings: [],
+  gameConfig: null,
   currentQuestion: null,
   quizResult: null,
   quizReveal: null,
@@ -76,13 +80,12 @@ export const useGameStore = create<GameState>((set) => ({
     set((s) => ({
       phase,
       currentRound: round ?? s.currentRound,
-      // 切换阶段时清理答题状态
       ...(phase !== "QUIZ" ? { currentQuestion: null, quizResult: null, quizReveal: null, opponentAnswered: false } : {}),
-      // 新阶段开始时清理结算
-      ...(phase === "WORD_DISPLAY" ? { roundResult: null, gameOver: null } : {}),
+      ...(phase === "WORD_DISPLAY" || phase === "DRAWING" ? { roundResult: null, gameOver: null } : {}),
     })),
   setWords: (words) => set({ words }),
   setDrawings: (drawings) => set({ drawings }),
+  setGameConfig: (c) => set({ gameConfig: c }),
   setCurrentQuestion: (q) =>
     set({
       currentQuestion: q,
@@ -103,6 +106,7 @@ export const useGameStore = create<GameState>((set) => ({
       currentRound: 0,
       words: [],
       drawings: [],
+      gameConfig: null,
       currentQuestion: null,
       quizResult: null,
       quizReveal: null,

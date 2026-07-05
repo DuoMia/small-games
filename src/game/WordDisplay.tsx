@@ -2,15 +2,26 @@ import { useState, useEffect, useRef } from "react";
 import { Eye, ArrowRight } from "lucide-react";
 import { useGameStore } from "@/store/gameStore";
 import { useRoomActions } from "@/hooks/useSocket";
+import { useAudioStore } from "@/store/audioStore";
+import { sfx } from "@/audio/engine";
 
-const WORD_DURATION = 5; // 每个词5秒
+// 默认每词5秒（normal），后端 game:config 下发后更新
+const DEFAULT_WORD_DURATION = 5;
 
 export default function WordDisplay({ roomId }: { roomId: string }) {
-  const { words, currentRound } = useGameStore();
+  const { words, currentRound, gameConfig } = useGameStore();
   const { nextStage } = useRoomActions();
+  const { sfxEnabled } = useAudioStore();
+  const wordDuration = gameConfig?.wordDuration ?? DEFAULT_WORD_DURATION;
+
+  const playSfx = (fn: () => void) => {
+    if (sfxEnabled) fn();
+  };
+
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(WORD_DURATION);
+  const [timeLeft, setTimeLeft] = useState(wordDuration);
   const finishedRef = useRef(false);
+  const lastSecRef = useRef<number>(-1);
 
   useEffect(() => {
     if (currentIndex >= words.length) {
@@ -22,12 +33,23 @@ export default function WordDisplay({ roomId }: { roomId: string }) {
       return;
     }
 
-    setTimeLeft(WORD_DURATION);
+    setTimeLeft(wordDuration);
+    lastSecRef.current = Math.ceil(wordDuration);
     const start = Date.now();
     const interval = setInterval(() => {
       const elapsed = (Date.now() - start) / 1000;
-      const left = Math.max(0, WORD_DURATION - elapsed);
+      const left = Math.max(0, wordDuration - elapsed);
       setTimeLeft(left);
+      // 滴答音效：每整秒触发
+      const sec = Math.ceil(left);
+      if (sec !== lastSecRef.current && sec > 0) {
+        lastSecRef.current = sec;
+        if (left <= 3 && left > 0) {
+          playSfx(sfx.tickUrgent);
+        } else {
+          playSfx(sfx.tick);
+        }
+      }
       if (left <= 0) {
         clearInterval(interval);
         setCurrentIndex((prev) => prev + 1);
@@ -35,11 +57,14 @@ export default function WordDisplay({ roomId }: { roomId: string }) {
     }, 50);
 
     return () => clearInterval(interval);
-  }, [currentIndex, words.length, roomId, nextStage]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIndex, words.length, roomId, nextStage, wordDuration, sfxEnabled]);
 
   const isFinished = currentIndex >= words.length;
   const currentWord = !isFinished ? words[currentIndex] : "";
-  const progress = ((currentIndex + (WORD_DURATION - timeLeft) / WORD_DURATION) / words.length) * 100;
+  const progress =
+    ((currentIndex + (wordDuration - timeLeft) / wordDuration) / words.length) *
+    100;
 
   return (
     <div className="paper-bg h-[100dvh] flex flex-col">
@@ -87,11 +112,11 @@ export default function WordDisplay({ roomId }: { roomId: string }) {
               </div>
               {/* 倒计时圆点 */}
               <div className="flex items-center justify-center gap-1.5 mt-4">
-                {Array.from({ length: WORD_DURATION }, (_, i) => (
+                {Array.from({ length: wordDuration }, (_, i) => (
                   <div
                     key={i}
                     className={`w-2 h-2 rounded-full transition-colors ${
-                      i < WORD_DURATION - Math.ceil(timeLeft)
+                      i < wordDuration - Math.ceil(timeLeft)
                         ? "bg-coral"
                         : "bg-cream-dark"
                     }`}
