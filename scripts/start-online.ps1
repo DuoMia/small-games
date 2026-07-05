@@ -1,401 +1,623 @@
 ﻿#Requires -Version 5.0
-# 画词记忆 · 后端隧道启动脚本（Cloudflare Tunnel）
+# 画词记忆 · 服务管理器（GUI 版）
 # 双击「在线游玩.bat」即可启动
 #
-# 架构说明：
-#   - 前端：部署在 Cloudflare Pages（独立域名）
-#   - 后端：本地 Node.js + Cloudflare Tunnel 隧道
-#
-# 本脚本只负责启动后端 + 创建隧道，输出公网隧道 URL。
-# 拿到 URL 后，需要去 Cloudflare Pages 项目设置里更新
-# VITE_API_BASE 环境变量为此 URL，然后重新部署前端。
+# 参考 stock-helper 项目设计：
+#   - Windows Forms GUI 窗口
+#   - 后端 + 隧道独立启停
+#   - 拿到 URL 即显示，不强制验证可达性
+#   - 后台定时健康检查（仅状态显示，不阻塞）
 
-$ErrorActionPreference = "Stop"
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
 
-# ---------- 配置 ----------
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $CloudflaredDir = Join-Path $ProjectRoot ".tools"
 $CloudflaredExe = Join-Path $CloudflaredDir "cloudflared.exe"
-$Port = 3001
-$ServerUrl = "http://localhost:$Port"
-
-# ---------- 工具函数 ----------
-function Write-Title($text) {
-    Write-Host ""
-    Write-Host ("=" * 56) -ForegroundColor Yellow
-    Write-Host "  $text" -ForegroundColor Yellow
-    Write-Host ("=" * 56) -ForegroundColor Yellow
-    Write-Host ""
-}
-
-function Write-Step($text) {
-    Write-Host "[步骤] " -ForegroundColor Cyan -NoNewline
-    Write-Host $text
-}
-
-function Write-Ok($text) {
-    Write-Host "[完成] " -ForegroundColor Green -NoNewline
-    Write-Host $text
-}
-
-function Write-Err($text) {
-    Write-Host "[错误] " -ForegroundColor Red -NoNewline
-    Write-Host $text
-}
-
-function Write-Info($text) {
-    Write-Host "[信息] " -ForegroundColor DarkGray -NoNewline
-    Write-Host $text
-}
-
-# ---------- 检查 Node.js ----------
-Write-Title "画词记忆 · 后端隧道启动器"
-Write-Step "检查 Node.js 环境..."
-try {
-    $nodeVersion = node --version
-    Write-Ok "Node.js $nodeVersion"
-} catch {
-    Write-Err "未检测到 Node.js，请先安装：https://nodejs.org"
-    Read-Host "按回车键退出"
-    exit 1
-}
-
-# ---------- 安装依赖 ----------
-$NodeModules = Join-Path $ProjectRoot "node_modules"
-if (-not (Test-Path $NodeModules)) {
-    Write-Step "首次运行，安装依赖中（约 1 分钟）..."
-    Push-Location $ProjectRoot
-    npm install --silent
-    Pop-Location
-    Write-Ok "依赖安装完成"
-}
-
-# ---------- 下载 cloudflared ----------
-if (-not (Test-Path $CloudflaredExe)) {
-    Write-Step "首次运行，下载 cloudflared..."
-    New-Item -ItemType Directory -Force -Path $CloudflaredDir | Out-Null
-
-    $arch = if ([Environment]::Is64BitOperatingSystem) { "amd64" } else { "386" }
-    $fileName = "cloudflared-windows-$arch.exe"
-
-    # 多个镜像源（国内加速）
-    $mirrors = @(
-        "https://github.com/cloudflare/cloudflared/releases/latest/download/$fileName",
-        "https://ghproxy.com/https://github.com/cloudflare/cloudflared/releases/latest/download/$fileName",
-        "https://gh-proxy.com/https://github.com/cloudflare/cloudflared/releases/latest/download/$fileName",
-        "https://mirror.ghproxy.com/https://github.com/cloudflare/cloudflared/releases/latest/download/$fileName",
-        "https://ghps.cc/https://github.com/cloudflare/cloudflared/releases/latest/download/$fileName"
-    )
-
-    $ProgressPreference = 'SilentlyContinue'
-    $downloaded = $false
-
-    foreach ($url in $mirrors) {
-        Write-Info "尝试下载: $url"
-        try {
-            Invoke-WebRequest -Uri $url -OutFile $CloudflaredExe -UseBasicParsing -TimeoutSec 120
-            # 验证文件：1. 大小 > 10MB；2. 是有效的 PE 文件（MZ 头）
-            $fileSize = (Get-Item $CloudflaredExe).Length
-            $isValid = $false
-            if ($fileSize -gt 10000000) {
-                $bytes = [System.IO.File]::ReadAllBytes($CloudflaredExe)[0..1]
-                if ($bytes[0] -eq 0x4D -and $bytes[1] -eq 0x5A) {
-                    $isValid = $true
-                }
-            }
-            if ($isValid) {
-                Write-Ok "cloudflared 下载完成（$([math]::Round($fileSize/1MB, 1)) MB）"
-                $downloaded = $true
-                break
-            } else {
-                Write-Info "下载文件无效（大小 $($fileSize) 字节，非有效 PE），尝试下一个镜像..."
-                Remove-Item $CloudflaredExe -ErrorAction SilentlyContinue
-            }
-        } catch {
-            Write-Info "此源失败: $($_.Exception.Message)"
-            if (Test-Path $CloudflaredExe) {
-                Remove-Item $CloudflaredExe -ErrorAction SilentlyContinue
-            }
-        }
-    }
-
-    if (-not $downloaded) {
-        Write-Err "所有下载源均失败"
-        Write-Host ""
-        Write-Host "请手动下载 cloudflared：" -ForegroundColor Yellow
-        Write-Host "  https://github.com/cloudflare/cloudflared/releases/latest/download/$fileName"
-        Write-Host "并放置到: $CloudflaredDir"
-        Read-Host "按回车键退出"
-        exit 1
-    }
-} else {
-    Write-Ok "cloudflared 已就绪"
-}
-
-# ---------- 配置 CORS 白名单（CF Pages 前端域名）----------
+$BackEndPort = 3001
 $PagesConfigPath = Join-Path $ProjectRoot ".cf-pages-domain"
-$savedPagesDomain = $null
+
+# 读取记忆的 Pages 域名
+$savedPagesDomain = ""
 if (Test-Path $PagesConfigPath) {
     $savedPagesDomain = (Get-Content $PagesConfigPath -Raw -ErrorAction SilentlyContinue).Trim()
 }
 
-Write-Host ""
-Write-Host "────────────────────────────────────────────────────────" -ForegroundColor DarkGray
-Write-Host "  配置 Cloudflare Pages 前端域名（用于 CORS 跨域白名单）" -ForegroundColor Yellow
-Write-Host "────────────────────────────────────────────────────────" -ForegroundColor DarkGray
-if ($savedPagesDomain) {
-    Write-Host "  上次保存的 Pages 域名: " -NoNewline
-    Write-Host $savedPagesDomain -ForegroundColor Green
-    Write-Host "  直接回车沿用此域名，或输入新域名覆盖" -ForegroundColor DarkGray
-    $userInput = Read-Host "  Pages 域名（留空沿用上次）"
-    if ($userInput.Trim()) {
-        $savedPagesDomain = $userInput.Trim()
-        [System.IO.File]::WriteAllText($PagesConfigPath, $savedPagesDomain, [System.Text.Encoding]::UTF8)
-    }
-} else {
-    Write-Host "  首次使用，请输入你的 Cloudflare Pages 域名" -ForegroundColor White
-    Write-Host "  例如: https://small-game-abc.pages.dev" -ForegroundColor DarkGray
-    Write-Host "  如果还没创建 Pages 项目，直接回车跳过（仅本地访问）" -ForegroundColor DarkGray
-    $userInput = Read-Host "  Pages 域名"
-    if ($userInput.Trim()) {
-        $savedPagesDomain = $userInput.Trim()
-        [System.IO.File]::WriteAllText($PagesConfigPath, $savedPagesDomain, [System.Text.Encoding]::UTF8)
-    }
-}
-Write-Host ""
+$script:backendPid = 0
+$script:tunnelPid = 0
+$script:tunnelUrl = ""
+$script:tunnelLogFile = Join-Path $env:TEMP "cloudflared-tunnel.log"
+$script:tunnelStartTime = $null
+$script:tunnelTimeoutWarned = $false
+$script:pagesDomain = $savedPagesDomain
 
-# ---------- 启动后端 ----------
-Write-Step "启动后端服务（端口 $Port）..."
-$env:PORT = $Port
-if ($savedPagesDomain) {
-    $env:CORS_ORIGINS = $savedPagesDomain
-    Write-Info "CORS 白名单: $savedPagesDomain"
-}
-
-$serverJob = Start-Job -ScriptBlock {
-    param($ProjectRoot, $Port, $CorsOrigins)
-    $env:PORT = $Port
-    if ($CorsOrigins) { $env:CORS_ORIGINS = $CorsOrigins }
-    Set-Location $ProjectRoot
-    npx tsx api/server.ts 2>&1
-} -ArgumentList $ProjectRoot, $Port, $savedPagesDomain
-
-# 等待后端启动
-$serverReady = $false
-for ($i = 0; $i -lt 30; $i++) {
-    Start-Sleep -Milliseconds 500
+# ---------- 工具函数 ----------
+function Write-Log($msg) {
     try {
-        $response = Invoke-WebRequest -Uri "$ServerUrl/api/health" -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
-        if ($response.StatusCode -eq 200) {
-            $serverReady = $true
-            break
+        $time = Get-Date -Format "HH:mm:ss"
+        if ($txtBox.IsHandleCreated) {
+            $txtBox.Invoke([Action]{
+                $txtBox.AppendText("[$time] $msg`r`n")
+            })
         }
-    } catch {
-        # 继续等待
-    }
+    } catch {}
 }
 
-if (-not $serverReady) {
-    Write-Err "后端启动失败"
-    Receive-Job $serverJob
-    Read-Host "按回车键退出"
-    exit 1
-}
-Write-Ok "后端服务已启动"
-
-# ---------- 启动 Cloudflare Tunnel ----------
-Write-Step "创建 Cloudflare Tunnel 公网通道（最多等待 90 秒）..."
-
-# 清理可能残留的 cloudflared 进程
-try {
-    $staleCf = Get-Process -Name "cloudflared" -ErrorAction SilentlyContinue
-    if ($staleCf) {
-        Write-Info "发现残留 cloudflared 进程，正在清理..."
-        $staleCf | Stop-Process -Force -ErrorAction SilentlyContinue
-        Start-Sleep -Seconds 1
-        Write-Ok "残留进程已清理"
-    }
-} catch {
-    # 忽略
-}
-
-# 用临时日志文件捕获 cloudflared 输出
-$tunnelLog = Join-Path $env:TEMP "cloudflared-tunnel.log"
-$tunnelErrLog = "$tunnelLog.err"
-foreach ($lf in @($tunnelLog, $tunnelErrLog)) {
-    if (Test-Path $lf) {
-        Remove-Item $lf -Force -ErrorAction SilentlyContinue
-    }
-}
-
-$cfProcess = Start-Process -FilePath $CloudflaredExe `
-    -ArgumentList "tunnel", "--url", "http://localhost:$Port", "--no-autoupdate", "--protocol", "http2" `
-    -RedirectStandardOutput $tunnelLog `
-    -RedirectStandardError "$tunnelLog.err" `
-    -NoNewWindow `
-    -PassThru
-
-# 解析公网 URL（最多等待 90 秒）
-$publicUrl = $null
-$startTime = Get-Date
-while (((Get-Date) - $startTime).TotalSeconds -lt 90) {
-    Start-Sleep -Seconds 2
-    $logContent = ""
-    if (Test-Path $tunnelLog) {
-        $logContent += Get-Content $tunnelLog -Raw -ErrorAction SilentlyContinue
-    }
-    if (Test-Path $tunnelErrLog) {
-        $logContent += Get-Content $tunnelErrLog -Raw -ErrorAction SilentlyContinue
-    }
-    if ($logContent -match 'https://[a-z0-9-]+\.trycloudflare\.com') {
-        $publicUrl = $matches[0]
-        break
-    }
-    if ($cfProcess.HasExited) {
-        Write-Info "cloudflared 进程已退出，退出码: $($cfProcess.ExitCode)"
-        break
-    }
-    $elapsed = [int]((Get-Date) - $startTime).TotalSeconds
-    if ($elapsed % 15 -eq 0 -and $elapsed -gt 0) {
-        Write-Info "已等待 ${elapsed} 秒..."
-    }
-}
-
-if (-not $publicUrl) {
-    Write-Err "Cloudflare Tunnel 创建超时"
-    Write-Host ""
-    Write-Host "可能原因：" -ForegroundColor Yellow
-    Write-Host "  1. 网络问题（无法连接 Cloudflare 服务器）"
-    Write-Host "  2. 防火墙拦截"
-    Write-Host "  3. 国内网络环境需要科学上网"
-    Write-Host ""
-    Write-Host "cloudflared 日志：" -ForegroundColor DarkGray
-    if (Test-Path $tunnelLog) {
-        Get-Content $tunnelLog -Tail 20 -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
-    }
-    if (Test-Path $tunnelErrLog) {
-        Get-Content $tunnelErrLog -Tail 20 -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
-    }
-    if (-not $cfProcess.HasExited) { Stop-Process -Id $cfProcess.Id -Force -ErrorAction SilentlyContinue }
-    Stop-Job $serverJob -ErrorAction SilentlyContinue
-    Read-Host "按回车键退出"
-    exit 1
-}
-
-Write-Ok "公网通道已创建（URL 已分配）"
-Write-Step "验证公网可达性（最多等待 40 秒）..."
-
-# 拿到 URL 后立即验证可达性
-$reachable = $false
-$verifyStart = Get-Date
-while (((Get-Date) - $verifyStart).TotalSeconds -lt 40) {
-    if ($cfProcess.HasExited) {
-        Write-Err "cloudflared 进程意外退出"
-        break
-    }
+function Is-ProcessRunning($procId) {
+    if ($procId -le 0) { return $false }
     try {
-        $curlOut = & curl.exe -sS -o $null -w "%{http_code}" -m 8 "$publicUrl/api/health" 2>$null
-        if ($curlOut -eq "200") {
-            $reachable = $true
-            break
+        $p = Get-Process -Id $procId -ErrorAction SilentlyContinue
+        return $p -ne $null
+    } catch { return $false }
+}
+
+function Update-Status {
+    try {
+        if (-not $form.IsHandleCreated) { return }
+        $beRunning = Is-ProcessRunning $script:backendPid
+        $tnRunning = Is-ProcessRunning $script:tunnelPid
+
+        $form.Invoke([Action]{
+            $btnStartBE.Enabled = -not $beRunning
+            $btnStopBE.Enabled = $beRunning
+            $lblBEStatus.Text = if ($beRunning) { "运行中" } else { "已停止" }
+            $lblBEStatus.ForeColor = if ($beRunning) { [System.Drawing.Color]::LightGreen } else { [System.Drawing.Color]::Salmon }
+
+            $btnStartTN.Enabled = -not $tnRunning
+            $btnStopTN.Enabled = $tnRunning
+            $lblTNStatus.Text = if ($tnRunning) { "运行中" } else { "已停止" }
+            $lblTNStatus.ForeColor = if ($tnRunning) { [System.Drawing.Color]::LightGreen } else { [System.Drawing.Color]::Salmon }
+
+            $btnStartAll.Enabled = -not ($beRunning -and $tnRunning)
+            $btnStopAll.Enabled = $beRunning -or $tnRunning
+        })
+    } catch {}
+}
+
+# ---------- 启动/停止后端 ----------
+function Start-Backend {
+    if (Is-ProcessRunning $script:backendPid) {
+        Write-Log "后端服务已在运行中"
+        return
+    }
+
+    # 检查依赖
+    $NodeModules = Join-Path $ProjectRoot "node_modules"
+    if (-not (Test-Path $NodeModules)) {
+        Write-Log "首次运行，安装依赖中（约 1 分钟）..."
+        Push-Location $ProjectRoot
+        npm install --silent
+        Pop-Location
+    }
+
+    Write-Log "正在启动后端服务..."
+    $env:PORT = $BackEndPort
+    if ($script:pagesDomain) {
+        $env:CORS_ORIGINS = $script:pagesDomain
+        Write-Log "CORS 白名单: $($script:pagesDomain)"
+    }
+
+    $p = Start-Process -FilePath "npx" -ArgumentList "tsx api/server.ts" -WorkingDirectory $ProjectRoot -WindowStyle Hidden -PassThru
+    $script:backendPid = $p.Id
+    Write-Log "后端服务已启动 (PID: $($p.Id), 端口: $BackEndPort)"
+    Update-Status
+}
+
+function Stop-Backend {
+    if (-not (Is-ProcessRunning $script:backendPid)) {
+        Write-Log "后端服务未在运行"
+        return
+    }
+    Write-Log "正在停止后端服务..."
+    try {
+        Start-Process -FilePath "taskkill" -ArgumentList "/T /F /PID $($script:backendPid)" -NoNewWindow -Wait -ErrorAction SilentlyContinue | Out-Null
+        $script:backendPid = 0
+        Write-Log "后端服务已停止"
+    } catch {
+        Write-Log "停止后端失败: $_"
+    }
+    Update-Status
+}
+
+# ---------- 启动/停止隧道 ----------
+function Start-Tunnel {
+    if (Is-ProcessRunning $script:tunnelPid) {
+        Write-Log "隧道已在运行中"
+        return
+    }
+    if (-not (Test-Path $CloudflaredExe)) {
+        Write-Log "错误: 未找到 cloudflared ($CloudflaredExe)"
+        Write-Log "请双击「在线游玩.bat」首次运行会自动下载"
+        return
+    }
+    Write-Log "正在启动隧道..."
+    $script:tunnelUrl = ""
+    $script:tunnelStartTime = Get-Date
+    $script:tunnelTimeoutWarned = $false
+    if (Test-Path $script:tunnelLogFile) { Remove-Item $script:tunnelLogFile -Force -ErrorAction SilentlyContinue }
+
+    $p = Start-Process -FilePath $CloudflaredExe -ArgumentList "tunnel --url http://localhost:$BackEndPort --no-autoupdate --protocol http2" -NoNewWindow -RedirectStandardError $script:tunnelLogFile -PassThru
+    $script:tunnelPid = $p.Id
+    Write-Log "隧道进程已启动 (PID: $($p.Id))"
+    Write-Log "等待分配公网地址..."
+    Update-Status
+}
+
+function Stop-Tunnel {
+    if (-not (Is-ProcessRunning $script:tunnelPid)) {
+        Write-Log "隧道未在运行"
+        return
+    }
+    Write-Log "正在停止隧道..."
+    try {
+        Start-Process -FilePath "taskkill" -ArgumentList "/T /F /PID $($script:tunnelPid)" -NoNewWindow -Wait -ErrorAction SilentlyContinue | Out-Null
+        $script:tunnelPid = 0
+        $script:tunnelUrl = ""
+        $script:tunnelStartTime = $null
+        $script:tunnelTimeoutWarned = $false
+        if ($form.IsHandleCreated) {
+            $form.Invoke([Action]{ $txtUrl.Text = ""; $txtUrl2.Text = "" })
+        }
+        Write-Log "隧道已停止"
+    } catch {
+        Write-Log "停止隧道失败: $_"
+    }
+    Update-Status
+}
+
+# ---------- 保存 Pages 域名 ----------
+function Save-PagesDomain {
+    $input = $txtPagesDomain.Text.Trim()
+    if ($input) {
+        if ($input -notmatch '^https?://') {
+            $input = "https://$input"
+        }
+        $script:pagesDomain = $input
+        [System.IO.File]::WriteAllText($PagesConfigPath, $input, [System.Text.Encoding]::UTF8)
+        Write-Log "Pages 域名已保存: $input"
+        if (Is-ProcessRunning $script:backendPid) {
+            Write-Log "重启后端以应用新的 CORS 白名单..."
+            Stop-Backend
+            Start-Backend
+        }
+    }
+}
+
+# ---------- 构建 GUI ----------
+$form = New-Object System.Windows.Forms.Form
+$form.Text = "画词记忆 · 服务管理器"
+$form.Size = New-Object System.Drawing.Size(580, 600)
+$form.StartPosition = "CenterScreen"
+$form.FormBorderStyle = "FixedSingle"
+$form.MaximizeBox = $false
+$form.BackColor = [System.Drawing.Color]::FromArgb(30, 30, 46)
+
+# 标题
+$titleLbl = New-Object System.Windows.Forms.Label
+$titleLbl.Text = "画词记忆 · 服务管理器"
+$titleLbl.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 14, [System.Drawing.FontStyle]::Bold)
+$titleLbl.ForeColor = [System.Drawing.Color]::White
+$titleLbl.AutoSize = $true
+$titleLbl.Location = New-Object System.Drawing.Point(20, 15)
+$form.Controls.Add($titleLbl)
+
+# Pages 域名配置区
+$panelPages = New-Object System.Windows.Forms.Panel
+$panelPages.Size = New-Object System.Drawing.Size(520, 65)
+$panelPages.Location = New-Object System.Drawing.Point(20, 50)
+$panelPages.BackColor = [System.Drawing.Color]::FromArgb(45, 45, 65)
+$form.Controls.Add($panelPages)
+
+$lblPages = New-Object System.Windows.Forms.Label
+$lblPages.Text = "Cloudflare Pages 域名（用于 CORS 白名单）"
+$lblPages.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 9, [System.Drawing.FontStyle]::Bold)
+$lblPages.ForeColor = [System.Drawing.Color]::White
+$lblPages.Location = New-Object System.Drawing.Point(10, 5)
+$lblPages.AutoSize = $true
+$panelPages.Controls.Add($lblPages)
+
+$txtPagesDomain = New-Object System.Windows.Forms.TextBox
+$txtPagesDomain.Text = $savedPagesDomain
+$txtPagesDomain.Font = New-Object System.Drawing.Font("Consolas", 9)
+$txtPagesDomain.BackColor = [System.Drawing.Color]::FromArgb(30, 30, 46)
+$txtPagesDomain.ForeColor = [System.Drawing.Color]::FromArgb(129, 199, 132)
+$txtPagesDomain.BorderStyle = "FixedSingle"
+$txtPagesDomain.Location = New-Object System.Drawing.Point(10, 28)
+$txtPagesDomain.Size = New-Object System.Drawing.Size(380, 22)
+$panelPages.Controls.Add($txtPagesDomain)
+
+$btnSavePages = New-Object System.Windows.Forms.Button
+$btnSavePages.Text = "保存"
+$btnSavePages.Size = New-Object System.Drawing.Size(55, 24)
+$btnSavePages.Location = New-Object System.Drawing.Point(400, 27)
+$btnSavePages.BackColor = [System.Drawing.Color]::FromArgb(70, 70, 90)
+$btnSavePages.ForeColor = [System.Drawing.Color]::White
+$btnSavePages.FlatStyle = "Flat"
+$btnSavePages.Add_Click({ Save-PagesDomain })
+$panelPages.Controls.Add($btnSavePages)
+
+$lblPagesHint = New-Object System.Windows.Forms.Label
+$lblPagesHint.Text = "格式: https://xxx.pages.dev  保存后若后端在运行会自动重启"
+$lblPagesHint.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 7)
+$lblPagesHint.ForeColor = [System.Drawing.Color]::Gray
+$lblPagesHint.Location = New-Object System.Drawing.Point(10, 55)
+$lblPagesHint.AutoSize = $true
+$panelPages.Controls.Add($lblPagesHint)
+
+# 后端服务面板
+$panelBE = New-Object System.Windows.Forms.Panel
+$panelBE.Size = New-Object System.Drawing.Size(520, 70)
+$panelBE.Location = New-Object System.Drawing.Point(20, 125)
+$panelBE.BackColor = [System.Drawing.Color]::FromArgb(45, 45, 65)
+$form.Controls.Add($panelBE)
+
+$lblBE = New-Object System.Windows.Forms.Label
+$lblBE.Text = "后端服务"
+$lblBE.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 10, [System.Drawing.FontStyle]::Bold)
+$lblBE.ForeColor = [System.Drawing.Color]::White
+$lblBE.Location = New-Object System.Drawing.Point(10, 5)
+$lblBE.AutoSize = $true
+$panelBE.Controls.Add($lblBE)
+
+$lblBEStatus = New-Object System.Windows.Forms.Label
+$lblBEStatus.Text = "已停止"
+$lblBEStatus.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 9)
+$lblBEStatus.ForeColor = [System.Drawing.Color]::Salmon
+$lblBEStatus.Location = New-Object System.Drawing.Point(90, 7)
+$lblBEStatus.AutoSize = $true
+$panelBE.Controls.Add($lblBEStatus)
+
+$lblBEHealth = New-Object System.Windows.Forms.Label
+$lblBEHealth.Text = ""
+$lblBEHealth.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 8)
+$lblBEHealth.ForeColor = [System.Drawing.Color]::Gray
+$lblBEHealth.Location = New-Object System.Drawing.Point(10, 28)
+$lblBEHealth.AutoSize = $true
+$panelBE.Controls.Add($lblBEHealth)
+
+$btnStartBE = New-Object System.Windows.Forms.Button
+$btnStartBE.Text = "启动"
+$btnStartBE.Size = New-Object System.Drawing.Size(70, 28)
+$btnStartBE.Location = New-Object System.Drawing.Point(360, 5)
+$btnStartBE.BackColor = [System.Drawing.Color]::FromArgb(76, 175, 80)
+$btnStartBE.ForeColor = [System.Drawing.Color]::White
+$btnStartBE.FlatStyle = "Flat"
+$btnStartBE.Add_Click({ Start-Backend })
+$panelBE.Controls.Add($btnStartBE)
+
+$btnStopBE = New-Object System.Windows.Forms.Button
+$btnStopBE.Text = "停止"
+$btnStopBE.Size = New-Object System.Drawing.Size(70, 28)
+$btnStopBE.Location = New-Object System.Drawing.Point(435, 5)
+$btnStopBE.BackColor = [System.Drawing.Color]::FromArgb(244, 67, 54)
+$btnStopBE.ForeColor = [System.Drawing.Color]::White
+$btnStopBE.FlatStyle = "Flat"
+$btnStopBE.Enabled = $false
+$btnStopBE.Add_Click({ Stop-Backend })
+$panelBE.Controls.Add($btnStopBE)
+
+$lblBEPort = New-Object System.Windows.Forms.Label
+$lblBEPort.Text = "端口: $BackEndPort  |  npx tsx api/server.ts"
+$lblBEPort.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 7)
+$lblBEPort.ForeColor = [System.Drawing.Color]::Gray
+$lblBEPort.Location = New-Object System.Drawing.Point(10, 48)
+$lblBEPort.AutoSize = $true
+$panelBE.Controls.Add($lblBEPort)
+
+# 隧道面板
+$panelTN = New-Object System.Windows.Forms.Panel
+$panelTN.Size = New-Object System.Drawing.Size(520, 70)
+$panelTN.Location = New-Object System.Drawing.Point(20, 205)
+$panelTN.BackColor = [System.Drawing.Color]::FromArgb(45, 45, 65)
+$form.Controls.Add($panelTN)
+
+$lblTN = New-Object System.Windows.Forms.Label
+$lblTN.Text = "Cloudflare Tunnel"
+$lblTN.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 10, [System.Drawing.FontStyle]::Bold)
+$lblTN.ForeColor = [System.Drawing.Color]::White
+$lblTN.Location = New-Object System.Drawing.Point(10, 5)
+$lblTN.AutoSize = $true
+$panelTN.Controls.Add($lblTN)
+
+$lblTNStatus = New-Object System.Windows.Forms.Label
+$lblTNStatus.Text = "已停止"
+$lblTNStatus.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 9)
+$lblTNStatus.ForeColor = [System.Drawing.Color]::Salmon
+$lblTNStatus.Location = New-Object System.Drawing.Point(140, 7)
+$lblTNStatus.AutoSize = $true
+$panelTN.Controls.Add($lblTNStatus)
+
+$lblTNHealth = New-Object System.Windows.Forms.Label
+$lblTNHealth.Text = ""
+$lblTNHealth.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 8)
+$lblTNHealth.ForeColor = [System.Drawing.Color]::Gray
+$lblTNHealth.Location = New-Object System.Drawing.Point(10, 28)
+$lblTNHealth.AutoSize = $true
+$panelTN.Controls.Add($lblTNHealth)
+
+$btnStartTN = New-Object System.Windows.Forms.Button
+$btnStartTN.Text = "启动"
+$btnStartTN.Size = New-Object System.Drawing.Size(70, 28)
+$btnStartTN.Location = New-Object System.Drawing.Point(360, 5)
+$btnStartTN.BackColor = [System.Drawing.Color]::FromArgb(76, 175, 80)
+$btnStartTN.ForeColor = [System.Drawing.Color]::White
+$btnStartTN.FlatStyle = "Flat"
+$btnStartTN.Add_Click({ Start-Tunnel })
+$panelTN.Controls.Add($btnStartTN)
+
+$btnStopTN = New-Object System.Windows.Forms.Button
+$btnStopTN.Text = "停止"
+$btnStopTN.Size = New-Object System.Drawing.Size(70, 28)
+$btnStopTN.Location = New-Object System.Drawing.Point(435, 5)
+$btnStopTN.BackColor = [System.Drawing.Color]::FromArgb(244, 67, 54)
+$btnStopTN.ForeColor = [System.Drawing.Color]::White
+$btnStopTN.FlatStyle = "Flat"
+$btnStopTN.Enabled = $false
+$btnStopTN.Add_Click({ Stop-Tunnel })
+$panelTN.Controls.Add($btnStopTN)
+
+$lblTNDesc = New-Object System.Windows.Forms.Label
+$lblTNDesc.Text = "将本地后端暴露到公网（临时 trycloudflare.com 域名）"
+$lblTNDesc.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 7)
+$lblTNDesc.ForeColor = [System.Drawing.Color]::Gray
+$lblTNDesc.Location = New-Object System.Drawing.Point(10, 48)
+$lblTNDesc.AutoSize = $true
+$panelTN.Controls.Add($lblTNDesc)
+
+# 全局按钮
+$btnStartAll = New-Object System.Windows.Forms.Button
+$btnStartAll.Text = "全部启动"
+$btnStartAll.Size = New-Object System.Drawing.Size(110, 32)
+$btnStartAll.Location = New-Object System.Drawing.Point(20, 285)
+$btnStartAll.BackColor = [System.Drawing.Color]::FromArgb(33, 150, 243)
+$btnStartAll.ForeColor = [System.Drawing.Color]::White
+$btnStartAll.FlatStyle = "Flat"
+$btnStartAll.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 9, [System.Drawing.FontStyle]::Bold)
+$btnStartAll.Add_Click({ Start-Backend; Start-Tunnel })
+$form.Controls.Add($btnStartAll)
+
+$btnStopAll = New-Object System.Windows.Forms.Button
+$btnStopAll.Text = "全部停止"
+$btnStopAll.Size = New-Object System.Drawing.Size(110, 32)
+$btnStopAll.Location = New-Object System.Drawing.Point(140, 285)
+$btnStopAll.BackColor = [System.Drawing.Color]::FromArgb(244, 67, 54)
+$btnStopAll.ForeColor = [System.Drawing.Color]::White
+$btnStopAll.FlatStyle = "Flat"
+$btnStopAll.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 9, [System.Drawing.FontStyle]::Bold)
+$btnStopAll.Enabled = $false
+$btnStopAll.Add_Click({ Stop-Tunnel; Stop-Backend })
+$form.Controls.Add($btnStopAll)
+
+$btnRestart = New-Object System.Windows.Forms.Button
+$btnRestart.Text = "重启服务"
+$btnRestart.Size = New-Object System.Drawing.Size(110, 32)
+$btnRestart.Location = New-Object System.Drawing.Point(260, 285)
+$btnRestart.BackColor = [System.Drawing.Color]::FromArgb(255, 152, 0)
+$btnRestart.ForeColor = [System.Drawing.Color]::White
+$btnRestart.FlatStyle = "Flat"
+$btnRestart.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 9, [System.Drawing.FontStyle]::Bold)
+$btnRestart.Add_Click({ Stop-Tunnel; Stop-Backend; Start-Backend; Start-Tunnel })
+$form.Controls.Add($btnRestart)
+
+$btnOpenCF = New-Object System.Windows.Forms.Button
+$btnOpenCF.Text = "CF 控制台"
+$btnOpenCF.Size = New-Object System.Drawing.Size(110, 32)
+$btnOpenCF.Location = New-Object System.Drawing.Point(380, 285)
+$btnOpenCF.BackColor = [System.Drawing.Color]::FromArgb(255, 193, 7)
+$btnOpenCF.ForeColor = [System.Drawing.Color]::Black
+$btnOpenCF.FlatStyle = "Flat"
+$btnOpenCF.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 9, [System.Drawing.FontStyle]::Bold)
+$btnOpenCF.Add_Click({
+    Start-Process "https://dash.cloudflare.com/?to=/:account/pages"
+    Write-Log "已打开 Cloudflare Pages 控制台"
+})
+$form.Controls.Add($btnOpenCF)
+
+# URL 显示区
+$panelUrl = New-Object System.Windows.Forms.Panel
+$panelUrl.Size = New-Object System.Drawing.Size(520, 110)
+$panelUrl.Location = New-Object System.Drawing.Point(20, 330)
+$panelUrl.BackColor = [System.Drawing.Color]::FromArgb(45, 45, 65)
+$form.Controls.Add($panelUrl)
+
+$lblUrl = New-Object System.Windows.Forms.Label
+$lblUrl.Text = "隧道公网地址"
+$lblUrl.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 9, [System.Drawing.FontStyle]::Bold)
+$lblUrl.ForeColor = [System.Drawing.Color]::White
+$lblUrl.Location = New-Object System.Drawing.Point(10, 5)
+$lblUrl.AutoSize = $true
+$panelUrl.Controls.Add($lblUrl)
+
+$txtUrl = New-Object System.Windows.Forms.TextBox
+$txtUrl.Text = ""
+$txtUrl.Font = New-Object System.Drawing.Font("Consolas", 9)
+$txtUrl.BackColor = [System.Drawing.Color]::FromArgb(30, 30, 46)
+$txtUrl.ForeColor = [System.Drawing.Color]::FromArgb(129, 199, 132)
+$txtUrl.BorderStyle = "None"
+$txtUrl.Location = New-Object System.Drawing.Point(10, 27)
+$txtUrl.Size = New-Object System.Drawing.Size(410, 20)
+$txtUrl.ReadOnly = $true
+$panelUrl.Controls.Add($txtUrl)
+
+$btnCopyUrl = New-Object System.Windows.Forms.Button
+$btnCopyUrl.Text = "复制"
+$btnCopyUrl.Size = New-Object System.Drawing.Size(55, 22)
+$btnCopyUrl.Location = New-Object System.Drawing.Point(430, 26)
+$btnCopyUrl.BackColor = [System.Drawing.Color]::FromArgb(70, 70, 90)
+$btnCopyUrl.ForeColor = [System.Drawing.Color]::White
+$btnCopyUrl.FlatStyle = "Flat"
+$btnCopyUrl.Add_Click({
+    if ($script:tunnelUrl) {
+        [System.Windows.Forms.Clipboard]::SetText($script:tunnelUrl)
+        Write-Log "已复制隧道地址到剪贴板"
+    }
+})
+$panelUrl.Controls.Add($btnCopyUrl)
+
+$lblUrl2 = New-Object System.Windows.Forms.Label
+$lblUrl2.Text = "VITE_API_BASE (填入 Pages 环境变量):"
+$lblUrl2.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 8)
+$lblUrl2.ForeColor = [System.Drawing.Color]::Gray
+$lblUrl2.Location = New-Object System.Drawing.Point(10, 55)
+$lblUrl2.AutoSize = $true
+$panelUrl.Controls.Add($lblUrl2)
+
+$txtUrl2 = New-Object System.Windows.Forms.TextBox
+$txtUrl2.Text = ""
+$txtUrl2.Font = New-Object System.Drawing.Font("Consolas", 8)
+$txtUrl2.BackColor = [System.Drawing.Color]::FromArgb(30, 30, 46)
+$txtUrl2.ForeColor = [System.Drawing.Color]::FromArgb(129, 199, 132)
+$txtUrl2.BorderStyle = "None"
+$txtUrl2.Location = New-Object System.Drawing.Point(10, 75)
+$txtUrl2.Size = New-Object System.Drawing.Size(410, 18)
+$txtUrl2.ReadOnly = $true
+$panelUrl.Controls.Add($txtUrl2)
+
+$btnCopyUrl2 = New-Object System.Windows.Forms.Button
+$btnCopyUrl2.Text = "复制"
+$btnCopyUrl2.Size = New-Object System.Drawing.Size(55, 18)
+$btnCopyUrl2.Location = New-Object System.Drawing.Point(430, 74)
+$btnCopyUrl2.BackColor = [System.Drawing.Color]::FromArgb(70, 70, 90)
+$btnCopyUrl2.ForeColor = [System.Drawing.Color]::White
+$btnCopyUrl2.FlatStyle = "Flat"
+$btnCopyUrl2.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 7)
+$btnCopyUrl2.Add_Click({
+    if ($script:tunnelUrl) {
+        [System.Windows.Forms.Clipboard]::SetText($script:tunnelUrl)
+        Write-Log "已复制 VITE_API_BASE 到剪贴板"
+    }
+})
+$panelUrl.Controls.Add($btnCopyUrl2)
+
+# 日志区
+$lblLogTitle = New-Object System.Windows.Forms.Label
+$lblLogTitle.Text = "运行日志"
+$lblLogTitle.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 9, [System.Drawing.FontStyle]::Bold)
+$lblLogTitle.ForeColor = [System.Drawing.Color]::White
+$lblLogTitle.Location = New-Object System.Drawing.Point(20, 450)
+$lblLogTitle.AutoSize = $true
+$form.Controls.Add($lblLogTitle)
+
+$txtBox = New-Object System.Windows.Forms.TextBox
+$txtBox.Multiline = $true
+$txtBox.ScrollBars = "Vertical"
+$txtBox.Font = New-Object System.Drawing.Font("Consolas", 8)
+$txtBox.BackColor = [System.Drawing.Color]::FromArgb(20, 20, 35)
+$txtBox.ForeColor = [System.Drawing.Color]::FromArgb(180, 180, 200)
+$txtBox.BorderStyle = "None"
+$txtBox.Location = New-Object System.Drawing.Point(20, 475)
+$txtBox.Size = New-Object System.Drawing.Size(520, 80)
+$txtBox.ReadOnly = $true
+$form.Controls.Add($txtBox)
+
+# ---------- 后台监控定时器 ----------
+$monitorTimer = New-Object System.Windows.Forms.Timer
+$monitorTimer.Interval = 3000
+$monitorTimer.Add_Tick({
+    try {
+        $beRunning = Is-ProcessRunning $script:backendPid
+        $tnRunning = Is-ProcessRunning $script:tunnelPid
+
+        # 后端健康检查
+        if ($beRunning) {
+            try {
+                $r = Invoke-WebRequest -Uri "http://localhost:$BackEndPort/api/health" -TimeoutSec 2 -UseBasicParsing
+                $form.Invoke([Action]{
+                    $lblBEHealth.Text = "健康检查: 正常"
+                    $lblBEHealth.ForeColor = [System.Drawing.Color]::LightGreen
+                })
+            } catch {
+                $form.Invoke([Action]{
+                    $lblBEHealth.Text = "健康检查: 无响应"
+                    $lblBEHealth.ForeColor = [System.Drawing.Color]::Orange
+                })
+            }
         } else {
-            Write-Info "隧道响应 HTTP $curlOut，等待重试..."
+            $form.Invoke([Action]{ $lblBEHealth.Text = "" })
         }
+
+        # 隧道日志解析 - 拿到 URL 就显示（不验证可达性）
+        if ($tnRunning -and (Test-Path $script:tunnelLogFile) -and -not $script:tunnelUrl) {
+            try {
+                $fs = [System.IO.FileStream]::new($script:tunnelLogFile, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+                $sr = [System.IO.StreamReader]::new($fs)
+                $logContent = $sr.ReadToEnd()
+                $sr.Close()
+                $fs.Close()
+                if ($logContent -match 'https://[a-z0-9\-]+\.trycloudflare\.com') {
+                    $url = [regex]::Match($logContent, 'https://[a-z0-9\-]+\.trycloudflare\.com').Value
+                    if ($url) {
+                        $script:tunnelUrl = $url
+                        Write-Log "隧道地址: $url"
+                        $form.Invoke([Action]{
+                            $txtUrl.Text = $url
+                            $txtUrl2.Text = $url
+                        })
+                        if (Is-ProcessRunning $script:backendPid) {
+                            Write-Log "重启后端以应用隧道地址到 CORS..."
+                            Stop-Backend
+                            Start-Backend
+                        }
+                    }
+                }
+            } catch {
+                Write-Log "读取隧道日志失败: $_"
+            }
+        }
+
+        # 隧道超时提示
+        if ($tnRunning -and -not $script:tunnelUrl -and $script:tunnelStartTime -and -not $script:tunnelTimeoutWarned) {
+            $elapsed = (Get-Date) - $script:tunnelStartTime
+            if ($elapsed.TotalSeconds -gt 30) {
+                Write-Log "隧道启动已超过30秒，仍在等待地址..."
+            }
+            if ($elapsed.TotalSeconds -gt 60) {
+                Write-Log "警告: 隧道启动超时，请检查网络或日志: $script:tunnelLogFile"
+                $script:tunnelTimeoutWarned = $true
+            }
+        }
+
+        # 隧道健康检查（仅状态显示，不阻塞）
+        if ($tnRunning -and $script:tunnelUrl) {
+            try {
+                $r = Invoke-WebRequest -Uri "$($script:tunnelUrl)/api/health" -TimeoutSec 3 -UseBasicParsing
+                $form.Invoke([Action]{
+                    $lblTNHealth.Text = "健康检查: 正常"
+                    $lblTNHealth.ForeColor = [System.Drawing.Color]::LightGreen
+                })
+            } catch {
+                $form.Invoke([Action]{
+                    $lblTNHealth.Text = "健康检查: 无响应（DNS 传播中或网络问题）"
+                    $lblTNHealth.ForeColor = [System.Drawing.Color]::Orange
+                })
+            }
+        } elseif (-not $tnRunning) {
+            $form.Invoke([Action]{ $lblTNHealth.Text = "" })
+        }
+
+        Update-Status
     } catch {
-        # 继续等
+        Write-Log "监控异常: $_"
     }
-    Start-Sleep -Seconds 3
-}
+})
+$monitorTimer.Start()
 
-if ($reachable) {
-    Write-Ok "公网验证通过，后端隧道可正常访问"
-} else {
-    Write-Err "公网验证失败：URL 已分配但 Cloudflare 边缘节点未路由到本地隧道"
-    Write-Host ""
-    Write-Host "可能原因：" -ForegroundColor Yellow
-    Write-Host "  1. QUIC 协议被防火墙拦截"
-    Write-Host "  2. HTTP/2 隧道连接未稳定建立"
-    Write-Host "  3. trycloudflare.com 子域名 DNS 在你所在网络解析不到"
-    Write-Host ""
-    Write-Host "建议：" -ForegroundColor Cyan
-    Write-Host "  - 关闭此窗口，重新双击「在线游玩.bat」会生成新的 URL，多试几次"
-    Write-Host "  - 实在不行，改用本地开发模式：「启动游戏.bat」+ 手机连同一 WiFi"
-    Write-Host ""
-    Write-Host "当前公网 URL 仍然显示（但可能无法访问）: $publicUrl" -ForegroundColor DarkGray
-    Write-Host ""
-    Write-Host "按回车继续，或按 Ctrl+C 退出" -ForegroundColor Yellow
-    Read-Host
-}
-
-# ---------- 生成可视化状态页面 ----------
-Write-Step "生成可视化状态页面..."
-
-# 读取 HTML 模板文件
-$templatePath = Join-Path $PSScriptRoot "status-template.html"
-if (-not (Test-Path $templatePath)) {
-    Write-Err "状态页模板文件缺失: $templatePath"
-    if (-not $cfProcess.HasExited) { Stop-Process -Id $cfProcess.Id -Force -ErrorAction SilentlyContinue }
-    Stop-Job $serverJob -ErrorAction SilentlyContinue
-    Read-Host "按回车键退出"
-    exit 1
-}
-
-$templateContent = Get-Content $templatePath -Raw -Encoding utf8
-$statusHtml = $templateContent -replace '{{PUBLIC_URL}}', $publicUrl
-
-$statusPath = Join-Path $ProjectRoot "online-status.html"
-[System.IO.File]::WriteAllText($statusPath, $statusHtml, [System.Text.Encoding]::UTF8)
-
-# 打开浏览器显示状态页
-Start-Process $statusPath
-Write-Ok "可视化状态页面已打开"
-
-# ---------- 显示状态到控制台 ----------
-Write-Title "后端隧道已就绪"
-Write-Host "  公网隧道地址: " -NoNewline
-Write-Host $publicUrl -ForegroundColor Green
-Write-Host ""
-Write-Host "  这是【后端 API 地址】，不是游戏页面地址！" -ForegroundColor Yellow
-Write-Host ""
-Write-Host "  接下来你需要做：" -ForegroundColor Cyan
-Write-Host "    1. 复制上面的公网隧道地址" -ForegroundColor White
-Write-Host "    2. 打开 Cloudflare Pages 项目 → Settings → Environment Variables" -ForegroundColor White
-Write-Host "    3. 更新 VITE_API_BASE 的值为这个地址" -ForegroundColor White
-Write-Host "    4. 在 Pages 项目里触发一次 Redeploy" -ForegroundColor White
-Write-Host "    5. 让朋友访问你的 Pages 域名（xxx.pages.dev）即可" -ForegroundColor White
-Write-Host ""
-Write-Host ("─" * 56) -ForegroundColor DarkGray
-Write-Host "  服务运行中，关闭此窗口将停止后端和隧道" -ForegroundColor Yellow
-Write-Host ("─" * 56) -ForegroundColor DarkGray
-Write-Host ""
-
-# ---------- 监控状态 ----------
-try {
-    while ($true) {
-        Start-Sleep -Seconds 5
-
-        if ($serverJob.State -eq "Completed" -or $serverJob.State -eq "Failed") {
-            Write-Err "后端服务已停止"
-            break
-        }
-
-        if ($cfProcess.HasExited) {
-            Write-Err "Cloudflare Tunnel 已断开"
-            break
-        }
+# ---------- 窗口显示 ----------
+$form.Add_Shown({
+    Update-Status
+    Write-Log "服务管理器已启动"
+    if ($savedPagesDomain) {
+        Write-Log "已加载 Pages 域名: $savedPagesDomain"
+    } else {
+        Write-Log "提示: 请先填写 Cloudflare Pages 域名并保存"
     }
-} finally {
-    Write-Host ""
-    Write-Host "正在停止所有服务..." -ForegroundColor Yellow
-    Stop-Job $serverJob -ErrorAction SilentlyContinue
-    Remove-Job $serverJob -ErrorAction SilentlyContinue
-    if (-not $cfProcess.HasExited) {
-        Stop-Process -Id $cfProcess.Id -Force -ErrorAction SilentlyContinue
-    }
-    if (Test-Path $statusPath) {
-        Remove-Item $statusPath -ErrorAction SilentlyContinue
-    }
-    Write-Ok "已停止所有服务"
-    Start-Sleep -Seconds 2
-}
+    Write-Log "点击 [全部启动] 开始运行服务"
+})
+
+$form.Add_Closing({
+    $monitorTimer.Stop()
+    Stop-Tunnel
+    Stop-Backend
+})
+
+[void]$form.ShowDialog()
