@@ -297,7 +297,7 @@ export default function SoloMode() {
   /* ============ 介绍页 ============ */
   if (stage === "intro") {
     return (
-      <div className="paper-bg min-h-screen flex flex-col items-center px-5 py-8 relative overflow-hidden">
+      <div className="paper-bg h-[100dvh] overflow-y-auto flex flex-col items-center px-5 py-8 relative">
         <div className="absolute top-10 left-5 text-6xl animate-float opacity-20">🎨</div>
         <div className="absolute top-20 right-5 text-5xl animate-float opacity-20" style={{ animationDelay: "1s" }}>✏️</div>
         <div className="absolute bottom-20 left-8 text-5xl animate-float opacity-20" style={{ animationDelay: "2s" }}>🧠</div>
@@ -385,16 +385,16 @@ export default function SoloMode() {
   /* ============ 画图阶段 ============ */
   if (stage === "draw") {
     return (
-      <div className="paper-bg min-h-screen flex flex-col">
+      <div className="paper-bg h-[100dvh] flex flex-col overflow-hidden">
         {/* 顶栏 */}
-        <div className="px-4 py-2.5 flex items-center justify-between border-b-2 border-ink-muted/20 bg-white/50">
-          <div className="flex items-center gap-2">
+        <div className="flex-shrink-0 px-4 py-2.5 flex items-center justify-between border-b-2 border-ink-muted/20 bg-white/50">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <span className="font-display text-ink text-sm">单人测试</span>
             <span className="text-ink-muted text-xs">
               · {isView ? "看词" : isDraw ? "画图" : "完成"}
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <span className="font-display text-ink text-sm">
               {currentIndex + 1}/{totalPages}
             </span>
@@ -409,7 +409,7 @@ export default function SoloMode() {
           {isDraw && (
             <button
               onClick={handleSkip}
-              className="btn-press flex items-center gap-1 bg-mint text-ink font-display text-sm px-3 py-1.5 rounded-doodle border-2 border-ink shadow-soft"
+              className="btn-press flex-shrink-0 flex items-center gap-1 bg-mint text-ink font-display text-sm px-3 py-1.5 rounded-doodle border-2 border-ink shadow-soft whitespace-nowrap"
             >
               <Check size={14} />
               画好了
@@ -419,7 +419,7 @@ export default function SoloMode() {
 
         {/* 文字违规警告 */}
         {showWarning && isView && currentIndex === 0 && (
-          <div className="px-4 py-2 bg-warn/20 border-b-2 border-warn/30 flex items-center gap-2 animate-slide-up">
+          <div className="flex-shrink-0 px-4 py-2 bg-warn/20 border-b-2 border-warn/30 flex items-center gap-2 animate-slide-up">
             <AlertTriangle size={18} className="text-warn flex-shrink-0" />
             <p className="text-xs text-ink flex-1">
               <strong>注意：</strong>画作中不能出现任何文字！用图画来表达词语。
@@ -440,8 +440,8 @@ export default function SoloMode() {
               <p className="font-body text-ink-muted text-sm mb-4">
                 记住这个词，等下凭记忆画出来
               </p>
-              <div className="bg-white rounded-blob border-3 border-ink shadow-card px-12 py-8 animate-bounce-in">
-                <span className="font-display text-6xl text-ink">
+              <div className="bg-white rounded-blob border-3 border-ink shadow-card px-8 py-6 animate-bounce-in">
+                <span className="font-display text-4xl sm:text-5xl text-ink break-all">
                   {words[currentIndex] || ""}
                 </span>
               </div>
@@ -496,7 +496,7 @@ export default function SoloMode() {
 
         {/* 工具栏（仅画图模式） */}
         {isDraw && (
-          <div className="bg-white border-t-2 border-ink px-3 py-3 space-y-2">
+          <div className="flex-shrink-0 bg-white border-t-2 border-ink px-3 py-2 space-y-1.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {COLORS.map((c) => (
@@ -574,15 +574,15 @@ export default function SoloMode() {
   if (stage === "quiz") {
     if (!currentQ) {
       return (
-        <div className="paper-bg min-h-screen flex items-center justify-center">
+        <div className="paper-bg h-[100dvh] flex items-center justify-center">
           <p className="text-ink-muted">准备题目中...</p>
         </div>
       );
     }
     return (
-      <div className="paper-bg min-h-screen flex flex-col">
+      <div className="paper-bg h-[100dvh] flex flex-col overflow-hidden">
         {/* 顶栏 */}
-        <div className="px-4 py-2.5 flex items-center justify-between border-b-2 border-ink-muted/20 bg-white/50">
+        <div className="flex-shrink-0 px-4 py-2.5 flex items-center justify-between border-b-2 border-ink-muted/20 bg-white/50">
           <span className="font-display text-ink text-sm">单人测试 · 答题</span>
           <div className="flex items-center gap-2">
             <span className="font-display text-ink text-sm bg-sun px-3 py-1 rounded-full border-2 border-ink">
@@ -595,9 +595,9 @@ export default function SoloMode() {
         </div>
 
         {/* 题目 */}
-        <div className="px-4 pt-4 text-center">
+        <div className="flex-shrink-0 px-4 pt-2 pb-1 text-center">
           <p className="font-body text-ink-muted text-sm">看画回忆，这个词语是什么？</p>
-          <h2 className="font-display text-3xl text-ink mt-1">
+          <h2 className="font-display text-2xl text-ink mt-1">
             第 <span className="text-coral">{currentQ.wordIndex + 1}</span> 个词
           </h2>
         </div>
@@ -644,7 +644,7 @@ export default function SoloMode() {
 
         {/* 答案展示 */}
         {quizResult && (
-          <div className="px-4 text-center animate-slide-up">
+          <div className="flex-shrink-0 px-4 pb-1 text-center animate-slide-up">
             <p className="text-sm">
               {quizResult.correct ? (
                 <span className="text-mint font-display">答对了！+1分 🎉</span>
@@ -659,7 +659,7 @@ export default function SoloMode() {
         )}
 
         {/* 输入区 */}
-        <div className="bg-white border-t-2 border-ink px-4 py-3">
+        <div className="flex-shrink-0 bg-white border-t-2 border-ink px-4 py-3">
           {!quizResult ? (
             <div className="flex gap-2">
               <input
@@ -670,12 +670,12 @@ export default function SoloMode() {
                 placeholder="输入你猜的词语..."
                 maxLength={20}
                 autoFocus
-                className="flex-1 px-4 py-3 rounded-doodle border-2 border-ink bg-cream font-body text-ink focus:bg-white focus:border-coral transition-colors"
+                className="flex-1 min-w-0 px-4 py-3 rounded-doodle border-2 border-ink bg-cream font-body text-ink focus:bg-white focus:border-coral transition-colors"
               />
               <button
                 onClick={handleSubmitAnswer}
                 disabled={!answer.trim()}
-                className="btn-press flex items-center gap-1 px-5 py-3 bg-coral text-white font-display rounded-doodle border-2 border-ink shadow-soft disabled:opacity-40"
+                className="btn-press flex-shrink-0 flex items-center gap-1 px-5 py-3 bg-coral text-white font-display rounded-doodle border-2 border-ink shadow-soft disabled:opacity-40 whitespace-nowrap"
               >
                 <Send size={18} />
                 确定
@@ -699,7 +699,7 @@ export default function SoloMode() {
   if (stage === "result") {
     const passed = score >= 6;
     return (
-      <div className="paper-bg min-h-screen flex flex-col items-center justify-center px-5 py-8">
+      <div className="paper-bg h-[100dvh] overflow-y-auto flex flex-col items-center justify-center px-5 py-8">
         <div className="w-full max-w-md bg-white rounded-blob shadow-card border-3 border-ink p-8 text-center animate-bounce-in">
           <div className="text-6xl mb-3 animate-float">
             {score >= 8 ? "🏆" : passed ? "🎉" : "💪"}

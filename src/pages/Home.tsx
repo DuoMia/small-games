@@ -50,7 +50,7 @@ export default function Home() {
   };
 
   return (
-    <div className="paper-bg min-h-screen flex flex-col items-center px-5 py-8 relative overflow-hidden">
+    <div className="paper-bg h-[100dvh] overflow-y-auto flex flex-col items-center px-5 py-8 relative">
       {/* 背景装饰 */}
       <div className="absolute top-10 left-5 text-6xl animate-float opacity-20" style={{ animationDelay: "0s" }}>
         🎨

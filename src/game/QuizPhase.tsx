@@ -31,7 +31,7 @@ export default function QuizPhase({ roomId }: { roomId: string }) {
 
   if (!q) {
     return (
-      <div className="paper-bg min-h-screen flex items-center justify-center">
+      <div className="paper-bg h-[100dvh] flex items-center justify-center">
         <div className="text-center">
           <Loader2 size={40} className="animate-spin text-coral mx-auto mb-3" />
           <p className="text-ink-muted">准备答题...</p>
@@ -54,10 +54,10 @@ export default function QuizPhase({ roomId }: { roomId: string }) {
   const waitingForOpponent = isAnswered && !isRevealed;
 
   return (
-    <div className="paper-bg min-h-screen flex flex-col">
+    <div className="paper-bg h-[100dvh] flex flex-col overflow-hidden">
       {/* 顶栏 */}
-      <div className="px-4 py-2.5 flex items-center justify-between border-b-2 border-ink-muted/20 bg-white/50">
-        <div className="flex items-center gap-2">
+      <div className="flex-shrink-0 px-4 py-2.5 flex items-center justify-between border-b-2 border-ink-muted/20 bg-white/50">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <span className="font-display text-ink text-sm">第 {currentRound} 轮</span>
           <span className="text-ink-muted text-xs">· 答题阶段</span>
         </div>
@@ -67,9 +67,9 @@ export default function QuizPhase({ roomId }: { roomId: string }) {
       </div>
 
       {/* 题目 */}
-      <div className="px-4 pt-4 text-center">
+      <div className="flex-shrink-0 px-4 pt-2 pb-1 text-center">
         <p className="font-body text-ink-muted text-sm">看画回忆，这个词语是什么？</p>
-        <h2 className="font-display text-3xl text-ink mt-1">
+        <h2 className="font-display text-2xl text-ink mt-1">
           第 <span className="text-coral">{wordIndex + 1}</span> 个词
         </h2>
       </div>
@@ -117,7 +117,7 @@ export default function QuizPhase({ roomId }: { roomId: string }) {
 
       {/* 答案展示 */}
       {isAnswered && quizResult && (
-        <div className="px-4 text-center animate-slide-up">
+        <div className="flex-shrink-0 px-4 pb-1 text-center animate-slide-up">
           <p className="text-sm">
             {quizResult.correct ? (
               <span className="text-mint font-display">答对了！+1分 🎉</span>
@@ -132,7 +132,7 @@ export default function QuizPhase({ roomId }: { roomId: string }) {
       )}
 
       {/* 输入区 */}
-      <div className="bg-white border-t-2 border-ink px-4 py-3">
+      <div className="flex-shrink-0 bg-white border-t-2 border-ink px-4 py-3">
         {!isAnswered ? (
           <div className="flex gap-2">
             <input
@@ -143,14 +143,14 @@ export default function QuizPhase({ roomId }: { roomId: string }) {
               placeholder="输入你猜的词语..."
               maxLength={20}
               autoFocus
-              className={`flex-1 px-4 py-3 rounded-doodle border-2 border-ink bg-cream font-body text-ink focus:bg-white focus:border-coral transition-colors ${
+              className={`flex-1 min-w-0 px-4 py-3 rounded-doodle border-2 border-ink bg-cream font-body text-ink focus:bg-white focus:border-coral transition-colors ${
                 inputShake ? "animate-shake" : ""
               }`}
             />
             <button
               onClick={handleSubmit}
               disabled={!answer.trim()}
-              className="btn-press flex items-center gap-1 px-5 py-3 bg-coral text-white font-display rounded-doodle border-2 border-ink shadow-soft disabled:opacity-40"
+              className="btn-press flex-shrink-0 flex items-center gap-1 px-5 py-3 bg-coral text-white font-display rounded-doodle border-2 border-ink shadow-soft disabled:opacity-40 whitespace-nowrap"
             >
               <Send size={18} />
               确定

@@ -28,7 +28,7 @@ export default function Game() {
 
   if (!roomId || !room) {
     return (
-      <div className="paper-bg min-h-screen flex items-center justify-center">
+      <div className="paper-bg h-[100dvh] flex items-center justify-center">
         <p className="text-ink-muted">跳转中...</p>
       </div>
     );
@@ -47,7 +47,7 @@ export default function Game() {
       return <GameResult roomId={roomId} />;
     default:
       return (
-        <div className="paper-bg min-h-screen flex items-center justify-center">
+        <div className="paper-bg h-[100dvh] flex items-center justify-center">
           <p className="text-ink-muted">跳转中...</p>
         </div>
       );

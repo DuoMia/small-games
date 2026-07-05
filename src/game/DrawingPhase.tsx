@@ -182,16 +182,16 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
   const isDraw = mode === "draw";
 
   return (
-    <div className="paper-bg min-h-screen flex flex-col">
+    <div className="paper-bg h-[100dvh] flex flex-col overflow-hidden">
       {/* 顶栏 */}
-      <div className="px-4 py-2.5 flex items-center justify-between border-b-2 border-ink-muted/20 bg-white/50">
-        <div className="flex items-center gap-2">
+      <div className="flex-shrink-0 px-4 py-2.5 flex items-center justify-between border-b-2 border-ink-muted/20 bg-white/50">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <span className="font-display text-ink text-sm">第 {currentRound} 轮</span>
           <span className="text-ink-muted text-xs">
             · {isView ? "看词" : isDraw ? "画图" : "完成"}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <span className="font-display text-ink text-sm">
             {currentIndex + 1}/{TOTAL_PAGES}
           </span>
@@ -206,7 +206,7 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
         {isDraw && (
           <button
             onClick={handleSkip}
-            className="btn-press flex items-center gap-1 bg-mint text-ink font-display text-sm px-3 py-1.5 rounded-doodle border-2 border-ink shadow-soft"
+            className="btn-press flex-shrink-0 flex items-center gap-1 bg-mint text-ink font-display text-sm px-3 py-1.5 rounded-doodle border-2 border-ink shadow-soft whitespace-nowrap"
           >
             <Check size={14} />
             画好了
@@ -216,7 +216,7 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
 
       {/* 文字违规警告 */}
       {showWarning && isView && currentIndex === 0 && (
-        <div className="px-4 py-2 bg-warn/20 border-b-2 border-warn/30 flex items-center gap-2 animate-slide-up">
+        <div className="flex-shrink-0 px-4 py-2 bg-warn/20 border-b-2 border-warn/30 flex items-center gap-2 animate-slide-up">
           <AlertTriangle size={18} className="text-warn flex-shrink-0" />
           <p className="text-xs text-ink flex-1">
             <strong>注意：</strong>画作中不能出现任何文字！用图画来表达词语。
@@ -238,8 +238,8 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
             <p className="font-body text-ink-muted text-sm mb-4">
               记住这个词，等下凭记忆画出来
             </p>
-            <div className="bg-white rounded-blob border-3 border-ink shadow-card px-12 py-8 animate-bounce-in">
-              <span className="font-display text-6xl text-ink">
+            <div className="bg-white rounded-blob border-3 border-ink shadow-card px-8 py-6 animate-bounce-in">
+              <span className="font-display text-4xl sm:text-5xl text-ink break-all">
                 {words[currentIndex] || ""}
               </span>
             </div>
@@ -296,7 +296,7 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
 
       {/* 工具栏（仅画图模式） */}
       {isDraw && (
-        <div className="bg-white border-t-2 border-ink px-3 py-3 space-y-2">
+        <div className="flex-shrink-0 bg-white border-t-2 border-ink px-3 py-2 space-y-1.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {COLORS.map((c) => (

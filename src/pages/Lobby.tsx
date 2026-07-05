@@ -38,7 +38,7 @@ export default function Lobby() {
 
   if (!room) {
     return (
-      <div className="paper-bg min-h-screen flex items-center justify-center">
+      <div className="paper-bg h-[100dvh] flex items-center justify-center">
         <div className="text-center">
           <p className="text-ink-muted mb-4">房间不存在或已关闭</p>
           <button
@@ -53,7 +53,7 @@ export default function Lobby() {
   }
 
   return (
-    <div className="paper-bg min-h-screen flex flex-col items-center px-5 py-6">
+    <div className="paper-bg h-[100dvh] overflow-y-auto flex flex-col items-center px-5 py-6">
       <div className="w-full max-w-md flex flex-col items-center">
         {/* 顶栏 */}
         <div className="w-full flex items-center justify-between mb-6">

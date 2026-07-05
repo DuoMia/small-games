@@ -12,7 +12,7 @@ export default function RoundResult({ roomId }: { roomId: string }) {
 
   if (!roundResult) {
     return (
-      <div className="paper-bg min-h-screen flex items-center justify-center">
+      <div className="paper-bg h-[100dvh] flex items-center justify-center">
         <p className="text-ink-muted">加载中...</p>
       </div>
     );
@@ -32,7 +32,7 @@ export default function RoundResult({ roomId }: { roomId: string }) {
   );
 
   return (
-    <div className="paper-bg min-h-screen flex flex-col">
+    <div className="paper-bg h-[100dvh] flex flex-col overflow-hidden">
       {/* 顶栏 */}
       <div className="px-4 py-3 flex items-center justify-between border-b-2 border-ink-muted/20 bg-white/50">
         <span className="font-display text-ink text-sm">

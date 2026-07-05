@@ -11,7 +11,7 @@ export default function GameResult({ roomId }: { roomId: string }) {
 
   if (!gameOver) {
     return (
-      <div className="paper-bg min-h-screen flex items-center justify-center">
+      <div className="paper-bg h-[100dvh] flex items-center justify-center">
         <p className="text-ink-muted">加载中...</p>
       </div>
     );
@@ -34,7 +34,7 @@ export default function GameResult({ roomId }: { roomId: string }) {
   };
 
   return (
-    <div className="paper-bg min-h-screen flex flex-col items-center justify-center px-5 py-8 relative overflow-hidden">
+    <div className="paper-bg h-[100dvh] overflow-y-auto flex flex-col items-center justify-center px-5 py-8 relative">
       {/* 彩屑 */}
       {!isDraw && <Confetti />}
 

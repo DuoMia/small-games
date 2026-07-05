@@ -42,7 +42,7 @@ export default function WordDisplay({ roomId }: { roomId: string }) {
   const progress = ((currentIndex + (WORD_DURATION - timeLeft) / WORD_DURATION) / words.length) * 100;
 
   return (
-    <div className="paper-bg min-h-screen flex flex-col">
+    <div className="paper-bg h-[100dvh] flex flex-col">
       {/* 顶栏 */}
       <div className="px-5 py-3 flex items-center justify-between border-b-2 border-ink-muted/20">
         <div className="flex items-center gap-2">
