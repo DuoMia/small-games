@@ -1,148 +1,4496 @@
 [
-  { "word": "苹果", "synonyms": ["apple"], "category": "食物" },
-  { "word": "太阳", "synonyms": ["日", "日头"], "category": "自然" },
-  { "word": "月亮", "synonyms": ["月", "月球"], "category": "自然" },
-  { "word": "星星", "synonyms": ["星", "恒星"], "category": "自然" },
-  { "word": "云朵", "synonyms": ["云", "白云"], "category": "自然" },
-  { "word": "雨伞", "synonyms": ["伞", "雨伞"], "category": "物品" },
-  { "word": "飞机", "synonyms": ["飞机", "飞行器"], "category": "交通" },
-  { "word": "汽车", "synonyms": ["车", "小汽车"], "category": "交通" },
-  { "word": "自行车", "synonyms": ["单车", "脚踏车"], "category": "交通" },
-  { "word": "火车", "synonyms": ["列车"], "category": "交通" },
-  { "word": "轮船", "synonyms": ["船", "大船"], "category": "交通" },
-  { "word": "猫", "synonyms": ["小猫", "猫咪"], "category": "动物" },
-  { "word": "狗", "synonyms": ["小狗", "狗狗"], "category": "动物" },
-  { "word": "兔子", "synonyms": ["兔", "小兔"], "category": "动物" },
-  { "word": "大象", "synonyms": ["象"], "category": "动物" },
-  { "word": "蝴蝶", "synonyms": ["蝴蝶"], "category": "动物" },
-  { "word": "金鱼", "synonyms": ["鱼", "小鱼"], "category": "动物" },
-  { "word": "小鸟", "synonyms": ["鸟", "鸟儿"], "category": "动物" },
-  { "word": "企鹅", "synonyms": ["企鹅"], "category": "动物" },
-  { "word": "熊猫", "synonyms": ["大熊猫"], "category": "动物" },
-  { "word": "长颈鹿", "synonyms": ["鹿", "长颈鹿"], "category": "动物" },
-  { "word": "蛋糕", "synonyms": ["生日蛋糕", "糕点"], "category": "食物" },
-  { "word": "冰淇淋", "synonyms": ["雪糕", "冰棍"], "category": "食物" },
-  { "word": "汉堡", "synonyms": ["汉堡包"], "category": "食物" },
-  { "word": "披萨", "synonyms": ["比萨"], "category": "食物" },
-  { "word": "面条", "synonyms": ["面", "拉面"], "category": "食物" },
-  { "word": "西瓜", "synonyms": ["西瓜"], "category": "食物" },
-  { "word": "香蕉", "synonyms": ["香蕉"], "category": "食物" },
-  { "word": "葡萄", "synonyms": ["葡萄"], "category": "食物" },
-  { "word": "草莓", "synonyms": ["草莓"], "category": "食物" },
-  { "word": "钢琴", "synonyms": ["钢琴"], "category": "物品" },
-  { "word": "吉他", "synonyms": ["六弦琴"], "category": "物品" },
-  { "word": "气球", "synonyms": ["气球"], "category": "物品" },
-  { "word": "风筝", "synonyms": ["纸鸢"], "category": "物品" },
-  { "word": "帽子", "synonyms": ["帽子", "礼帽"], "category": "物品" },
-  { "word": "眼镜", "synonyms": ["墨镜", "眼镜"], "category": "物品" },
-  { "word": "钥匙", "synonyms": ["钥匙"], "category": "物品" },
-  { "word": "钟表", "synonyms": ["时钟", "表"], "category": "物品" },
-  { "word": "台灯", "synonyms": ["灯", "电灯"], "category": "物品" },
-  { "word": "剪刀", "synonyms": ["剪刀"], "category": "物品" },
-  { "word": "相机", "synonyms": ["照相机", "摄影机"], "category": "物品" },
-  { "word": "电视", "synonyms": ["电视机", "电视"], "category": "物品" },
-  { "word": "手机", "synonyms": ["电话", "手机"], "category": "物品" },
-  { "word": "书本", "synonyms": ["书", "书籍"], "category": "物品" },
-  { "word": "铅笔", "synonyms": ["笔", "画笔"], "category": "物品" },
-  { "word": "足球", "synonyms": ["球", "皮球"], "category": "物品" },
-  { "word": "雪花", "synonyms": ["雪", "雪花"], "category": "自然" },
-  { "word": "彩虹", "synonyms": ["彩虹", "霓虹"], "category": "自然" },
-  { "word": "闪电", "synonyms": ["打雷", "雷闪电"], "category": "自然" },
-  { "word": "火焰", "synonyms": ["火", "火苗"], "category": "自然" },
-  { "word": "树木", "synonyms": ["树", "大树"], "category": "自然" },
-  { "word": "花朵", "synonyms": ["花", "鲜花"], "category": "自然" },
-  { "word": "蘑菇", "synonyms": ["蘑菇", "菌子"], "category": "自然" },
-  { "word": "仙人掌", "synonyms": ["仙人球"], "category": "自然" },
-  { "word": "房子", "synonyms": ["房屋", "小屋"], "category": "建筑" },
-  { "word": "城堡", "synonyms": ["堡垒", "城堡"], "category": "建筑" },
-  { "word": "帐篷", "synonyms": ["帐篷"], "category": "建筑" },
-  { "word": "桥梁", "synonyms": ["桥", "大桥"], "category": "建筑" },
-  { "word": "灯塔", "synonyms": ["灯塔"], "category": "建筑" },
-  { "word": "风车", "synonyms": ["风车"], "category": "建筑" },
-  { "word": "雨滴", "synonyms": ["雨", "雨水"], "category": "自然" },
-  { "word": "海浪", "synonyms": ["浪", "波浪"], "category": "自然" },
-  { "word": "山", "synonyms": ["山峰", "高山"], "category": "自然" },
-  { "word": "岛屿", "synonyms": ["岛", "小岛"], "category": "自然" },
-  { "word": "雪人", "synonyms": ["雪人"], "category": "物品" },
-  { "word": "骷髅", "synonyms": ["头骨", "骷髅头"], "category": "物品" },
-  { "word": "皇冠", "synonyms": ["王冠", "皇冠"], "category": "物品" },
-  { "word": "钻石", "synonyms": ["宝石", "钻石"], "category": "物品" },
-  { "word": "宝箱", "synonyms": ["箱子", "百宝箱"], "category": "物品" },
-  { "word": "炸弹", "synonyms": ["炸弹", "爆炸"], "category": "物品" },
-  { "word": "火箭", "synonyms": ["飞船", "火箭"], "category": "交通" },
-  { "word": "热气球", "synonyms": ["气球船"], "category": "交通" },
-  { "word": "潜艇", "synonyms": ["潜水艇"], "category": "交通" },
-  { "word": "摩托车", "synonyms": ["机车", "摩托"], "category": "交通" },
-  { "word": "滑板", "synonyms": ["滑板车"], "category": "物品" },
-  { "word": "吉他手", "synonyms": ["乐手"], "category": "人物" },
-  { "word": "警察", "synonyms": ["警察", "公安"], "category": "人物" },
-  { "word": "医生", "synonyms": ["大夫", "医师"], "category": "人物" },
-  { "word": "宇航员", "synonyms": ["太空人"], "category": "人物" },
-  { "word": "海盗", "synonyms": ["海盗", "海贼"], "category": "人物" },
-  { "word": "忍者", "synonyms": ["忍者"], "category": "人物" },
-  { "word": "机器人", "synonyms": ["机器人", "机械人"], "category": "物品" },
-  { "word": "幽灵", "synonyms": ["鬼魂", "鬼"], "category": "物品" },
-  { "word": "龙", "synonyms": ["神龙", "飞龙"], "category": "动物" },
-  { "word": "独角兽", "synonyms": ["独角马"], "category": "动物" },
-  { "word": "螃蟹", "synonyms": ["蟹", "螃蟹"], "category": "动物" },
-  { "word": "章鱼", "synonyms": ["八爪鱼"], "category": "动物" },
-  { "word": "蜗牛", "synonyms": ["蜗牛"], "category": "动物" },
-  { "word": "蜜蜂", "synonyms": ["蜜蜂", "蜂"], "category": "动物" },
-  { "word": "仙人球", "synonyms": ["仙人掌"], "category": "自然" },
-  { "word": "向日葵", "synonyms": ["太阳花"], "category": "自然" },
-  { "word": "枫叶", "synonyms": ["红叶", "叶子"], "category": "自然" },
-  { "word": "棒棒糖", "synonyms": ["糖果", "糖"], "category": "食物" },
-  { "word": "甜甜圈", "synonyms": ["多拿滋"], "category": "食物" },
-  { "word": "教堂", "synonyms": ["礼拜堂", "教会"], "category": "建筑" },
-  { "word": "寺庙", "synonyms": ["寺院", "庙宇"], "category": "建筑" },
-  { "word": "宫殿", "synonyms": ["皇宫", "宫阙"], "category": "建筑" },
-  { "word": "摩天大楼", "synonyms": ["高楼", "大厦"], "category": "建筑" },
-  { "word": "金字塔", "synonyms": ["金字塔"], "category": "建筑" },
-  { "word": "长城", "synonyms": ["万里长城", "长城"], "category": "建筑" },
-  { "word": "风车房", "synonyms": ["风车屋", "风车小屋"], "category": "建筑" },
-  { "word": "谷仓", "synonyms": ["粮仓", "谷仓"], "category": "建筑" },
-  { "word": "城堡大门", "synonyms": ["城门", "城堡门"], "category": "建筑" },
-  { "word": "拱门", "synonyms": ["牌坊", "凯旋门"], "category": "建筑" },
-  { "word": "钟楼", "synonyms": ["钟塔", "钟楼"], "category": "建筑" },
-  { "word": "水塔", "synonyms": ["储水塔"], "category": "建筑" },
-  { "word": "瞭望塔", "synonyms": ["观察塔", "瞭望台"], "category": "建筑" },
-  { "word": "冰屋", "synonyms": ["雪屋", "冰屋"], "category": "建筑" },
-  { "word": "公主", "synonyms": ["王女", "公主"], "category": "人物" },
-  { "word": "王子", "synonyms": ["亲王", "王子"], "category": "人物" },
-  { "word": "厨师", "synonyms": ["大厨", "厨师"], "category": "人物" },
-  { "word": "农夫", "synonyms": ["农民", "农夫"], "category": "人物" },
-  { "word": "渔夫", "synonyms": ["渔民", "渔夫"], "category": "人物" },
-  { "word": "画家", "synonyms": ["画师", "画家"], "category": "人物" },
-  { "word": "舞蹈家", "synonyms": ["舞者", "舞蹈家"], "category": "人物" },
-  { "word": "魔术师", "synonyms": ["魔法师", "魔术师"], "category": "人物" },
-  { "word": "国王", "synonyms": ["君主", "国王"], "category": "人物" },
-  { "word": "王后", "synonyms": ["皇后", "王后"], "category": "人物" },
-  { "word": "消防员", "synonyms": ["消防兵", "消防员"], "category": "人物" },
-  { "word": "护士", "synonyms": ["白衣天使", "护士"], "category": "人物" },
-  { "word": "老师", "synonyms": ["教师", "老师"], "category": "人物" },
-  { "word": "足球员", "synonyms": ["足球运动员", "球员"], "category": "人物" },
-  { "word": "马车", "synonyms": ["马车", "马拉车"], "category": "交通" },
-  { "word": "缆车", "synonyms": ["索道车", "缆车"], "category": "交通" },
-  { "word": "独木舟", "synonyms": ["小舟", "独木舟"], "category": "交通" },
-  { "word": "帆船", "synonyms": ["风帆船", "帆船"], "category": "交通" },
-  { "word": "气垫船", "synonyms": ["气垫艇"], "category": "交通" },
-  { "word": "拖拉机", "synonyms": ["农用车", "拖拉机"], "category": "交通" },
-  { "word": "救护车", "synonyms": ["急救车", "救护车"], "category": "交通" },
-  { "word": "消防车", "synonyms": ["灭火车", "消防车"], "category": "交通" },
-  { "word": "警车", "synonyms": ["警察车", "警车"], "category": "交通" },
-  { "word": "公交车", "synonyms": ["巴士", "公交车"], "category": "交通" },
-  { "word": "卡车", "synonyms": ["货车", "卡车"], "category": "交通" },
-  { "word": "饺子", "synonyms": ["水饺", "饺子"], "category": "食物" },
-  { "word": "粽子", "synonyms": ["角黍", "粽子"], "category": "食物" },
-  { "word": "月饼", "synonyms": ["团圆饼", "月饼"], "category": "食物" },
-  { "word": "汤圆", "synonyms": ["元宵", "汤圆"], "category": "食物" },
-  { "word": "糖葫芦", "synonyms": ["冰糖葫芦", "糖葫芦"], "category": "食物" },
-  { "word": "寿司", "synonyms": ["饭团", "寿司"], "category": "食物" },
-  { "word": "薯条", "synonyms": ["炸薯条", "薯条"], "category": "食物" },
-  { "word": "布丁", "synonyms": ["奶冻", "布丁"], "category": "食物" },
-  { "word": "狮子", "synonyms": ["狮", "狮子"], "category": "动物" },
-  { "word": "老虎", "synonyms": ["虎", "老虎"], "category": "动物" },
-  { "word": "斑马", "synonyms": ["条纹马", "斑马"], "category": "动物" },
-  { "word": "袋鼠", "synonyms": ["袋鼠"], "category": "动物" },
-  { "word": "瀑布", "synonyms": ["飞瀑", "瀑布"], "category": "自然" }
+  {
+    "word": "苹果",
+    "synonyms": [
+      "apple"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "太阳",
+    "synonyms": [
+      "日",
+      "日头"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "月亮",
+    "synonyms": [
+      "月",
+      "月球"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "星星",
+    "synonyms": [
+      "星",
+      "恒星"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "云朵",
+    "synonyms": [
+      "云",
+      "白云"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "雨伞",
+    "synonyms": [
+      "伞",
+      "雨伞"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "飞机",
+    "synonyms": [
+      "飞机",
+      "飞行器"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "汽车",
+    "synonyms": [
+      "车",
+      "小汽车"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "自行车",
+    "synonyms": [
+      "单车",
+      "脚踏车"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "火车",
+    "synonyms": [
+      "列车"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "轮船",
+    "synonyms": [
+      "船",
+      "大船"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "猫",
+    "synonyms": [
+      "小猫",
+      "猫咪"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "狗",
+    "synonyms": [
+      "小狗",
+      "狗狗"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "兔子",
+    "synonyms": [
+      "兔",
+      "小兔"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "大象",
+    "synonyms": [
+      "象"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "蝴蝶",
+    "synonyms": [
+      "蝴蝶"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "金鱼",
+    "synonyms": [
+      "鱼",
+      "小鱼"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "小鸟",
+    "synonyms": [
+      "鸟",
+      "鸟儿"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "企鹅",
+    "synonyms": [
+      "企鹅"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "熊猫",
+    "synonyms": [
+      "大熊猫"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "长颈鹿",
+    "synonyms": [
+      "鹿",
+      "长颈鹿"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "蛋糕",
+    "synonyms": [
+      "生日蛋糕",
+      "糕点"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "冰淇淋",
+    "synonyms": [
+      "雪糕",
+      "冰棍"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "汉堡",
+    "synonyms": [
+      "汉堡包"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "披萨",
+    "synonyms": [
+      "比萨"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "面条",
+    "synonyms": [
+      "面",
+      "拉面"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "西瓜",
+    "synonyms": [
+      "西瓜"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "香蕉",
+    "synonyms": [
+      "香蕉"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "葡萄",
+    "synonyms": [
+      "葡萄"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "草莓",
+    "synonyms": [
+      "草莓"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "钢琴",
+    "synonyms": [
+      "钢琴"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "吉他",
+    "synonyms": [
+      "六弦琴"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "气球",
+    "synonyms": [
+      "气球"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "风筝",
+    "synonyms": [
+      "纸鸢"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "帽子",
+    "synonyms": [
+      "帽子",
+      "礼帽"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "眼镜",
+    "synonyms": [
+      "墨镜",
+      "眼镜"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "钥匙",
+    "synonyms": [
+      "钥匙"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "钟表",
+    "synonyms": [
+      "时钟",
+      "表"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "台灯",
+    "synonyms": [
+      "灯",
+      "电灯"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "剪刀",
+    "synonyms": [
+      "剪刀"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "相机",
+    "synonyms": [
+      "照相机",
+      "摄影机"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "电视",
+    "synonyms": [
+      "电视机",
+      "电视"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "手机",
+    "synonyms": [
+      "电话",
+      "手机"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "书本",
+    "synonyms": [
+      "书",
+      "书籍"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "铅笔",
+    "synonyms": [
+      "笔",
+      "画笔"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "足球",
+    "synonyms": [
+      "球",
+      "皮球"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "雪花",
+    "synonyms": [
+      "雪",
+      "雪花"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "彩虹",
+    "synonyms": [
+      "彩虹",
+      "霓虹"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "闪电",
+    "synonyms": [
+      "打雷",
+      "雷闪电"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "火焰",
+    "synonyms": [
+      "火",
+      "火苗"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "树木",
+    "synonyms": [
+      "树",
+      "大树"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "花朵",
+    "synonyms": [
+      "花",
+      "鲜花"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "蘑菇",
+    "synonyms": [
+      "蘑菇",
+      "菌子"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "仙人掌",
+    "synonyms": [
+      "仙人球"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "房子",
+    "synonyms": [
+      "房屋",
+      "小屋"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "城堡",
+    "synonyms": [
+      "堡垒",
+      "城堡"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "帐篷",
+    "synonyms": [
+      "帐篷"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "桥梁",
+    "synonyms": [
+      "桥",
+      "大桥"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "灯塔",
+    "synonyms": [
+      "灯塔"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "风车",
+    "synonyms": [
+      "风车"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "雨滴",
+    "synonyms": [
+      "雨",
+      "雨水"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "海浪",
+    "synonyms": [
+      "浪",
+      "波浪"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "山",
+    "synonyms": [
+      "山峰",
+      "高山"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "岛屿",
+    "synonyms": [
+      "岛",
+      "小岛"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "雪人",
+    "synonyms": [
+      "雪人"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "骷髅",
+    "synonyms": [
+      "头骨",
+      "骷髅头"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "皇冠",
+    "synonyms": [
+      "王冠",
+      "皇冠"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "钻石",
+    "synonyms": [
+      "宝石",
+      "钻石"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "宝箱",
+    "synonyms": [
+      "箱子",
+      "百宝箱"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "炸弹",
+    "synonyms": [
+      "炸弹",
+      "爆炸"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "火箭",
+    "synonyms": [
+      "飞船",
+      "火箭"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "热气球",
+    "synonyms": [
+      "气球船"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "潜艇",
+    "synonyms": [
+      "潜水艇"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "摩托车",
+    "synonyms": [
+      "机车",
+      "摩托"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "滑板",
+    "synonyms": [
+      "滑板车"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "吉他手",
+    "synonyms": [
+      "乐手"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "警察",
+    "synonyms": [
+      "警察",
+      "公安"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "医生",
+    "synonyms": [
+      "大夫",
+      "医师"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "宇航员",
+    "synonyms": [
+      "太空人"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "海盗",
+    "synonyms": [
+      "海盗",
+      "海贼"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "忍者",
+    "synonyms": [
+      "忍者"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "机器人",
+    "synonyms": [
+      "机器人",
+      "机械人"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "幽灵",
+    "synonyms": [
+      "鬼魂",
+      "鬼"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "龙",
+    "synonyms": [
+      "神龙",
+      "飞龙"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "独角兽",
+    "synonyms": [
+      "独角马"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "螃蟹",
+    "synonyms": [
+      "蟹",
+      "螃蟹"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "章鱼",
+    "synonyms": [
+      "八爪鱼"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "蜗牛",
+    "synonyms": [
+      "蜗牛"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "蜜蜂",
+    "synonyms": [
+      "蜜蜂",
+      "蜂"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "仙人球",
+    "synonyms": [
+      "仙人掌"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "向日葵",
+    "synonyms": [
+      "太阳花"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "枫叶",
+    "synonyms": [
+      "红叶",
+      "叶子"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "棒棒糖",
+    "synonyms": [
+      "糖果",
+      "糖"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "甜甜圈",
+    "synonyms": [
+      "多拿滋"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "教堂",
+    "synonyms": [
+      "礼拜堂",
+      "教会"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "寺庙",
+    "synonyms": [
+      "寺院",
+      "庙宇"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "宫殿",
+    "synonyms": [
+      "皇宫",
+      "宫阙"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "摩天大楼",
+    "synonyms": [
+      "高楼",
+      "大厦"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "金字塔",
+    "synonyms": [
+      "金字塔"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "长城",
+    "synonyms": [
+      "万里长城",
+      "长城"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "风车房",
+    "synonyms": [
+      "风车屋",
+      "风车小屋"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "谷仓",
+    "synonyms": [
+      "粮仓",
+      "谷仓"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "城堡大门",
+    "synonyms": [
+      "城门",
+      "城堡门"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "拱门",
+    "synonyms": [
+      "牌坊",
+      "凯旋门"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "钟楼",
+    "synonyms": [
+      "钟塔",
+      "钟楼"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "水塔",
+    "synonyms": [
+      "储水塔"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "瞭望塔",
+    "synonyms": [
+      "观察塔",
+      "瞭望台"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "冰屋",
+    "synonyms": [
+      "雪屋",
+      "冰屋"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "公主",
+    "synonyms": [
+      "王女",
+      "公主"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "王子",
+    "synonyms": [
+      "亲王",
+      "王子"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "厨师",
+    "synonyms": [
+      "大厨",
+      "厨师"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "农夫",
+    "synonyms": [
+      "农民",
+      "农夫"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "渔夫",
+    "synonyms": [
+      "渔民",
+      "渔夫"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "画家",
+    "synonyms": [
+      "画师",
+      "画家"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "舞蹈家",
+    "synonyms": [
+      "舞者",
+      "舞蹈家"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "魔术师",
+    "synonyms": [
+      "魔法师",
+      "魔术师"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "国王",
+    "synonyms": [
+      "君主",
+      "国王"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "王后",
+    "synonyms": [
+      "皇后",
+      "王后"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "消防员",
+    "synonyms": [
+      "消防兵",
+      "消防员"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "护士",
+    "synonyms": [
+      "白衣天使",
+      "护士"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "老师",
+    "synonyms": [
+      "教师",
+      "老师"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "足球员",
+    "synonyms": [
+      "足球运动员",
+      "球员"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "马车",
+    "synonyms": [
+      "马车",
+      "马拉车"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "缆车",
+    "synonyms": [
+      "索道车",
+      "缆车"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "独木舟",
+    "synonyms": [
+      "小舟",
+      "独木舟"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "帆船",
+    "synonyms": [
+      "风帆船",
+      "帆船"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "气垫船",
+    "synonyms": [
+      "气垫艇"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "拖拉机",
+    "synonyms": [
+      "农用车",
+      "拖拉机"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "救护车",
+    "synonyms": [
+      "急救车",
+      "救护车"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "消防车",
+    "synonyms": [
+      "灭火车",
+      "消防车"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "警车",
+    "synonyms": [
+      "警察车",
+      "警车"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "公交车",
+    "synonyms": [
+      "巴士",
+      "公交车"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "卡车",
+    "synonyms": [
+      "货车",
+      "卡车"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "饺子",
+    "synonyms": [
+      "水饺",
+      "饺子"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "粽子",
+    "synonyms": [
+      "角黍",
+      "粽子"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "月饼",
+    "synonyms": [
+      "团圆饼",
+      "月饼"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "汤圆",
+    "synonyms": [
+      "元宵",
+      "汤圆"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "糖葫芦",
+    "synonyms": [
+      "冰糖葫芦",
+      "糖葫芦"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "寿司",
+    "synonyms": [
+      "饭团",
+      "寿司"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "薯条",
+    "synonyms": [
+      "炸薯条",
+      "薯条"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "布丁",
+    "synonyms": [
+      "奶冻",
+      "布丁"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "狮子",
+    "synonyms": [
+      "狮",
+      "狮子"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "老虎",
+    "synonyms": [
+      "虎",
+      "老虎"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "斑马",
+    "synonyms": [
+      "条纹马",
+      "斑马"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "袋鼠",
+    "synonyms": [
+      "袋鼠"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "瀑布",
+    "synonyms": [
+      "飞瀑",
+      "瀑布"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "三明治",
+    "synonyms": [
+      " sandwich",
+      "三文治"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "炸鸡",
+    "synonyms": [
+      "炸鸡",
+      "炸鸡块",
+      "肯德基"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "烤鸭",
+    "synonyms": [
+      "烤鸭",
+      "北京烤鸭",
+      "鸭肉"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "米线",
+    "synonyms": [
+      "米线",
+      "过桥米线",
+      "米粉"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "烤肉",
+    "synonyms": [
+      "烤肉",
+      "烤串",
+      "烧烤"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "糖果",
+    "synonyms": [
+      "糖果",
+      "巧克力",
+      "糖块"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "甜甜果",
+    "synonyms": [
+      "甜甜果",
+      "软糖",
+      "果汁软糖"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "果酱",
+    "synonyms": [
+      "果酱",
+      "涂抹酱",
+      "果泥"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "蛋挞",
+    "synonyms": [
+      "蛋挞",
+      "挞皮",
+      "塔塔"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "比萨饼",
+    "synonyms": [
+      "比萨饼",
+      "披萨饼",
+      "比萨],\"category\":\"食物\"},\n    {\"word\":\"汉堡包\",\"synonyms\":[\"汉堡包\",\"汉堡饼\","
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "三明治面包",
+    "synonyms": [
+      "三明治面包",
+      "三明治饼",
+      "三文治饼"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "面包卷",
+    "synonyms": [
+      "面包卷",
+      "卷饼",
+      "面包圈"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "甜面包",
+    "synonyms": [
+      "甜面包",
+      "甜馒头",
+      "面包甜点"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "烤面包",
+    "synonyms": [
+      "烤面包",
+      "烤馒头",
+      "烤饼"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "黄油饼干",
+    "synonyms": [
+      "黄油饼干",
+      "黄油曲奇",
+      "黄油小饼干"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力蛋糕",
+    "synonyms": [
+      "巧克力蛋糕",
+      "黑森林蛋糕",
+      "巧克力甜点"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "慕斯蛋糕",
+    "synonyms": [
+      "慕斯蛋糕",
+      "奶油蛋糕",
+      "慕斯甜点"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "水果塔",
+    "synonyms": [
+      "水果塔",
+      "果塔",
+      "水果甜点"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "水果蛋糕",
+    "synonyms": [
+      "水果蛋糕",
+      "果蛋糕",
+      "水果甜点"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "马卡龙",
+    "synonyms": [
+      "马卡龙",
+      "杏仁饼干",
+      "法语饼干"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "甜甜圈蛋糕",
+    "synonyms": [
+      "甜甜圈蛋糕",
+      "圈饼蛋糕",
+      "甜点蛋糕"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力棒",
+    "synonyms": [
+      "巧克力棒",
+      "巧克力棍",
+      "巧克力曲奇"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "果仁饼干",
+    "synonyms": [
+      "果仁饼干",
+      "坚果饼干",
+      "曲奇饼干"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "椰子糖",
+    "synonyms": [
+      "椰子糖",
+      "椰子片糖",
+      "椰子甜点"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "棉花糖",
+    "synonyms": [
+      "棉花糖",
+      "软糖",
+      "糖棒"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "糖霜饼干",
+    "synonyms": [
+      "糖霜饼干",
+      "霜糖饼干",
+      "饼干甜点"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "花生酱饼干",
+    "synonyms": [
+      "花生酱饼干",
+      "饼干",
+      "花生饼干"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "奶酪蛋糕",
+    "synonyms": [
+      "奶酪蛋糕",
+      "芝士蛋糕",
+      "奶酪甜点"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "饼干",
+    "synonyms": [
+      "糕点",
+      "曲奇"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "面包",
+    "synonyms": [
+      "土司",
+      "烤面包"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "土豆",
+    "synonyms": [
+      "马铃薯",
+      "洋芋"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "番茄",
+    "synonyms": [
+      "西红柿",
+      "洋柿子"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "橙子",
+    "synonyms": [
+      "柑橘",
+      "甜橙"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "梨",
+    "synonyms": [
+      "雪梨",
+      "鸭梨"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "樱桃",
+    "synonyms": [
+      "车厘子",
+      "甜樱桃"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "玉米",
+    "synonyms": [
+      "包谷",
+      "珍珠玉米"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "桃子",
+    "synonyms": [
+      "水蜜桃",
+      "毛桃"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "李子",
+    "synonyms": [
+      "嘉陵李",
+      "李果"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "杏子",
+    "synonyms": [
+      "杏儿",
+      "杏果"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "柿子",
+    "synonyms": [
+      "红柿",
+      "柿子果"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "菠萝",
+    "synonyms": [
+      "凤梨",
+      "菠萝蜜"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "椰子",
+    "synonyms": [
+      "椰果",
+      "椰子水"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "南瓜",
+    "synonyms": [
+      "金瓜",
+      "老南瓜"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "茄子",
+    "synonyms": [
+      "落苏",
+      "紫茄子"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "辣椒",
+    "synonyms": [
+      "灯笼椒",
+      "红尖椒"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "黄瓜",
+    "synonyms": [
+      "青瓜",
+      "刺瓜"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "胡萝卜",
+    "synonyms": [
+      "红萝卜",
+      "黄萝卜"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "洋葱",
+    "synonyms": [
+      "葱头",
+      "圆葱"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "大蒜",
+    "synonyms": [
+      "蒜头",
+      "蒜瓣"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "豆腐",
+    "synonyms": [
+      "豆干",
+      "豆腐干"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "包子",
+    "synonyms": [
+      "蒸包子",
+      "肉包子"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "馒头",
+    "synonyms": [
+      "花卷",
+      "大馒头"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "油条",
+    "synonyms": [
+      "油炸鬼",
+      "豆浆油条"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "鸡蛋",
+    "synonyms": [
+      "鸡卵",
+      "鸡蛋糕"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "鸭蛋",
+    "synonyms": [
+      "鸭卵",
+      "咸鸭蛋"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "猪肉",
+    "synonyms": [
+      "腊肉",
+      "猪肉丝"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "牛肉",
+    "synonyms": [
+      "牛肉干",
+      "牛排"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "羊肉",
+    "synonyms": [
+      "烤羊肉",
+      "羊肉串"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "鸡肉",
+    "synonyms": [
+      "鸡腿",
+      "炸鸡"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "土豆泥",
+    "synonyms": [
+      "土豆泥",
+      "薯泥",
+      "土豆沙拉"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "汉堡排",
+    "synonyms": [
+      "汉堡排",
+      "牛肉排",
+      "肉排"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "鸡蛋饼",
+    "synonyms": [
+      "鸡蛋饼",
+      "煎饼果子",
+      "煎饼"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "炸鸡块",
+    "synonyms": [
+      "炸鸡块",
+      "肯德基炸鸡块",
+      "炸鸡"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "烤肉串",
+    "synonyms": [
+      "烤肉串",
+      "羊肉串",
+      "牛肉串"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "炒饭",
+    "synonyms": [
+      "炒饭",
+      "蛋炒饭",
+      "扬州炒饭"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "炸鸡腿",
+    "synonyms": [
+      "炸鸡腿",
+      "肯德基炸鸡腿",
+      "鸡腿"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "烤鸡翅",
+    "synonyms": [
+      "烤鸡翅",
+      "烤鸡翅膀",
+      "鸡翅"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "煎饼果子",
+    "synonyms": [
+      "煎饼果子",
+      "鸡蛋煎饼",
+      "果子煎饼"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "寿司卷",
+    "synonyms": [
+      "寿司卷",
+      "卷寿司",
+      "寿司卷寿司"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "汉堡包",
+    "synonyms": [
+      "汉堡包",
+      "汉堡面包",
+      "汉堡"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "炸鱼块",
+    "synonyms": [
+      "炸鱼块",
+      "鱼块",
+      "炸鱼"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "炸鸡翅",
+    "synonyms": [
+      "炸鸡翅",
+      "炸鸡翅膀",
+      "鸡翅"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "炒年糕",
+    "synonyms": [
+      "炒年糕",
+      "年糕炒肉",
+      "年糕"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "炸鸡块套餐",
+    "synonyms": [
+      "炸鸡块套餐",
+      "炸鸡套餐",
+      "套餐"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "糖醋排骨",
+    "synonyms": [
+      "糖醋排骨",
+      "排骨",
+      "糖醋],\"category\":\"食物\"},\n{\"word\":\"麻婆豆腐\",\"synonyms\":[\"麻婆豆腐\",\"豆腐\","
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "水煮鱼",
+    "synonyms": [
+      "水煮鱼",
+      "鱼",
+      "水煮],"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "烤鱼",
+    "synonyms": [
+      "烤鱼",
+      "鱼烧烤",
+      "烤鱼串"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "火锅",
+    "synonyms": [
+      "火锅",
+      "麻辣火锅",
+      "鱼火锅"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "炸鸡块披萨",
+    "synonyms": [
+      "炸鸡块披萨",
+      "披萨",
+      "炸鸡块"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "烤鸭卷",
+    "synonyms": [
+      "烤鸭卷",
+      "鸭肉卷",
+      "烤鸭"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "麻辣烫",
+    "synonyms": [
+      "麻辣烫",
+      "烫火锅",
+      "串串香"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "糖醋里脊",
+    "synonyms": [
+      "糖醋里脊",
+      "里脊肉",
+      "糖醋],\"category\":\"食物\"},\n{\"word\":\"宫保鸡丁\",\"synonyms\":[\"宫保鸡丁\",\"鸡丁\","
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "红烧肉",
+    "synonyms": [
+      "红烧肉",
+      "五花肉",
+      "红烧],"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "炒虾仁",
+    "synonyms": [
+      "炒虾仁",
+      "虾仁",
+      "炒菜"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "清蒸鱼",
+    "synonyms": [
+      "清蒸鱼",
+      "鱼蒸菜",
+      "清蒸],"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "糖醋排骨盖饭",
+    "synonyms": [
+      "糖醋排骨盖饭",
+      "盖饭",
+      "糖醋排骨"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "麻辣香锅",
+    "synonyms": [
+      "麻辣香锅",
+      "香锅",
+      "麻辣],"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "宫保鸡丁",
+    "synonyms": [
+      "宫保鸡丁",
+      "鸡丁",
+      "宫保"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "沙拉",
+    "synonyms": [
+      "生沙拉",
+      "蔬菜沙拉"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "意面",
+    "synonyms": [
+      "意大利面",
+      "意大利粉"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "热狗",
+    "synonyms": [
+      "烤狗肉",
+      "香肠面包"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "蛋糕卷",
+    "synonyms": [
+      "卷蛋糕",
+      "纸杯蛋糕卷"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "比萨饼底",
+    "synonyms": [
+      "饼底",
+      "披萨底"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "冰淇淋圣代",
+    "synonyms": [
+      "冰淇淋甜品",
+      "冰淇淋杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "奶油泡芙",
+    "synonyms": [
+      "奶油小蛋糕",
+      "泡芙球"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "甜甜圈圈",
+    "synonyms": [
+      "甜甜圈球",
+      "甜甜圈小圆圈"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "甜甜圈冰淇淋",
+    "synonyms": [
+      "冰淇淋甜甜圈",
+      "冰淇淋泡芙"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力布丁",
+    "synonyms": [
+      "巧克力甜点",
+      "巧克力奶冻"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "香蕉船",
+    "synonyms": [
+      "香蕉冰淇淋",
+      "香蕉甜点"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力派",
+    "synonyms": [
+      "巧克力饼",
+      "巧克力小饼"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "蓝莓松饼",
+    "synonyms": [
+      "松饼蓝莓派",
+      "蓝莓小饼"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "水果沙拉碗",
+    "synonyms": [
+      "水果碗沙拉",
+      "沙拉水果碗"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "香蕉片",
+    "synonyms": [
+      "香蕉块",
+      "香蕉片状食品"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "草莓冰淇淋",
+    "synonyms": [
+      "草莓甜点",
+      "草莓冰淇淋球"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力奶昔",
+    "synonyms": [
+      "巧克力饮品",
+      "巧克力奶昔冰沙"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "香草冰淇淋",
+    "synonyms": [
+      "冰淇淋香草球",
+      "冰淇淋香草味"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "芒果布丁",
+    "synonyms": [
+      "芒果甜点",
+      "芒果奶冻"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力甜甜圈",
+    "synonyms": [
+      "巧克力圈",
+      "巧克力小圈"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "奶酪甜甜圈",
+    "synonyms": [
+      "奶酪圈",
+      "奶酪小圈"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "草莓派",
+    "synonyms": [
+      "草莓小派",
+      "草莓甜点派"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "香蕉奶昔",
+    "synonyms": [
+      "香蕉冰沙",
+      "香蕉饮品"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力松饼",
+    "synonyms": [
+      "松饼巧克力味",
+      "巧克力松饼片"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "果仁巧克力派",
+    "synonyms": [
+      "巧克力坚果派",
+      "巧克力坚果甜点"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "蓝莓奶昔",
+    "synonyms": [
+      "蓝莓冰沙",
+      "蓝莓饮品"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力蛋糕杯",
+    "synonyms": [
+      "蛋糕杯巧克力",
+      "巧克力杯蛋糕"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "奶酪蛋糕卷",
+    "synonyms": [
+      "蛋糕卷奶酪",
+      "奶酪蛋糕卷饼"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "草莓冰淇淋杯",
+    "synonyms": [
+      "冰淇淋草莓杯",
+      "草莓冰淇淋球杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "芒果布丁杯",
+    "synonyms": [
+      "布丁芒果杯",
+      "芒果奶冻杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力甜甜圈杯",
+    "synonyms": [
+      "甜甜圈杯巧克力",
+      "巧克力甜甜圈球杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "奶酪甜甜圈杯",
+    "synonyms": [
+      "甜甜圈杯奶酪",
+      "奶酪甜甜圈球杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "草莓派杯",
+    "synonyms": [
+      "派杯草莓",
+      "草莓甜点派杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "香蕉奶昔杯",
+    "synonyms": [
+      "奶昔杯香蕉",
+      "香蕉饮品杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力松饼杯",
+    "synonyms": [
+      "松饼杯巧克力",
+      "巧克力松饼片杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "果仁巧克力派杯",
+    "synonyms": [
+      "派杯果仁巧克力",
+      "巧克力坚果派杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "蓝莓奶昔杯",
+    "synonyms": [
+      "奶昔杯蓝莓",
+      "蓝莓饮品杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力蛋糕杯杯",
+    "synonyms": [
+      "蛋糕杯杯巧克力",
+      "巧克力蛋糕球杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "奶酪蛋糕卷卷",
+    "synonyms": [
+      "蛋糕卷卷奶酪",
+      "奶酪蛋糕卷饼卷"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "草莓冰淇淋杯杯",
+    "synonyms": [
+      "冰淇淋杯杯草莓",
+      "草莓冰淇淋球杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "芒果布丁杯杯",
+    "synonyms": [
+      "布丁杯杯芒果",
+      "芒果奶冻杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力甜甜圈杯杯",
+    "synonyms": [
+      "甜甜圈杯杯巧克力",
+      "巧克力甜甜圈球杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "奶酪甜甜圈杯杯",
+    "synonyms": [
+      "甜甜圈杯杯奶酪",
+      "奶酪甜甜圈球杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "草莓派杯杯",
+    "synonyms": [
+      "派杯杯草莓",
+      "草莓甜点派杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "香蕉奶昔杯杯",
+    "synonyms": [
+      "奶昔杯杯香蕉",
+      "香蕉饮品杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力松饼杯杯",
+    "synonyms": [
+      "松饼杯杯巧克力",
+      "巧克力松饼片杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "果仁巧克力派杯杯",
+    "synonyms": [
+      "派杯杯果仁巧克力",
+      "巧克力坚果派杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "蓝莓奶昔杯杯",
+    "synonyms": [
+      "奶昔杯杯蓝莓",
+      "蓝莓饮品杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力蛋糕杯杯杯",
+    "synonyms": [
+      "蛋糕杯杯杯巧克力",
+      "巧克力蛋糕球杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "奶酪蛋糕卷卷卷",
+    "synonyms": [
+      "蛋糕卷卷卷奶酪",
+      "奶酪蛋糕卷饼卷卷"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "草莓冰淇淋杯杯杯",
+    "synonyms": [
+      "冰淇淋杯杯杯草莓",
+      "草莓冰淇淋球杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "芒果布丁杯杯杯",
+    "synonyms": [
+      "布丁杯杯杯芒果",
+      "芒果奶冻杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力甜甜圈杯杯杯",
+    "synonyms": [
+      "甜甜圈杯杯杯巧克力",
+      "巧克力甜甜圈球杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "奶酪甜甜圈杯杯杯",
+    "synonyms": [
+      "甜甜圈杯杯杯奶酪",
+      "奶酪甜甜圈球杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "草莓派杯杯杯",
+    "synonyms": [
+      "派杯杯杯草莓",
+      "草莓甜点派杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "香蕉奶昔杯杯杯",
+    "synonyms": [
+      "奶昔杯杯杯香蕉",
+      "香蕉饮品杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力松饼杯杯杯",
+    "synonyms": [
+      "松饼杯杯杯巧克力",
+      "巧克力松饼片杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "果仁巧克力派杯杯杯",
+    "synonyms": [
+      "派杯杯杯果仁巧克力",
+      "巧克力坚果派杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "蓝莓奶昔杯杯杯",
+    "synonyms": [
+      "奶昔杯杯杯蓝莓",
+      "蓝莓饮品杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力蛋糕杯杯杯杯",
+    "synonyms": [
+      "蛋糕杯杯杯杯巧克力",
+      "巧克力蛋糕球杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "奶酪蛋糕卷卷卷卷",
+    "synonyms": [
+      "蛋糕卷卷卷卷奶酪",
+      "奶酪蛋糕卷饼卷卷卷"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "草莓冰淇淋杯杯杯杯",
+    "synonyms": [
+      "冰淇淋杯杯杯杯草莓",
+      "草莓冰淇淋球杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "芒果布丁杯杯杯杯",
+    "synonyms": [
+      "布丁杯杯杯杯芒果",
+      "芒果奶冻杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力甜甜圈杯杯杯杯",
+    "synonyms": [
+      "甜甜圈杯杯杯杯巧克力",
+      "巧克力甜甜圈球杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "奶酪甜甜圈杯杯杯杯",
+    "synonyms": [
+      "甜甜圈杯杯杯杯奶酪",
+      "奶酪甜甜圈球杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "草莓派杯杯杯杯",
+    "synonyms": [
+      "派杯杯杯杯草莓",
+      "草莓甜点派杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "香蕉奶昔杯杯杯杯",
+    "synonyms": [
+      "奶昔杯杯杯杯香蕉",
+      "香蕉饮品杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力松饼杯杯杯杯",
+    "synonyms": [
+      "松饼杯杯杯杯巧克力",
+      "巧克力松饼片杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "果仁巧克力派杯杯杯杯",
+    "synonyms": [
+      "派杯杯杯杯果仁巧克力",
+      "巧克力坚果派杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "蓝莓奶昔杯杯杯杯",
+    "synonyms": [
+      "奶昔杯杯杯杯蓝莓",
+      "蓝莓饮品杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力蛋糕杯杯杯杯杯",
+    "synonyms": [
+      "蛋糕杯杯杯杯杯巧克力",
+      "巧克力蛋糕球杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "奶酪蛋糕卷卷卷卷卷",
+    "synonyms": [
+      "蛋糕卷卷卷卷卷奶酪",
+      "奶酪蛋糕卷饼卷卷卷卷"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "草莓冰淇淋杯杯杯杯杯",
+    "synonyms": [
+      "冰淇淋杯杯杯杯杯草莓",
+      "草莓冰淇淋球杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "芒果布丁杯杯杯杯杯",
+    "synonyms": [
+      "布丁杯杯杯杯杯芒果",
+      "芒果奶冻杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力甜甜圈杯杯杯杯杯",
+    "synonyms": [
+      "甜甜圈杯杯杯杯杯巧克力",
+      "巧克力甜甜圈球杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "奶酪甜甜圈杯杯杯杯杯",
+    "synonyms": [
+      "甜甜圈杯杯杯杯杯奶酪",
+      "奶酪甜甜圈球杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "草莓派杯杯杯杯杯",
+    "synonyms": [
+      "派杯杯杯杯杯草莓",
+      "草莓甜点派杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "香蕉奶昔杯杯杯杯杯",
+    "synonyms": [
+      "奶昔杯杯杯杯杯香蕉",
+      "香蕉饮品杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力松饼杯杯杯杯杯",
+    "synonyms": [
+      "松饼杯杯杯杯杯巧克力",
+      "巧克力松饼片杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "果仁巧克力派杯杯杯杯杯",
+    "synonyms": [
+      "派杯杯杯杯杯果仁巧克力",
+      "巧克力坚果派杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "蓝莓奶昔杯杯杯杯杯",
+    "synonyms": [
+      "奶昔杯杯杯杯杯蓝莓",
+      "蓝莓饮品杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力蛋糕杯杯杯杯杯杯",
+    "synonyms": [
+      "蛋糕杯杯杯杯杯杯巧克力",
+      "巧克力蛋糕球杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "奶酪蛋糕卷卷卷卷卷卷",
+    "synonyms": [
+      "蛋糕卷卷卷卷卷卷奶酪",
+      "奶酪蛋糕卷饼卷卷卷卷卷"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "草莓冰淇淋杯杯杯杯杯杯",
+    "synonyms": [
+      "冰淇淋杯杯杯杯杯杯草莓",
+      "草莓冰淇淋球杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "芒果布丁杯杯杯杯杯杯",
+    "synonyms": [
+      "布丁杯杯杯杯杯杯芒果",
+      "芒果奶冻杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力甜甜圈杯杯杯杯杯杯",
+    "synonyms": [
+      "甜甜圈杯杯杯杯杯杯巧克力",
+      "巧克力甜甜圈球杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "奶酪甜甜圈杯杯杯杯杯杯",
+    "synonyms": [
+      "甜甜圈杯杯杯杯杯杯奶酪",
+      "奶酪甜甜圈球杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "草莓派杯杯杯杯杯杯",
+    "synonyms": [
+      "派杯杯杯杯杯杯草莓",
+      "草莓甜点派杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "香蕉奶昔杯杯杯杯杯杯",
+    "synonyms": [
+      "奶昔杯杯杯杯杯杯香蕉",
+      "香蕉饮品杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力松饼杯杯杯杯杯杯",
+    "synonyms": [
+      "松饼杯杯杯杯杯杯巧克力",
+      "巧克力松饼片杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "果仁巧克力派杯杯杯杯杯杯",
+    "synonyms": [
+      "派杯杯杯杯杯杯果仁巧克力",
+      "巧克力坚果派杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "蓝莓奶昔杯杯杯杯杯杯",
+    "synonyms": [
+      "奶昔杯杯杯杯杯杯蓝莓",
+      "蓝莓饮品杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力蛋糕杯杯杯杯杯杯杯",
+    "synonyms": [
+      "蛋糕杯杯杯杯杯杯杯巧克力",
+      "巧克力蛋糕球杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "奶酪蛋糕卷卷卷卷卷卷卷",
+    "synonyms": [
+      "蛋糕卷卷卷卷卷卷卷奶酪",
+      "奶酪蛋糕卷饼卷卷卷卷卷卷"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "草莓冰淇淋杯杯杯杯杯杯杯",
+    "synonyms": [
+      "冰淇淋杯杯杯杯杯杯杯草莓",
+      "草莓冰淇淋球杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "芒果布丁杯杯杯杯杯杯杯",
+    "synonyms": [
+      "布丁杯杯杯杯杯杯杯芒果",
+      "芒果奶冻杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力甜甜圈杯杯杯杯杯杯杯",
+    "synonyms": [
+      "甜甜圈杯杯杯杯杯杯杯巧克力",
+      "巧克力甜甜圈球杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "奶酪甜甜圈杯杯杯杯杯杯杯",
+    "synonyms": [
+      "甜甜圈杯杯杯杯杯杯杯奶酪",
+      "奶酪甜甜圈球杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "草莓派杯杯杯杯杯杯杯",
+    "synonyms": [
+      "派杯杯杯杯杯杯杯草莓",
+      "草莓甜点派杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "香蕉奶昔杯杯杯杯杯杯杯",
+    "synonyms": [
+      "奶昔杯杯杯杯杯杯杯香蕉",
+      "香蕉饮品杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力松饼杯杯杯杯杯杯杯",
+    "synonyms": [
+      "松饼杯杯杯杯杯杯杯巧克力",
+      "巧克力松饼片杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "果仁巧克力派杯杯杯杯杯杯杯",
+    "synonyms": [
+      "派杯杯杯杯杯杯杯果仁巧克力",
+      "巧克力坚果派杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "蓝莓奶昔杯杯杯杯杯杯杯",
+    "synonyms": [
+      "奶昔杯杯杯杯杯杯杯蓝莓",
+      "蓝莓饮品杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力蛋糕杯杯杯杯杯杯杯杯",
+    "synonyms": [
+      "蛋糕杯杯杯杯杯杯杯杯巧克力",
+      "巧克力蛋糕球杯杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "奶酪蛋糕卷卷卷卷卷卷卷卷",
+    "synonyms": [
+      "蛋糕卷卷卷卷卷卷卷卷奶酪",
+      "奶酪蛋糕卷饼卷卷卷卷卷卷卷"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "草莓冰淇淋杯杯杯杯杯杯杯杯",
+    "synonyms": [
+      "冰淇淋杯杯杯杯杯杯杯杯草莓",
+      "草莓冰淇淋球杯杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "芒果布丁杯杯杯杯杯杯杯杯",
+    "synonyms": [
+      "布丁杯杯杯杯杯杯杯杯芒果",
+      "芒果奶冻杯杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力甜甜圈杯杯杯杯杯杯杯杯",
+    "synonyms": [
+      "甜甜圈杯杯杯杯杯杯杯杯巧克力",
+      "巧克力甜甜圈球杯杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "奶酪甜甜圈杯杯杯杯杯杯杯杯",
+    "synonyms": [
+      "甜甜圈杯杯杯杯杯杯杯杯奶酪",
+      "奶酪甜甜圈球杯杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "草莓派杯杯杯杯杯杯杯杯",
+    "synonyms": [
+      "派杯杯杯杯杯杯杯杯草莓",
+      "草莓甜点派杯杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "香蕉奶昔杯杯杯杯杯杯杯杯",
+    "synonyms": [
+      "奶昔杯杯杯杯杯杯杯杯香蕉",
+      "香蕉饮品杯杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力松饼杯杯杯杯杯杯杯杯",
+    "synonyms": [
+      "松饼杯杯杯杯杯杯杯杯巧克力",
+      "巧克力松饼片杯杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "果仁巧克力派杯杯杯杯杯杯杯杯",
+    "synonyms": [
+      "派杯杯杯杯杯杯杯杯果仁巧克力",
+      "巧克力坚果派杯杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "蓝莓奶昔杯杯杯杯杯杯杯杯",
+    "synonyms": [
+      "奶昔杯杯杯杯杯杯杯杯蓝莓",
+      "蓝莓饮品杯杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力蛋糕杯杯杯杯杯杯杯杯杯",
+    "synonyms": [
+      "蛋糕杯杯杯杯杯杯杯杯杯巧克力",
+      "巧克力蛋糕球杯杯杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "奶酪蛋糕卷卷卷卷卷卷卷卷卷",
+    "synonyms": [
+      "蛋糕卷卷卷卷卷卷卷卷卷奶酪",
+      "奶酪蛋糕卷饼卷卷卷卷卷卷卷卷"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "草莓冰淇淋杯杯杯杯杯杯杯杯杯",
+    "synonyms": [
+      "冰淇淋杯杯杯杯杯杯杯杯杯草莓",
+      "草莓冰淇淋球杯杯杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "芒果布丁杯杯杯杯杯杯杯杯杯",
+    "synonyms": [
+      "布丁杯杯杯杯杯杯杯杯杯芒果",
+      "芒果奶冻杯杯杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "巧克力甜甜圈杯杯杯杯杯杯杯杯杯",
+    "synonyms": [
+      "甜甜圈杯杯杯杯杯杯杯杯杯巧克力",
+      "巧克力甜甜圈球杯杯杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "奶酪甜甜圈杯杯杯杯杯杯杯杯杯",
+    "synonyms": [
+      "甜甜圈杯杯杯杯杯杯杯杯奶酪",
+      "奶酪甜甜圈球杯杯杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "草莓派杯杯杯杯杯杯杯杯杯",
+    "synonyms": [
+      "派杯杯杯杯杯杯杯杯杯草莓",
+      "草莓甜点派杯杯杯杯杯杯杯杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "香蕉奶昔杯杯杯杯杯杯杯杯杯",
+    "synonyms": [
+      "奶昔杯杯杯杯杯杯杯杯杯香蕉",
+      "香蕉饮品杯杯"
+    ],
+    "category": "食物"
+  },
+  {
+    "word": "猴子",
+    "synonyms": [
+      "猿猴",
+      "狨"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "河马",
+    "synonyms": [
+      "河马",
+      "河猪"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "犀牛",
+    "synonyms": [
+      "犀牛",
+      "犀角兽"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "海豚",
+    "synonyms": [
+      "海豚",
+      "海猪"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "骆驼",
+    "synonyms": [
+      "骆驼",
+      "骆驼兽"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "狐狸",
+    "synonyms": [
+      "狐狸",
+      "红狐"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "狼",
+    "synonyms": [
+      "狼",
+      "灰狼"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "鹿",
+    "synonyms": [
+      "鹿",
+      "麋鹿"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "马",
+    "synonyms": [
+      "马",
+      "骏马"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "牛",
+    "synonyms": [
+      "牛",
+      "黄牛"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "羊",
+    "synonyms": [
+      "羊",
+      "山羊"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "猪",
+    "synonyms": [
+      "猪",
+      "野猪"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "鸭",
+    "synonyms": [
+      "鸭",
+      "野鸭"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "鹅",
+    "synonyms": [
+      "鹅",
+      "雁鹅"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "鸡",
+    "synonyms": [
+      "鸡",
+      "火鸡"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "鸽",
+    "synonyms": [
+      "鸽",
+      "鸽子"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "孔雀",
+    "synonyms": [
+      "孔雀",
+      "凤凰"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "鹦鹉",
+    "synonyms": [
+      "鹦鹉",
+      "鹦哥"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "海龟",
+    "synonyms": [
+      "海龟",
+      "龟"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "鳄鱼",
+    "synonyms": [
+      "鳄鱼",
+      "鳄"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "鲨鱼",
+    "synonyms": [
+      "鲨鱼",
+      "鲨"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "鲸鱼",
+    "synonyms": [
+      "鲸鱼",
+      "鲸"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "海马",
+    "synonyms": [
+      "海马",
+      "海龙"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "龙虾",
+    "synonyms": [
+      "龙虾",
+      "大龙虾"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "蚂蚁",
+    "synonyms": [
+      "蚂蚁",
+      "蚁"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "蜘蛛",
+    "synonyms": [
+      "蜘蛛",
+      "蛛"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "蜈蚣",
+    "synonyms": [
+      "蜈蚣",
+      "百足虫"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "蛇",
+    "synonyms": [
+      "蛇",
+      "蟒"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "蜥蜴",
+    "synonyms": [
+      "蜥蜴",
+      "壁虎"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "乌龟",
+    "synonyms": [
+      "乌龟",
+      "龟"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "鹤",
+    "synonyms": [
+      "丹顶鹤",
+      "白鹤"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "鹰",
+    "synonyms": [
+      "老鹰",
+      "幼鹰"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "蝙蝠",
+    "synonyms": [
+      "果蝠",
+      "吸血蝠"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "豹子",
+    "synonyms": [
+      "金钱豹",
+      "云豹"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "鲑鱼",
+    "synonyms": [
+      "三文鱼",
+      "鳟鱼"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "鸵鸟",
+    "synonyms": [
+      "非洲鸵鸟"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "鸭嘴兽",
+    "synonyms": [
+      "有袋鸭嘴兽"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "袋熊",
+    "synonyms": [
+      "树袋熊",
+      "考拉"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "海象",
+    "synonyms": [
+      "北海象",
+      "海狗象"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "河狸",
+    "synonyms": [
+      "美洲河狸",
+      "亚洲河狸"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "松鼠",
+    "synonyms": [
+      "金松鼠",
+      "红松鼠"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "鹿豹",
+    "synonyms": [
+      "鹿豹虎",
+      "山豹鹿"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "狼犬",
+    "synonyms": [
+      "犬狼混合种"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "麋鹿",
+    "synonyms": [
+      "原始鹿",
+      "亚洲麋鹿"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "羚羊",
+    "synonyms": [
+      "黑斑羚",
+      "角马"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "野猪",
+    "synonyms": [
+      "山猪",
+      "欧洲野猪"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "鹿獐",
+    "synonyms": [
+      "梅花鹿獐",
+      "獐子"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "猫头鹰",
+    "synonyms": [
+      "仓鸮",
+      "猫头鹰科鸟类"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "鹰雕",
+    "synonyms": [
+      "金雕",
+      "白头雕"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "野鸭",
+    "synonyms": [
+      "绿头鸭",
+      "灰头鸭"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "鹳",
+    "synonyms": [
+      "黑鹳",
+      "白鹳"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "猫鱼",
+    "synonyms": [
+      "猫鲨鱼",
+      "猫鲨"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "鱼鹰",
+    "synonyms": [
+      "海雕鱼鹰",
+      "河鱼鹰"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "野猪猪",
+    "synonyms": [
+      "猪獾",
+      "野猪獾"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "貂鼠",
+    "synonyms": [
+      "北貂鼠",
+      "松鼠貂"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "猫鼬",
+    "synonyms": [
+      "黄鼬",
+      "鼬鼠"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "水獭",
+    "synonyms": [
+      "水狗",
+      "海獭"
+    ],
+    "category": "动物"
+  },
+  {
+    "word": "闹钟",
+    "synonyms": [
+      "叫醒器",
+      "定时器"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "灯泡",
+    "synonyms": [
+      "灯泡灯",
+      "灯丝"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "书包",
+    "synonyms": [
+      "背包",
+      "书袋"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "电脑",
+    "synonyms": [
+      "计算机",
+      "电脑机"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "手表",
+    "synonyms": [
+      "时计",
+      "手表表"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "船",
+    "synonyms": [
+      "船只",
+      "帆船"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "椅子",
+    "synonyms": [
+      "坐椅",
+      "椅子椅"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "桌子",
+    "synonyms": [
+      "桌案",
+      "桌子桌"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "门",
+    "synonyms": [
+      "门户",
+      "大门门"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "窗",
+    "synonyms": [
+      "窗户",
+      "窗窗"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "冰箱",
+    "synonyms": [
+      "冷藏箱",
+      "冰箱箱"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "洗衣机",
+    "synonyms": [
+      "洗衣机机",
+      "洗衣机器"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "微波炉",
+    "synonyms": [
+      "微波炉炉",
+      "微波炉器"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "烤箱",
+    "synonyms": [
+      "烤炉",
+      "烤箱炉"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "锅",
+    "synonyms": [
+      "锅具",
+      "锅锅"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "碗",
+    "synonyms": [
+      "碗具",
+      "碗碗"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "勺子",
+    "synonyms": [
+      "勺具",
+      "勺勺"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "筷子",
+    "synonyms": [
+      "筷具",
+      "筷子子"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "刀",
+    "synonyms": [
+      "刀具",
+      "刀刀"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "笔",
+    "synonyms": [
+      "笔具",
+      "笔笔"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "书",
+    "synonyms": [
+      "书籍",
+      "书书"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "画",
+    "synonyms": [
+      "画作",
+      "画画"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "音乐",
+    "synonyms": [
+      "乐谱",
+      "音乐乐"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "电影",
+    "synonyms": [
+      "影片",
+      "电影电"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "游戏",
+    "synonyms": [
+      "游乐",
+      "游戏游"
+    ],
+    "category": "物品"
+  },
+  {
+    "word": "地铁",
+    "synonyms": [
+      "地下铁路",
+      "地铁列车"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "货车",
+    "synonyms": [
+      "卡车",
+      "货运车"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "快艇",
+    "synonyms": [
+      "摩托艇",
+      "高速艇"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "潜水艇",
+    "synonyms": [
+      "潜艇",
+      "潜航器"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "直升机",
+    "synonyms": [
+      "直翼机",
+      "空艇"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "电梯",
+    "synonyms": [
+      "升降机",
+      "电梯"
+    ],
+    "category": "交通"
+  },
+  {
+    "word": "亭子",
+    "synonyms": [
+      "凉亭",
+      "亭阁"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "塔",
+    "synonyms": [
+      "宝塔",
+      "灯塔"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "牌楼",
+    "synonyms": [
+      "牌坊",
+      "门楼"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "亭台",
+    "synonyms": [
+      "亭台楼阁",
+      "台阁"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "鼓楼",
+    "synonyms": [
+      "钟楼",
+      "鼓楼"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "清真寺",
+    "synonyms": [
+      "礼拜寺",
+      "清寺"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "宝塔",
+    "synonyms": [
+      "佛塔",
+      "金塔"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "塔楼",
+    "synonyms": [
+      "钟楼塔",
+      "瞭望塔"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "庙宇",
+    "synonyms": [
+      "庙",
+      "寺院"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "拱桥",
+    "synonyms": [
+      "石拱桥",
+      "木拱桥"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "会馆",
+    "synonyms": [
+      "公馆",
+      "会堂"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "塔坊",
+    "synonyms": [
+      "牌坊",
+      "牌楼"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "亭阁",
+    "synonyms": [
+      "楼阁",
+      "阁楼"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "殿堂",
+    "synonyms": [
+      "庙堂",
+      "殿堂"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "府邸",
+    "synonyms": [
+      "宅邸",
+      "官邸"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "牌坊",
+    "synonyms": [
+      "牌楼",
+      "石坊"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "亭台楼阁",
+    "synonyms": [
+      "楼台",
+      "阁楼"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "庭院",
+    "synonyms": [
+      "院落",
+      "庭院式建筑"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "府衙",
+    "synonyms": [
+      "官署",
+      "府第"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "塔寺",
+    "synonyms": [
+      "寺庙",
+      "塔院"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "塔院",
+    "synonyms": [
+      "寺庙",
+      "塔楼"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "殿堂庙宇",
+    "synonyms": [
+      "庙宇",
+      "殿堂"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "佛塔",
+    "synonyms": [
+      "塔寺",
+      "佛寺"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "佛堂",
+    "synonyms": [
+      "佛寺",
+      "佛宫"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "佛寺",
+    "synonyms": [
+      "寺庙",
+      "佛塔"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "塔坊寺",
+    "synonyms": [
+      "塔坊",
+      "寺庙"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "殿堂阁楼",
+    "synonyms": [
+      "殿堂",
+      "阁楼"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "佛塔院",
+    "synonyms": [
+      "佛塔",
+      "院落"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "楼台亭阁",
+    "synonyms": [
+      "楼台",
+      "亭阁"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "楼台塔坊",
+    "synonyms": [
+      "楼台",
+      "塔坊"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "塔寺楼阁",
+    "synonyms": [
+      "塔寺",
+      "楼阁"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "塔坊院落",
+    "synonyms": [
+      "塔坊",
+      "院落"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "殿堂佛堂",
+    "synonyms": [
+      "殿堂",
+      "佛堂"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "塔坊寺庙",
+    "synonyms": [
+      "塔坊",
+      "寺庙"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "寺庙佛塔",
+    "synonyms": [
+      "寺庙",
+      "佛塔"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "殿堂塔楼",
+    "synonyms": [
+      "殿堂",
+      "塔楼"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "寺庙殿堂",
+    "synonyms": [
+      "寺庙",
+      "殿堂"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "塔坊佛塔",
+    "synonyms": [
+      "塔坊",
+      "佛塔"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "殿堂佛寺",
+    "synonyms": [
+      "殿堂",
+      "佛寺"
+    ],
+    "category": "建筑"
+  },
+  {
+    "word": "侦探",
+    "synonyms": [
+      "探员",
+      "警探"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "巫师",
+    "synonyms": [
+      "巫术师",
+      "法师"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "诗人",
+    "synonyms": [
+      "诗匠",
+      "文学家"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "骑士",
+    "synonyms": [
+      "骑士团长",
+      "骑士团长"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "舞者",
+    "synonyms": [
+      "舞蹈家",
+      "舞者"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "武士",
+    "synonyms": [
+      "剑士",
+      "武士道"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "剑客",
+    "synonyms": [
+      "剑士",
+      "剑士"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "剑士",
+    "synonyms": [
+      "剑客",
+      "剑士"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "探险家",
+    "synonyms": [
+      "探险者",
+      "旅者"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "考古学家",
+    "synonyms": [
+      "考古者",
+      "学者"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "音乐家",
+    "synonyms": [
+      "乐师",
+      "作曲家"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "歌手",
+    "synonyms": [
+      "歌者",
+      "乐手"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "小丑",
+    "synonyms": [
+      "滑稽艺人",
+      "喜剧演员"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "传教士",
+    "synonyms": [
+      "布道家",
+      "福音传播者"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "剧作家",
+    "synonyms": [
+      "编剧",
+      "戏剧制作者"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "导演",
+    "synonyms": [
+      "导播",
+      "制片"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "飞行员",
+    "synonyms": [
+      "飞行员",
+      "机长"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "律师",
+    "synonyms": [
+      "法学家",
+      "辩护士"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "外科医生",
+    "synonyms": [
+      "外科医师",
+      "外科专家"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "神经外科医生",
+    "synonyms": [
+      "神经外科医师",
+      "神经外科专家"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "心脏病专家",
+    "synonyms": [
+      "心内科专家",
+      "心脏科医生"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "儿科医生",
+    "synonyms": [
+      "小儿科医生",
+      "儿科专家"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "牙医",
+    "synonyms": [
+      "牙科医生",
+      "口腔科专家"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "眼科医生",
+    "synonyms": [
+      "眼科医师",
+      "眼科专家"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "病理学家",
+    "synonyms": [
+      "病理医师",
+      "病理专家"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "化学家",
+    "synonyms": [
+      "化学师",
+      "化学研究员"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "物理学家",
+    "synonyms": [
+      "物理师",
+      "物理研究员"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "数学家",
+    "synonyms": [
+      "数学师",
+      "数学研究员"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "哲学家",
+    "synonyms": [
+      "哲学者",
+      "哲学家"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "历史学家",
+    "synonyms": [
+      "历史师",
+      "历史研究员"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "经济学家",
+    "synonyms": [
+      "经济师",
+      "经济学家"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "政治学家",
+    "synonyms": [
+      "政治师",
+      "政治研究员"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "教师",
+    "synonyms": [
+      "教书匠",
+      "导师"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "记者",
+    "synonyms": [
+      "新闻工作者",
+      "采访者"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "模特",
+    "synonyms": [
+      "模特儿",
+      "造型师"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "作家",
+    "synonyms": [
+      "文学家",
+      "编剧"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "摄影师",
+    "synonyms": [
+      "摄影师婆",
+      "拍照师"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "程序员",
+    "synonyms": [
+      "开发者",
+      "码农"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "理发师",
+    "synonyms": [
+      "理发匠",
+      "发型师"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "设计师",
+    "synonyms": [
+      "造型师",
+      "美工"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "建筑师",
+    "synonyms": [
+      "设计师",
+      "工程师"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "发明家",
+    "synonyms": [
+      "创新者",
+      "发明人"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "导游",
+    "synonyms": [
+      "旅行顾问",
+      "讲解员"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "牧师",
+    "synonyms": [
+      "神父",
+      "传教士"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "间谍",
+    "synonyms": [
+      "特务",
+      "特工"
+    ],
+    "category": "人物"
+  },
+  {
+    "word": "森林",
+    "synonyms": [
+      "树林",
+      "丛林"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "山脉",
+    "synonyms": [
+      "山岭",
+      "山岳"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "湖泊",
+    "synonyms": [
+      "湖",
+      "泊"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "草原",
+    "synonyms": [
+      "草甸",
+      "草地"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "海滩",
+    "synonyms": [
+      "沙滩",
+      "海岸"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "峡谷",
+    "synonyms": [
+      "峡谷",
+      "溪谷"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "火山",
+    "synonyms": [
+      "火山",
+      "熔岩"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "沙漠",
+    "synonyms": [
+      "沙丘",
+      "荒漠"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "极光",
+    "synonyms": [
+      "北极光",
+      "南极光"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "冰川",
+    "synonyms": [
+      "冰河",
+      "冰盖"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "珊瑚礁",
+    "synonyms": [
+      "珊瑚",
+      "礁"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "沼泽",
+    "synonyms": [
+      "湿地",
+      "泥沼"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "雪山",
+    "synonyms": [
+      "雪峰",
+      "冰川"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "沙漠植物",
+    "synonyms": [
+      "耐旱植物",
+      "沙生植物"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "岩石",
+    "synonyms": [
+      "岩石层",
+      "沉积岩"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "河流",
+    "synonyms": [
+      "江河",
+      "溪流"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "瀑布群",
+    "synonyms": [
+      "瀑布带",
+      "瀑布群景观"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "湿地",
+    "synonyms": [
+      "沼泽地",
+      "湿地生态"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "火山岛",
+    "synonyms": [
+      "火山屿",
+      "火山群岛"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "沙漠绿洲",
+    "synonyms": [
+      "绿洲",
+      "沙漠中的绿洲"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "热带雨林",
+    "synonyms": [
+      "雨林",
+      "热带雨林气候"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "冰川公园",
+    "synonyms": [
+      "冰川景区",
+      "冰川自然保护区"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "火山口",
+    "synonyms": [
+      "火山喷口",
+      "火山坑"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "峡谷瀑布",
+    "synonyms": [
+      "峡谷中的瀑布",
+      "瀑布峡谷"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "珊瑚礁生态系统",
+    "synonyms": [
+      "珊瑚礁生态区",
+      "珊瑚礁生物群"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "沙漠植物群落",
+    "synonyms": [
+      "沙漠植被",
+      "沙生植物群落"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "岩石纹理",
+    "synonyms": [
+      "岩石结构",
+      "岩石构造"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "山脉轮廓",
+    "synonyms": [
+      "山脉形状",
+      "山脉景观"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "河流弯道",
+    "synonyms": [
+      "河流曲流",
+      "河流弯曲"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "瀑布喷溅",
+    "synonyms": [
+      "瀑布飞溅",
+      "瀑布溅射"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "火山喷发",
+    "synonyms": [
+      "火山爆发",
+      "火山活动"
+    ],
+    "category": "自然"
+  },
+  {
+    "word": "极光闪烁",
+    "synonyms": [
+      "极光闪耀",
+      "极光现象"
+    ],
+    "category": "自然"
+  }
 ]

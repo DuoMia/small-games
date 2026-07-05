@@ -22,8 +22,9 @@ import { hasTextSuspicion } from "@/utils/textDetect";
 const DEFAULT_VIEW_TIME = 3;
 const DEFAULT_DRAW_TIME = 8;
 const DEFAULT_TOTAL_PAGES = 30;
-const CANVAS_W = 600;
-const CANVAS_H = 450;
+// 降低分辨率以减少 toDataURL 开销
+const CANVAS_W = 400;
+const CANVAS_H = 300;
 
 const COLORS = [
   { name: "ink", value: "#1B1340" },
@@ -39,7 +40,7 @@ const BRUSH_SIZES = [
   { name: "粗", value: 12 },
 ];
 
-/** 将笔画渲染到临时 canvas 并返回 DataURL */
+/** 将笔画渲染到临时 canvas 并返回 DataURL（单张，同步） */
 function strokesToDataURL(strokes: Stroke[]): string {
   const canvas = document.createElement("canvas");
   canvas.width = CANVAS_W;
@@ -60,20 +61,43 @@ function strokesToDataURL(strokes: Stroke[]): string {
     ctx.lineWidth = stroke.size;
     ctx.beginPath();
     const first = stroke.points[0];
-    ctx.moveTo(first.x, first.y);
+    // 坐标缩放：DrawingCanvas 是 600x450 逻辑坐标，目标是 400x300
+    ctx.moveTo((first.x / 600) * CANVAS_W, (first.y / 450) * CANVAS_H);
     if (stroke.points.length === 1) {
-      ctx.arc(first.x, first.y, stroke.size / 2, 0, Math.PI * 2);
+      ctx.arc(
+        (first.x / 600) * CANVAS_W,
+        (first.y / 450) * CANVAS_H,
+        stroke.size / 2,
+        0,
+        Math.PI * 2
+      );
       ctx.fillStyle = stroke.color;
       ctx.fill();
     } else {
       for (let i = 1; i < stroke.points.length; i++) {
-        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+        ctx.lineTo(
+          (stroke.points[i].x / 600) * CANVAS_W,
+          (stroke.points[i].y / 450) * CANVAS_H
+        );
       }
       ctx.stroke();
     }
     ctx.restore();
   });
-  return canvas.toDataURL("image/jpeg", 0.7);
+  return canvas.toDataURL("image/jpeg", 0.5);
+}
+
+/** 异步分批将笔画转为 DataURL，避免阻塞主线程导致音乐卡顿 */
+async function strokesBatchToDataURLs(strokesList: Stroke[][]): Promise<string[]> {
+  const results: string[] = [];
+  for (let i = 0; i < strokesList.length; i++) {
+    results.push(strokesToDataURL(strokesList[i]));
+    // 每处理 3 张让出主线程一次，让 BGM 调度和 UI 更新得以执行
+    if (i % 3 === 2) {
+      await new Promise((r) => setTimeout(r, 0));
+    }
+  }
+  return results;
 }
 
 type Mode = "view" | "draw" | "done";
@@ -107,6 +131,7 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
   const [tool, setTool] = useState<"pen" | "eraser">("pen");
   const [showWarning, setShowWarning] = useState(true);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [textAlert, setTextAlert] = useState<string | null>(null);
 
   const pagesRef = useRef(pages);
@@ -169,15 +194,19 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
     return () => clearInterval(interval);
   }, [mode, currentIndex, checkTextAlert, viewTime, drawTime, totalPages, playSfx]);
 
-  // 所有词画完 → 自动提交
+  // 所有词画完 → 异步分批提交，避免阻塞主线程
   useEffect(() => {
-    if (mode !== "done" || submitted) return;
+    if (mode !== "done" || submitted || submitting) return;
+    setSubmitting(true);
     setSubmitted(true);
-    const dataURLs = pagesRef.current.map((strokes) => strokesToDataURL(strokes));
-    setDrawings(dataURLs);
-    uploadDrawings(roomId, dataURLs);
-    playSfx(sfx.roundEnd);
-  }, [mode, submitted, roomId, uploadDrawings, setDrawings, playSfx]);
+    (async () => {
+      const dataURLs = await strokesBatchToDataURLs(pagesRef.current);
+      setDrawings(dataURLs);
+      uploadDrawings(roomId, dataURLs);
+      setSubmitting(false);
+      playSfx(sfx.roundEnd);
+    })();
+  }, [mode, submitted, submitting, roomId, uploadDrawings, setDrawings, playSfx]);
 
   // 提交后超时兜底：如果 20s 后仍在 DRAWING 阶段，提示可重试
   const [waitTimeout, setWaitTimeout] = useState(false);
@@ -192,11 +221,14 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
     return () => clearTimeout(timer);
   }, [submitted]);
 
-  const handleRetryUpload = () => {
+  const handleRetryUpload = async () => {
     if (!submitted) return;
-    const dataURLs = pagesRef.current.map((strokes) => strokesToDataURL(strokes));
-    uploadDrawings(roomId, dataURLs);
+    setSubmitting(true);
     setWaitTimeout(false);
+    const dataURLs = await strokesBatchToDataURLs(pagesRef.current);
+    setDrawings(dataURLs);
+    uploadDrawings(roomId, dataURLs);
+    setSubmitting(false);
   };
 
   const handleStrokesChange = useCallback(
@@ -432,9 +464,16 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
         <div className="fixed inset-0 bg-ink/60 z-50 flex items-center justify-center px-8">
           <div className="bg-white rounded-blob border-3 border-ink shadow-card p-8 text-center max-w-xs animate-bounce-in">
             <div className="text-5xl mb-3 animate-float">⏳</div>
-            <h3 className="font-display text-2xl text-ink mb-1">画作已提交！</h3>
-            {waitTimeout ? (
+            {submitting ? (
               <>
+                <h3 className="font-display text-2xl text-ink mb-1">正在处理画作...</h3>
+                <p className="text-ink-muted text-sm mt-2">
+                  将画作转为图片中，请稍候
+                </p>
+              </>
+            ) : waitTimeout ? (
+              <>
+                <h3 className="font-display text-2xl text-ink mb-1">画作已提交！</h3>
                 <p className="text-coral text-sm mt-2 mb-4">
                   对手似乎掉线了，迟迟未提交
                 </p>
@@ -446,9 +485,12 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
                 </button>
               </>
             ) : (
-              <p className="text-ink-muted text-sm">
-                等待其余玩家完成绘画，准备进入答题阶段...
-              </p>
+              <>
+                <h3 className="font-display text-2xl text-ink mb-1">画作已提交！</h3>
+                <p className="text-ink-muted text-sm">
+                  等待其余玩家完成绘画，准备进入答题阶段...
+                </p>
+              </>
             )}
           </div>
         </div>

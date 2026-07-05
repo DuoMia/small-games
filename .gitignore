@@ -17,6 +17,12 @@ dist-ssr
 .tools/
 online-status.html
 
+# 环境变量和 API Key（绝不提交）
+.env
+.env.*
+scripts/.env
+scripts/.env.*
+
 # TRAE IDE 文档（项目内部设计文档，不上传）
 .trae/
 

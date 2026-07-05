@@ -62,15 +62,18 @@ interface Question {
   acceptedAnswers: string[];
 }
 
-/** 把笔画渲染成 DataURL */
+/** 把笔画渲染成 DataURL（单张，同步） */
 function strokesToDataURL(strokes: Stroke[]): string {
   const canvas = document.createElement("canvas");
-  canvas.width = CANVAS_W;
-  canvas.height = CANVAS_H;
+  // 降低分辨率以减少 toDataURL 开销
+  const W = 400;
+  const H = 300;
+  canvas.width = W;
+  canvas.height = H;
   const ctx = canvas.getContext("2d");
   if (!ctx) return "";
   ctx.fillStyle = "#FFFFFF";
-  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  ctx.fillRect(0, 0, W, H);
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   strokes.forEach((stroke) => {
@@ -83,20 +86,42 @@ function strokesToDataURL(strokes: Stroke[]): string {
     ctx.lineWidth = stroke.size;
     ctx.beginPath();
     const first = stroke.points[0];
-    ctx.moveTo(first.x, first.y);
+    // 坐标缩放
+    ctx.moveTo((first.x / CANVAS_W) * W, (first.y / CANVAS_H) * H);
     if (stroke.points.length === 1) {
-      ctx.arc(first.x, first.y, stroke.size / 2, 0, Math.PI * 2);
+      ctx.arc(
+        (first.x / CANVAS_W) * W,
+        (first.y / CANVAS_H) * H,
+        stroke.size / 2,
+        0,
+        Math.PI * 2
+      );
       ctx.fillStyle = stroke.color;
       ctx.fill();
     } else {
       for (let i = 1; i < stroke.points.length; i++) {
-        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+        ctx.lineTo(
+          (stroke.points[i].x / CANVAS_W) * W,
+          (stroke.points[i].y / CANVAS_H) * H
+        );
       }
       ctx.stroke();
     }
     ctx.restore();
   });
-  return canvas.toDataURL("image/jpeg", 0.7);
+  return canvas.toDataURL("image/jpeg", 0.5);
+}
+
+/** 异步分批将笔画转为 DataURL，避免阻塞主线程导致音乐卡顿 */
+async function strokesBatchToDataURLs(strokesList: Stroke[][]): Promise<string[]> {
+  const results: string[] = [];
+  for (let i = 0; i < strokesList.length; i++) {
+    results.push(strokesToDataURL(strokesList[i]));
+    if (i % 3 === 2) {
+      await new Promise((r) => setTimeout(r, 0));
+    }
+  }
+  return results;
 }
 
 function pickWords(count: number, categories: string[]): WordEntry[] {
@@ -259,18 +284,23 @@ export default function SoloMode() {
     return () => clearInterval(interval);
   }, [stage, drawMode, currentIndex, checkTextAlert, viewTime, drawTime, totalPages, playSfx]);
 
-  // 画图全部完成 → 生成 DataURL + 题目，进入答题
+  // 画图全部完成 → 异步分批生成 DataURL + 题目，进入答题
   useEffect(() => {
     if (stage !== "draw" || drawMode !== "done") return;
-    const finalPages = pagesRef.current;
-    const dataURLs = finalPages.map((s) => strokesToDataURL(s));
-    setDrawings(dataURLs);
-    setQuestions(genQuestions(wordEntries, quizCount));
-    setQuizIndex(0);
-    setAnswer("");
-    setQuizResult(null);
-    setStage("quiz");
-    playSfx(sfx.roundEnd);
+    let cancelled = false;
+    (async () => {
+      const finalPages = pagesRef.current;
+      const dataURLs = await strokesBatchToDataURLs(finalPages);
+      if (cancelled) return;
+      setDrawings(dataURLs);
+      setQuestions(genQuestions(wordEntries, quizCount));
+      setQuizIndex(0);
+      setAnswer("");
+      setQuizResult(null);
+      setStage("quiz");
+      playSfx(sfx.roundEnd);
+    })();
+    return () => { cancelled = true; };
   }, [stage, drawMode, wordEntries, quizCount, playSfx]);
 
   const handleStrokesChange = useCallback(
