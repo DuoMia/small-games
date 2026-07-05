@@ -97,7 +97,9 @@ function Start-Backend {
         Write-Log "CORS 白名单: $($script:pagesDomain)"
     }
 
-    $p = Start-Process -FilePath "npx" -ArgumentList "tsx api/server.ts" -WorkingDirectory $ProjectRoot -WindowStyle Hidden -PassThru
+    # Windows 上 npx 是 npx.cmd 批处理文件，Start-Process 需要明确指定
+    # 用 cmd /c 包装最稳妥，能正确处理 PATH 查找
+    $p = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "npx tsx api/server.ts" -WorkingDirectory $ProjectRoot -WindowStyle Hidden -PassThru
     $script:backendPid = $p.Id
     Write-Log "后端服务已启动 (PID: $($p.Id), 端口: $BackEndPort)"
     Update-Status
