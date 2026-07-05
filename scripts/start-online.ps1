@@ -138,7 +138,7 @@ function Start-Tunnel {
     $script:tunnelTimeoutWarned = $false
     if (Test-Path $script:tunnelLogFile) { Remove-Item $script:tunnelLogFile -Force -ErrorAction SilentlyContinue }
 
-    $p = Start-Process -FilePath $CloudflaredExe -ArgumentList "tunnel --url http://localhost:$BackEndPort --no-autoupdate --protocol http2" -NoNewWindow -RedirectStandardError $script:tunnelLogFile -PassThru
+    $p = Start-Process -FilePath $CloudflaredExe -ArgumentList "tunnel --url http://localhost:$BackEndPort" -NoNewWindow -RedirectStandardError $script:tunnelLogFile -PassThru
     $script:tunnelPid = $p.Id
     Write-Log "隧道进程已启动 (PID: $($p.Id))"
     Write-Log "等待分配公网地址..."
