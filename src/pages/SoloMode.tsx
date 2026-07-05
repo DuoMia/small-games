@@ -19,6 +19,7 @@ import {
   type DrawingCanvasHandle,
   type Stroke,
 } from "@/components/DrawingCanvas";
+import { hasTextSuspicion } from "@/utils/textDetect";
 import wordBank from "../../api/data/words.json";
 
 interface WordEntry {
@@ -138,6 +139,7 @@ export default function SoloMode() {
   const [brushSize, setBrushSize] = useState(BRUSH_SIZES[1].value);
   const [tool, setTool] = useState<"pen" | "eraser">("pen");
   const [showWarning, setShowWarning] = useState(true);
+  const [textAlert, setTextAlert] = useState<string | null>(null);
   const pagesRef = useRef<Stroke[][]>([]);
 
   // 答题阶段状态
@@ -163,6 +165,17 @@ export default function SoloMode() {
     setStage("draw");
   };
 
+  // 检测当前画布是否疑似含文字，若是则弹出提示
+  const checkTextAlert = useCallback(
+    (strokes: Stroke[], idx: number) => {
+      if (strokes.length > 0 && hasTextSuspicion(strokes)) {
+        setTextAlert(`第 ${idx + 1} 张画疑似写了文字，请用图画表达！`);
+        setTimeout(() => setTextAlert(null), 3000);
+      }
+    },
+    []
+  );
+
   // 画图阶段倒计时驱动 view → draw → next
   useEffect(() => {
     if (stage !== "draw") return;
@@ -187,6 +200,7 @@ export default function SoloMode() {
             pagesRef.current = next;
             return next;
           });
+          checkTextAlert(currentStrokes, currentIndex);
           if (currentIndex + 1 >= totalPages) {
             setDrawMode("done");
           } else {
@@ -197,7 +211,7 @@ export default function SoloMode() {
       }
     }, 100);
     return () => clearInterval(interval);
-  }, [stage, drawMode, currentIndex]);
+  }, [stage, drawMode, currentIndex, checkTextAlert]);
 
   // 画图全部完成 → 生成 DataURL + 题目，进入答题
   useEffect(() => {
@@ -235,13 +249,14 @@ export default function SoloMode() {
       pagesRef.current = next;
       return next;
     });
+    checkTextAlert(currentStrokes, currentIndex);
     if (currentIndex + 1 >= totalPages) {
       setDrawMode("done");
     } else {
       setCurrentIndex((i) => i + 1);
       setDrawMode("view");
     }
-  }, [drawMode, currentIndex]);
+  }, [drawMode, currentIndex, checkTextAlert]);
 
   // 答题：提交答案
   const handleSubmitAnswer = () => {
@@ -541,6 +556,14 @@ export default function SoloMode() {
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* 文字检测提示 */}
+        {textAlert && (
+          <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-coral text-white px-4 py-2.5 rounded-doodle border-2 border-ink shadow-card flex items-center gap-2 animate-slide-up max-w-[90%]">
+            <AlertTriangle size={18} className="flex-shrink-0" />
+            <span className="font-body text-sm">{textAlert}</span>
           </div>
         )}
       </div>

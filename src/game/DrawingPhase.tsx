@@ -14,6 +14,7 @@ import {
   type DrawingCanvasHandle,
   type Stroke,
 } from "@/components/DrawingCanvas";
+import { hasTextSuspicion } from "@/utils/textDetect";
 
 const TOTAL_PAGES = 30;
 const VIEW_TIME = 5; // 看词5秒
@@ -90,9 +91,18 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
   const [tool, setTool] = useState<"pen" | "eraser">("pen");
   const [showWarning, setShowWarning] = useState(true);
   const [submitted, setSubmitted] = useState(false);
+  const [textAlert, setTextAlert] = useState<string | null>(null);
 
   const pagesRef = useRef(pages);
   pagesRef.current = pages;
+
+  // 检测当前画布是否疑似含文字，若是则弹出提示
+  const checkTextAlert = useCallback((strokes: Stroke[], idx: number) => {
+    if (strokes.length > 0 && hasTextSuspicion(strokes)) {
+      setTextAlert(`第 ${idx + 1} 张画疑似写了文字，请用图画表达！`);
+      setTimeout(() => setTextAlert(null), 3000);
+    }
+  }, []);
 
   // 倒计时驱动 view → draw → next
   useEffect(() => {
@@ -116,6 +126,7 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
             next[currentIndex] = currentStrokes;
             return next;
           });
+          checkTextAlert(currentStrokes, currentIndex);
           if (currentIndex + 1 >= TOTAL_PAGES) {
             setMode("done");
           } else {
@@ -126,7 +137,7 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
       }
     }, 100);
     return () => clearInterval(interval);
-  }, [mode, currentIndex]);
+  }, [mode, currentIndex, checkTextAlert]);
 
   // 所有词画完 → 自动提交
   useEffect(() => {
@@ -157,13 +168,14 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
       next[currentIndex] = currentStrokes;
       return next;
     });
+    checkTextAlert(currentStrokes, currentIndex);
     if (currentIndex + 1 >= TOTAL_PAGES) {
       setMode("done");
     } else {
       setCurrentIndex((i) => i + 1);
       setMode("view");
     }
-  }, [mode, currentIndex]);
+  }, [mode, currentIndex, checkTextAlert]);
 
   const drawnCount = pages.filter((p) => p.length > 0).length;
   const isView = mode === "view";
@@ -357,6 +369,14 @@ export default function DrawingPhase({ roomId }: { roomId: string }) {
               等待对手完成画画，准备进入答题阶段...
             </p>
           </div>
+        </div>
+      )}
+
+      {/* 文字检测提示 */}
+      {textAlert && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-coral text-white px-4 py-2.5 rounded-doodle border-2 border-ink shadow-card flex items-center gap-2 animate-slide-up max-w-[90%]">
+          <AlertTriangle size={18} className="flex-shrink-0" />
+          <span className="font-body text-sm">{textAlert}</span>
         </div>
       )}
     </div>
