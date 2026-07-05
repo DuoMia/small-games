@@ -17,10 +17,6 @@ export interface DifficultyConfig {
   drawTime: number;
   /** 双人模式 WordDisplay 阶段每词时间（秒） */
   wordDuration: number;
-  /** 总词数 */
-  totalWords: number;
-  /** 答题数量 */
-  quizCount: number;
   /** 词库筛选：按 category 白名单，空数组表示全词库 */
   categories: string[];
   /** 主题色（tailwind class） */
@@ -35,8 +31,6 @@ export const DIFFICULTY_CONFIGS: Record<Difficulty, DifficultyConfig> = {
     viewTime: 5,
     drawTime: 15,
     wordDuration: 8,
-    totalWords: 20,
-    quizCount: 8,
     categories: ["食物", "动物", "物品"],
     color: "bg-mint",
   },
@@ -47,8 +41,6 @@ export const DIFFICULTY_CONFIGS: Record<Difficulty, DifficultyConfig> = {
     viewTime: 3,
     drawTime: 8,
     wordDuration: 5,
-    totalWords: 30,
-    quizCount: 10,
     categories: [], // 全词库
     color: "bg-sun",
   },
@@ -59,8 +51,6 @@ export const DIFFICULTY_CONFIGS: Record<Difficulty, DifficultyConfig> = {
     viewTime: 2,
     drawTime: 5,
     wordDuration: 3,
-    totalWords: 30,
-    quizCount: 12,
     categories: ["物品", "自然", "交通", "建筑", "人物"],
     color: "bg-coral",
   },
@@ -71,8 +61,6 @@ export const DIFFICULTY_CONFIGS: Record<Difficulty, DifficultyConfig> = {
     viewTime: 1,
     drawTime: 3,
     wordDuration: 2,
-    totalWords: 40,
-    quizCount: 15,
     categories: ["建筑", "人物", "物品"],
     color: "bg-ink",
   },

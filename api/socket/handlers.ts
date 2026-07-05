@@ -75,12 +75,12 @@ export function registerSocketHandlers(io: Io) {
         currentRound: room.state.currentRound,
       });
       io.to(roomId).emit("game:words", { words });
-      // 下发难度对应的时间/题量配置，前端据此驱动倒计时
+      // 下发难度对应的时间参数 + 题量（题数=词数），前端据此驱动倒计时
       io.to(roomId).emit("game:config", {
         viewTime: diffConfig.viewTime,
         drawTime: diffConfig.drawTime,
         wordDuration: diffConfig.wordDuration,
-        totalQuestions: diffConfig.quizCount,
+        totalQuestions: room.wordsPerRound,
       });
     });
 
@@ -213,7 +213,7 @@ export function registerSocketHandlers(io: Io) {
         viewTime: diffConfig.viewTime,
         drawTime: diffConfig.drawTime,
         wordDuration: diffConfig.wordDuration,
-        totalQuestions: diffConfig.quizCount,
+        totalQuestions: room.wordsPerRound,
       });
     });
 

@@ -18,7 +18,8 @@ import {
 
 const TOTAL_ROUNDS = 3;
 const MAX_PLAYERS = 2;
-const VALID_WORD_COUNTS = [15, 20, 30, 40];
+// 题量（=词数=答题数）可选值
+const VALID_WORD_COUNTS = [15, 30];
 
 class RoomManagerClass {
   private rooms = new Map<string, Room>();
@@ -61,7 +62,7 @@ class RoomManagerClass {
       state: this.createInitialState(),
       usedWords: [],
       createdAt: Date.now(),
-      wordsPerRound: 30,
+      wordsPerRound: 15,
       difficulty: DEFAULT_DIFFICULTY,
     };
     this.rooms.set(roomId, room);
@@ -248,11 +249,11 @@ class RoomManagerClass {
 
   /**
    * 开始答题阶段
+   * 题数 = 词数（每个词都答一次），由 room.wordsPerRound 决定
    */
   private startQuiz(room: Room) {
     const wordEntries = room.state.wordEntries;
-    const diffConfig = getDifficultyConfig(room.difficulty);
-    room.state.questions = generateQuestions(wordEntries, diffConfig.quizCount);
+    room.state.questions = generateQuestions(wordEntries, room.wordsPerRound);
     room.state.phase = "QUIZ";
     room.state.currentQuestionIndex = 0;
     room.state.answers = {};

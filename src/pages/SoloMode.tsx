@@ -142,9 +142,12 @@ export default function SoloMode() {
   // 整体阶段
   const [stage, setStage] = useState<SoloStage>("intro");
 
-  // 难度选择
+  // 难度选择（只影响时间+词库筛选，不影响题量）
   const [difficulty, setDifficulty] = useState<Difficulty>(DEFAULT_DIFFICULTY);
   const diffConfig = getDifficultyConfig(difficulty);
+
+  // 题量选择（独立于难度，词数=题数）
+  const [quizCount, setQuizCount] = useState<number>(15);
 
   // 画图阶段状态
   const canvasRef = useRef<DrawingCanvasHandle>(null);
@@ -171,8 +174,8 @@ export default function SoloMode() {
   } | null>(null);
   const [score, setScore] = useState(0);
 
-  const totalPages = diffConfig.totalWords;
-  const quizCount = diffConfig.quizCount;
+  // 词数 = 题数，由用户独立选择
+  const totalPages = quizCount;
   const viewTime = diffConfig.viewTime;
   const drawTime = diffConfig.drawTime;
 
@@ -417,28 +420,21 @@ export default function SoloMode() {
                   <button
                     key={n}
                     onClick={() => {
-                      setDifficulty(
-                        n === 15 && difficulty === "normal"
-                          ? "easy"
-                          : difficulty
-                      );
-                      // 简单切换题量：15 词用 easy 配置，30 词用 normal
-                      if (n === 15) setDifficulty("easy");
-                      else setDifficulty("normal");
+                      setQuizCount(n);
                       playSfx(sfx.uiTick);
                     }}
                     className={`flex-1 py-3 rounded-doodle border-2 font-display text-base transition-all ${
-                      totalPages === n
+                      quizCount === n
                         ? "bg-coral text-white border-ink shadow-soft"
                         : "bg-white text-ink border-ink/30"
                     }`}
                   >
-                    {n} 词
+                    {n} 题
                   </button>
                 ))}
               </div>
               <p className="text-center text-xs text-ink-muted mt-2">
-                共 {totalPages} 个词 · 答题 {quizCount} 题 · 每题 1 分
+                画 {quizCount} 个词 · 答 {quizCount} 题 · 每题 1 分
               </p>
             </div>
 
