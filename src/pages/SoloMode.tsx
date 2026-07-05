@@ -27,9 +27,8 @@ interface WordEntry {
   category: string;
 }
 
-const TOTAL_PAGES = 30;
 const VIEW_TIME = 5; // 看词5秒
-const DRAW_TIME = 15; // 画图15秒
+const DRAW_TIME = 5; // 画图5秒
 const CANVAS_W = 600;
 const CANVAS_H = 450;
 const QUIZ_COUNT = 10;
@@ -124,6 +123,9 @@ export default function SoloMode() {
   // 整体阶段
   const [stage, setStage] = useState<SoloStage>("intro");
 
+  // 题量选择（词语数量 = 画图数量）
+  const [totalPages, setTotalPages] = useState<number>(30);
+
   // 画图阶段状态
   const canvasRef = useRef<DrawingCanvasHandle>(null);
   const [wordEntries, setWordEntries] = useState<WordEntry[]>([]);
@@ -150,9 +152,9 @@ export default function SoloMode() {
 
   // 开始单人游戏
   const startSolo = () => {
-    const picked = pickWords(TOTAL_PAGES);
+    const picked = pickWords(totalPages);
     setWordEntries(picked);
-    setPages(Array.from({ length: TOTAL_PAGES }, () => []));
+    setPages(Array.from({ length: totalPages }, () => []));
     setDrawings([]);
     setCurrentIndex(0);
     setDrawMode("view");
@@ -185,7 +187,7 @@ export default function SoloMode() {
             pagesRef.current = next;
             return next;
           });
-          if (currentIndex + 1 >= TOTAL_PAGES) {
+          if (currentIndex + 1 >= totalPages) {
             setDrawMode("done");
           } else {
             setCurrentIndex((i) => i + 1);
@@ -233,7 +235,7 @@ export default function SoloMode() {
       pagesRef.current = next;
       return next;
     });
-    if (currentIndex + 1 >= TOTAL_PAGES) {
+    if (currentIndex + 1 >= totalPages) {
       setDrawMode("done");
     } else {
       setCurrentIndex((i) => i + 1);
@@ -304,13 +306,13 @@ export default function SoloMode() {
                 <div className="flex items-center justify-center w-10 h-10 rounded-full bg-coral border-2 border-ink font-display text-white">1</div>
                 <div className="flex-1">
                   <div className="font-display text-ink">看词 5 秒</div>
-                  <div className="text-xs text-ink-muted">30 个词语依次展示，记住它们</div>
+                  <div className="text-xs text-ink-muted">词语依次展示，记住它们</div>
                 </div>
               </div>
               <div className="flex items-center gap-3 bg-sun rounded-doodle p-3 border-2 border-ink shadow-soft">
                 <div className="flex items-center justify-center w-10 h-10 rounded-full bg-ink border-2 border-ink font-display text-cream">2</div>
                 <div className="flex-1">
-                  <div className="font-display text-ink">画图 15 秒</div>
+                  <div className="font-display text-ink">画图 5 秒</div>
                   <div className="text-xs text-ink-muted">凭记忆作画，不能写文字！</div>
                 </div>
               </div>
@@ -322,9 +324,30 @@ export default function SoloMode() {
                 </div>
               </div>
             </div>
-            <p className="text-center text-xs text-ink-muted mb-4">
-              本地判分 · 共 10 题 · 每题 1 分
-            </p>
+
+            {/* 题量选择 */}
+            <div className="mb-5">
+              <p className="font-display text-ink text-sm mb-2">题量选择</p>
+              <div className="flex gap-2">
+                {[15, 30].map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => setTotalPages(n)}
+                    className={`flex-1 py-3 rounded-doodle border-2 font-display text-base transition-all ${
+                      totalPages === n
+                        ? "bg-coral text-white border-ink shadow-soft"
+                        : "bg-white text-ink border-ink/30"
+                    }`}
+                  >
+                    {n} 词
+                  </button>
+                ))}
+              </div>
+              <p className="text-center text-xs text-ink-muted mt-2">
+                共 {totalPages} 个词 · 答题 {QUIZ_COUNT} 题 · 每题 1 分
+              </p>
+            </div>
+
             <button
               onClick={startSolo}
               className="btn-press w-full py-4 bg-mint text-ink font-display text-xl rounded-doodle shadow-pop border-2 border-ink flex items-center justify-center gap-2"
@@ -358,7 +381,7 @@ export default function SoloMode() {
           </div>
           <div className="flex items-center gap-2">
             <span className="font-display text-ink text-sm">
-              {currentIndex + 1}/{TOTAL_PAGES}
+              {currentIndex + 1}/{totalPages}
             </span>
             <span
               className={`font-display text-lg ${
@@ -427,7 +450,7 @@ export default function SoloMode() {
                   #{currentIndex + 1}
                 </span>
                 <span className="text-xs text-ink-muted">
-                  已画 {drawnCount}/{TOTAL_PAGES}
+                  已画 {drawnCount}/{totalPages}
                 </span>
               </div>
               <div className="flex-1 min-h-0 flex items-center justify-center">
