@@ -1,4 +1,4 @@
-#Requires -Version 5.0
+﻿#Requires -Version 5.0
 # 画词记忆 · 服务管理器（GUI 版）
 # 双击「在线游玩.bat」即可启动
 #
