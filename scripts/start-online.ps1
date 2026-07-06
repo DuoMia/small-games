@@ -99,24 +99,32 @@ function Start-Backend {
 
     # 加载 scripts/.env 中的环境变量（GLM_API_KEY 等），供海龟汤 AI 主持人使用
     # 该文件已被 .gitignore 忽略，不会提交到仓库
+    # 注意：必须用 [System.IO.File]::ReadAllLines 强制 UTF-8 读取，
+    #       PowerShell 5.x 的 Get-Content 默认按 GBK 解码 UTF-8 无 BOM 文件会出问题
+    #       必须用 [System.Environment]::SetEnvironmentVariable 设置，
+    #       Set-Item -Path "Env:$k" 在某些 PS 5.x 环境下不生效
     $EnvFile = Join-Path $PSScriptRoot ".env"
     if (Test-Path $EnvFile) {
         try {
-            Get-Content $EnvFile -ErrorAction SilentlyContinue | ForEach-Object {
-                $line = $_.Trim()
-                if ($line -and -not $line.StartsWith("#")) {
-                    $idx = $line.IndexOf("=")
+            $lines = [System.IO.File]::ReadAllLines($EnvFile, [System.Text.Encoding]::UTF8)
+            $loadedCount = 0
+            foreach ($line in $lines) {
+                $t = $line.Trim()
+                if ($t -and -not $t.StartsWith("#")) {
+                    $idx = $t.IndexOf("=")
                     if ($idx -gt 0) {
-                        $k = $line.Substring(0, $idx).Trim()
-                        $v = $line.Substring($idx + 1).Trim()
-                        Set-Item -Path "Env:$k" -Value $v
+                        $k = $t.Substring(0, $idx).Trim()
+                        $v = $t.Substring($idx + 1).Trim()
+                        [System.Environment]::SetEnvironmentVariable($k, $v, "Process")
+                        $loadedCount++
                     }
                 }
             }
             if ($env:GLM_API_KEY) {
-                Write-Log "已加载 GLM_API_KEY（海龟汤 AI 主持人可用）"
+                $masked = $env:GLM_API_KEY.Substring(0, [Math]::Min(8, $env:GLM_API_KEY.Length)) + "..."
+                Write-Log "已加载 GLM_API_KEY（$masked，海龟汤 AI 主持人可用）"
             } else {
-                Write-Log "警告: scripts/.env 中未找到 GLM_API_KEY，海龟汤 AI 将全部返回'无关'"
+                Write-Log "警告: scripts/.env 中未找到 GLM_API_KEY（已解析 $loadedCount 行），海龟汤 AI 将全部返回'无关'"
             }
         } catch {
             Write-Log "读取 scripts/.env 失败: $_"
