@@ -7,6 +7,7 @@ import QuizPhase from "@/game/QuizPhase";
 import RoundResult from "@/game/RoundResult";
 import GameResult from "@/game/GameResult";
 import TelepathyGame from "@/game/TelepathyGame";
+import TurtleSoup from "@/game/TurtleSoup";
 
 export default function Game() {
   const { roomId } = useParams<{ roomId: string }>();
@@ -38,6 +39,11 @@ export default function Game() {
   // 默契考验：统一交给 TelepathyGame 处理（内部按 phase 分发，含 GAME_OVER）
   if (room.gameType === "telepathy") {
     return <TelepathyGame roomId={roomId} />;
+  }
+
+  // 海龟汤：统一交给 TurtleSoup 处理
+  if (room.gameType === "turtle-soup") {
+    return <TurtleSoup roomId={roomId} />;
   }
 
   // 画词记忆：原有逻辑

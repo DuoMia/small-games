@@ -25,6 +25,12 @@ export function useSocketConnection() {
     setTelepathyQuestion,
     setTelepathyReveal,
     setTelepathyOpponentChose,
+    setTurtleSurface,
+    addTurtleQuestion,
+    setTurtleQuestionsLeft,
+    addTurtleGuess,
+    setTurtleReveal,
+    setTurtleJudging,
     setRoundResult,
     setGameOver,
   } = useGameStore();
@@ -101,6 +107,50 @@ export function useSocketConnection() {
       playSfx(sfx.opponentAnswered);
     };
 
+    // ---- 海龟汤事件 ----
+    const onTurtleSurface = (s) => {
+      setTurtleSurface(s);
+    };
+    const onTurtleJudging = (j) => {
+      setTurtleJudging(j);
+    };
+    const onTurtleAnswered = (d) => {
+      addTurtleQuestion({ question: d.question, asker: d.asker, answer: d.answer });
+      setTurtleQuestionsLeft(d.questionsLeft);
+      setTurtleJudging(null);
+      // 是/否/无关 音效
+      if (d.answer === "是") {
+        playSfx(sfx.correct);
+      } else if (d.answer === "否") {
+        playSfx(sfx.wrong);
+      } else {
+        playSfx(sfx.uiTick);
+      }
+    };
+    const onTurtleGuessResult = (d) => {
+      addTurtleGuess({
+        guess: d.guess,
+        guesser: d.guesser,
+        correct: d.correct,
+        close: d.close,
+        feedback: d.feedback,
+      });
+      setTurtleJudging(null);
+      // 猜中=correct，接近=uiTick，其他=wrong
+      if (d.correct) {
+        playSfx(sfx.correct);
+      } else if (d.close) {
+        playSfx(sfx.uiTick);
+      } else {
+        playSfx(sfx.wrong);
+      }
+    };
+    const onTurtleReveal = (r) => {
+      setTurtleReveal(r);
+      // 胜负音效
+      playSfx(r.won ? sfx.win : sfx.lose);
+    };
+
     const onRoundResult = (r) => {
       setRoundResult(r);
       playSfx(sfx.roundEnd);
@@ -137,6 +187,11 @@ export function useSocketConnection() {
     socket.on("telepathy:question", onTelepathyQuestion);
     socket.on("telepathy:reveal", onTelepathyReveal);
     socket.on("telepathy:opponent-chose", onTelepathyOpponentChose);
+    socket.on("turtle:surface", onTurtleSurface);
+    socket.on("turtle:judging", onTurtleJudging);
+    socket.on("turtle:answered", onTurtleAnswered);
+    socket.on("turtle:guess-result", onTurtleGuessResult);
+    socket.on("turtle:reveal", onTurtleReveal);
     socket.on("round:result", onRoundResult);
     socket.on("game:over", onGameOver);
     socket.on("player:left", onPlayerLeft);
@@ -159,6 +214,11 @@ export function useSocketConnection() {
       socket.off("telepathy:question", onTelepathyQuestion);
       socket.off("telepathy:reveal", onTelepathyReveal);
       socket.off("telepathy:opponent-chose", onTelepathyOpponentChose);
+      socket.off("turtle:surface", onTurtleSurface);
+      socket.off("turtle:judging", onTurtleJudging);
+      socket.off("turtle:answered", onTurtleAnswered);
+      socket.off("turtle:guess-result", onTurtleGuessResult);
+      socket.off("turtle:reveal", onTurtleReveal);
       socket.off("round:result", onRoundResult);
       socket.off("game:over", onGameOver);
       socket.off("player:left", onPlayerLeft);
@@ -201,6 +261,14 @@ export function useRoomActions() {
       socket.emit("telepathy:choose", { roomId, questionIndex, choice }),
     telepathyNext: (roomId: string) => socket.emit("telepathy:next", { roomId }),
     telepathyRestart: (roomId: string) => socket.emit("telepathy:restart", { roomId }),
+    // 海龟汤
+    setTurtleDifficulty: (roomId: string, difficulty: string) =>
+      socket.emit("room:set-turtle-difficulty", { roomId, difficulty }),
+    turtleAsk: (roomId: string, question: string) =>
+      socket.emit("turtle:ask", { roomId, question }),
+    turtleGuess: (roomId: string, guess: string) =>
+      socket.emit("turtle:guess", { roomId, guess }),
+    turtleRestart: (roomId: string) => socket.emit("turtle:restart", { roomId }),
     cleanup: () => disconnectSocket(),
   };
 }

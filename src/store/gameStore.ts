@@ -11,6 +11,11 @@ import type {
   GameOverData,
   TelepathyQuestionData,
   TelepathyRevealData,
+  TurtleSurfaceData,
+  TurtleQuestionRecord,
+  TurtleGuessRecord,
+  TurtleRevealData,
+  TurtleJudgingData,
 } from "@/lib/types";
 
 interface GameState {
@@ -40,6 +45,14 @@ interface GameState {
   telepathyReveal: TelepathyRevealData | null;
   telepathyOpponentChose: boolean;
 
+  // 海龟汤
+  turtleSurface: TurtleSurfaceData | null;
+  turtleQuestions: TurtleQuestionRecord[];
+  turtleGuesses: TurtleGuessRecord[];
+  turtleQuestionsLeft: number;
+  turtleReveal: TurtleRevealData | null;
+  turtleJudging: TurtleJudgingData | null;
+
   // 结算
   roundResult: RoundResultData | null;
   gameOver: GameOverData | null;
@@ -60,6 +73,12 @@ interface GameState {
   setTelepathyQuestion: (q: TelepathyQuestionData | null) => void;
   setTelepathyReveal: (r: TelepathyRevealData | null) => void;
   setTelepathyOpponentChose: (v: boolean) => void;
+  setTurtleSurface: (s: TurtleSurfaceData | null) => void;
+  addTurtleQuestion: (q: TurtleQuestionRecord) => void;
+  setTurtleQuestionsLeft: (n: number) => void;
+  addTurtleGuess: (g: TurtleGuessRecord) => void;
+  setTurtleReveal: (r: TurtleRevealData | null) => void;
+  setTurtleJudging: (j: TurtleJudgingData | null) => void;
   setRoundResult: (r: RoundResultData | null) => void;
   setGameOver: (g: GameOverData | null) => void;
   reset: () => void;
@@ -82,6 +101,12 @@ export const useGameStore = create<GameState>((set) => ({
   telepathyQuestion: null,
   telepathyReveal: null,
   telepathyOpponentChose: false,
+  turtleSurface: null,
+  turtleQuestions: [],
+  turtleGuesses: [],
+  turtleQuestionsLeft: 20,
+  turtleReveal: null,
+  turtleJudging: null,
   roundResult: null,
   gameOver: null,
 
@@ -119,6 +144,22 @@ export const useGameStore = create<GameState>((set) => ({
     }),
   setTelepathyReveal: (r) => set({ telepathyReveal: r }),
   setTelepathyOpponentChose: (v) => set({ telepathyOpponentChose: v }),
+  setTurtleSurface: (s) =>
+    set({
+      turtleSurface: s,
+      turtleQuestions: [],
+      turtleGuesses: [],
+      turtleQuestionsLeft: s?.questionsLeft ?? 20,
+      turtleReveal: null,
+      turtleJudging: null,
+    }),
+  addTurtleQuestion: (q) =>
+    set((s) => ({ turtleQuestions: [...s.turtleQuestions, q] })),
+  setTurtleQuestionsLeft: (n) => set({ turtleQuestionsLeft: n }),
+  addTurtleGuess: (g) =>
+    set((s) => ({ turtleGuesses: [...s.turtleGuesses, g] })),
+  setTurtleReveal: (r) => set({ turtleReveal: r, turtleJudging: null }),
+  setTurtleJudging: (j) => set({ turtleJudging: j }),
   setRoundResult: (r) => set({ roundResult: r }),
   setGameOver: (g) => set({ gameOver: g }),
   reset: () =>
@@ -137,6 +178,12 @@ export const useGameStore = create<GameState>((set) => ({
       telepathyQuestion: null,
       telepathyReveal: null,
       telepathyOpponentChose: false,
+      turtleSurface: null,
+      turtleQuestions: [],
+      turtleGuesses: [],
+      turtleQuestionsLeft: 20,
+      turtleReveal: null,
+      turtleJudging: null,
       roundResult: null,
       gameOver: null,
     }),

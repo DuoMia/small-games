@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Pencil, LogIn, Sparkles, Palette, Brain, User, Heart, Lock } from "lucide-react";
+import { Pencil, LogIn, Sparkles, Palette, Brain, User, Heart, Lock, HelpCircle } from "lucide-react";
 import { useRoomActions } from "@/hooks/useSocket";
 import { useGameStore } from "@/store/gameStore";
 import { useAudioStore } from "@/store/audioStore";
@@ -127,7 +127,7 @@ export default function Home() {
               <Sparkles size={16} />
               选择游戏
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <GameCard
                 icon={<Palette size={18} />}
                 emoji="🎨"
@@ -147,6 +147,17 @@ export default function Home() {
                 selected={gameType === "telepathy"}
                 onClick={() => {
                   setGameType("telepathy");
+                  playSfx(sfx.uiTick);
+                }}
+              />
+              <GameCard
+                icon={<HelpCircle size={18} />}
+                emoji="🐢"
+                title="海龟汤"
+                desc="AI主持人"
+                selected={gameType === "turtle-soup"}
+                onClick={() => {
+                  setGameType("turtle-soup");
                   playSfx(sfx.uiTick);
                 }}
               />

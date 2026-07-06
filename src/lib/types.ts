@@ -9,8 +9,8 @@ export type GamePhase =
   | "ROUND_RESULT"
   | "GAME_OVER";
 
-// 游戏类型：画词记忆 / 默契考验
-export type GameType = "draw-memory" | "telepathy";
+// 游戏类型：画词记忆 / 默契考验 / 海龟汤
+export type GameType = "draw-memory" | "telepathy" | "turtle-soup";
 
 export interface PlayerView {
   id: string;
@@ -32,6 +32,7 @@ export interface RoomView {
   difficulty: Difficulty;
   gameType: GameType;
   telepathyPackId?: string;
+  turtleDifficulty?: string;
 }
 
 export interface GameConfig {
@@ -90,4 +91,61 @@ export interface TelepathyRevealData {
   myScore: number;
   opponentScore: number;
   match: "full" | "partial" | "none";
+}
+
+// ===== 海龟汤 =====
+
+// 汤面数据
+export interface TurtleSurfaceData {
+  soupId: string;
+  surface: string;
+  difficulty: string;
+  category: string;
+  questionsLeft: number;
+}
+
+// 单条提问记录
+export interface TurtleQuestionRecord {
+  question: string;
+  asker: string;
+  answer: "是" | "否" | "无关";
+}
+
+// AI 回答事件
+export interface TurtleAnsweredData {
+  questionIndex: number;
+  question: string;
+  asker: string;
+  answer: "是" | "否" | "无关";
+  questionsLeft: number;
+}
+
+// 单条猜测记录
+export interface TurtleGuessRecord {
+  guess: string;
+  guesser: string;
+  correct: boolean;
+  close: boolean;
+  feedback: string;
+}
+
+// 猜测结果事件
+export interface TurtleGuessResultData {
+  guessIndex: number;
+  guess: string;
+  guesser: string;
+  correct: boolean;
+  close: boolean;
+  feedback: string;
+}
+
+// 揭晓真相事件
+export interface TurtleRevealData {
+  truth: string;
+  won: boolean;
+}
+
+// AI 思考中提示
+export interface TurtleJudgingData {
+  type: "question" | "guess";
 }

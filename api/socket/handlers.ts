@@ -65,6 +65,15 @@ export function registerSocketHandlers(io: Io) {
       }
     });
 
+    socket.on("room:set-turtle-difficulty", ({ roomId, difficulty }) => {
+      const room = RoomManager.setTurtleDifficulty(roomId, socket.id, difficulty);
+      if (room) {
+        io.to(roomId).emit("room:updated", { room: RoomManager.toRoomView(room) });
+      } else {
+        socket.emit("room:error", { message: "无法修改难度" });
+      }
+    });
+
     socket.on("room:leave", ({ roomId }) => {
       handleLeave(io, socket, roomId);
     });
@@ -96,6 +105,19 @@ export function registerSocketHandlers(io: Io) {
           wordDuration: WORD_DURATION,
           totalQuestions: q?.totalQuestions ?? 10,
         });
+        return;
+      }
+
+      if (room.gameType === "turtle-soup") {
+        // 海龟汤：下发汤面，进入 DRAWING（游戏中）
+        io.to(roomId).emit("game:state", {
+          phase: room.state.phase,
+          currentRound: room.state.currentRound,
+        });
+        const surface = RoomManager.getCurrentTurtleSurface(room);
+        if (surface) {
+          io.to(roomId).emit("turtle:surface", surface);
+        }
         return;
       }
 
@@ -264,6 +286,19 @@ export function registerSocketHandlers(io: Io) {
         return;
       }
 
+      if (room.gameType === "turtle-soup") {
+        // 海龟汤重玩（换一个汤面）
+        io.to(roomId).emit("game:state", {
+          phase: room.state.phase,
+          currentRound: room.state.currentRound,
+        });
+        const surface = RoomManager.getCurrentTurtleSurface(room);
+        if (surface) {
+          io.to(roomId).emit("turtle:surface", surface);
+        }
+        return;
+      }
+
       io.to(roomId).emit("game:state", {
         phase: room.state.phase,
         currentRound: room.state.currentRound,
@@ -348,6 +383,83 @@ export function registerSocketHandlers(io: Io) {
         wordDuration: WORD_DURATION,
         totalQuestions: q?.totalQuestions ?? 10,
       });
+    });
+
+    // ---------- 海龟汤 ----------
+
+    socket.on("turtle:ask", async ({ roomId, question }) => {
+      // 先通知"AI 思考中"
+      io.to(roomId).emit("turtle:judging", { type: "question" });
+      const result = await RoomManager.askTurtleQuestion(roomId, socket.id, question);
+      if (result.ok === false) {
+        socket.emit("room:error", { message: result.error });
+        return;
+      }
+      io.to(roomId).emit("turtle:answered", {
+        questionIndex: result.questionIndex,
+        question: result.question,
+        asker: result.asker,
+        answer: result.answer,
+        questionsLeft: result.questionsLeft,
+      });
+      // 提问次数用完，揭晓真相（失败）
+      if (result.exhausted) {
+        const room = RoomManager.getRoom(roomId);
+        if (room) {
+          io.to(roomId).emit("game:state", {
+            phase: room.state.phase,
+            currentRound: room.state.currentRound,
+          });
+          io.to(roomId).emit("turtle:reveal", {
+            truth: RoomManager.getTurtleTruth(room),
+            won: false,
+          });
+        }
+      }
+    });
+
+    socket.on("turtle:guess", async ({ roomId, guess }) => {
+      io.to(roomId).emit("turtle:judging", { type: "guess" });
+      const result = await RoomManager.guessTurtleAnswer(roomId, socket.id, guess);
+      if (result.ok === false) {
+        socket.emit("room:error", { message: result.error });
+        return;
+      }
+      io.to(roomId).emit("turtle:guess-result", {
+        guessIndex: result.guessIndex,
+        guess: result.guess,
+        guesser: result.guesser,
+        correct: result.correct,
+        close: result.close,
+        feedback: result.feedback,
+      });
+      // 猜中：揭晓真相（胜利）
+      if (result.correct) {
+        const room = RoomManager.getRoom(roomId);
+        if (room) {
+          io.to(roomId).emit("game:state", {
+            phase: room.state.phase,
+            currentRound: room.state.currentRound,
+          });
+          io.to(roomId).emit("turtle:reveal", {
+            truth: RoomManager.getTurtleTruth(room),
+            won: true,
+          });
+        }
+      }
+    });
+
+    socket.on("turtle:restart", ({ roomId }) => {
+      const room = RoomManager.restartTurtle(roomId, socket.id);
+      if (!room) return;
+      io.to(roomId).emit("game:state", {
+        phase: room.state.phase,
+        currentRound: room.state.currentRound,
+      });
+      const surface = RoomManager.getCurrentTurtleSurface(room);
+      if (surface) {
+        io.to(roomId).emit("turtle:surface", surface);
+      }
     });
 
     // ---------- 断线处理 ----------

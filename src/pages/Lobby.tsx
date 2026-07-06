@@ -20,7 +20,7 @@ interface TelepathyPack {
 
 export default function Lobby() {
   const { roomId } = useParams<{ roomId: string }>();
-  const { toggleReady, startGame, leaveRoom, setWordsCount, setDifficulty, setTelepathyPack } =
+  const { toggleReady, startGame, leaveRoom, setWordsCount, setDifficulty, setTelepathyPack, setTurtleDifficulty } =
     useRoomActions();
   const { room, myId, phase } = useGameStore();
   const { sfxEnabled } = useAudioStore();
@@ -43,6 +43,8 @@ export default function Lobby() {
   const gameType = room?.gameType ?? "draw-memory";
   const telepathyPackId = room?.telepathyPackId ?? "life";
   const isTelepathy = gameType === "telepathy";
+  const isTurtle = gameType === "turtle-soup";
+  const turtleDifficulty = room?.turtleDifficulty ?? "any";
 
   // 当前选中的题包信息
   const currentPack = (telepathyPacks as TelepathyPack[]).find(
@@ -140,11 +142,11 @@ export default function Lobby() {
         <div className="w-full mb-4 text-center">
           <span
             className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border-2 border-ink font-display text-sm ${
-              isTelepathy ? "bg-coral-light text-ink" : "bg-sun text-ink"
+              isTelepathy ? "bg-coral-light text-ink" : isTurtle ? "bg-mint text-ink" : "bg-sun text-ink"
             }`}
           >
-            <span>{isTelepathy ? "💕" : "🎨"}</span>
-            {isTelepathy ? "默契考验" : "画词记忆"}
+            <span>{isTelepathy ? "💕" : isTurtle ? "🐢" : "🎨"}</span>
+            {isTelepathy ? "默契考验" : isTurtle ? "海龟汤" : "画词记忆"}
           </span>
         </div>
 
@@ -187,6 +189,44 @@ export default function Lobby() {
             </div>
             <p className="text-center text-xs text-ink-muted mt-2">
               题库 {currentPack?.questions.length ?? 15} 题 · 随机抽 10 题
+            </p>
+          </div>
+        ) : isTurtle ? (
+          // 海龟汤：难度选择
+          <div className="w-full bg-white rounded-doodle border-2 border-ink p-4 mb-6 shadow-soft">
+            <p className="font-display text-ink text-sm mb-2 flex items-center justify-between">
+              <span>难度选择</span>
+              {!isHost && <span className="text-xs text-ink-muted">房主设置</span>}
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { key: "any", label: "任意", icon: "🎲" },
+                { key: "easy", label: "简单", icon: "🌱" },
+                { key: "medium", label: "中等", icon: "🌿" },
+                { key: "hard", label: "困难", icon: "🔥" },
+              ].map((d) => (
+                <button
+                  key={d.key}
+                  disabled={!isHost}
+                  onClick={() => {
+                    if (roomId && isHost) {
+                      setTurtleDifficulty(roomId, d.key);
+                      playSfx(sfx.uiTick);
+                    }
+                  }}
+                  className={`py-2.5 rounded-doodle border-2 font-display text-sm transition-all flex items-center justify-center gap-1.5 ${
+                    turtleDifficulty === d.key
+                      ? "bg-coral text-white border-ink shadow-soft"
+                      : "bg-white text-ink border-ink/30"
+                  } ${!isHost ? "cursor-not-allowed opacity-70" : "btn-press"}`}
+                >
+                  <span>{d.icon}</span>
+                  {d.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-center text-xs text-ink-muted mt-2">
+              AI 主持人回答"是/否/无关" · 20 问内还原真相
             </p>
           </div>
         ) : (
@@ -306,7 +346,7 @@ export default function Lobby() {
         {/* 规则提示 */}
         <div className="w-full mt-6 bg-cream-dark rounded-doodle p-4 border-2 border-ink-muted">
           <p className="font-display text-ink text-sm mb-2">
-            {isTelepathy ? "💕 默契考验规则" : "📋 游戏规则"}
+            {isTelepathy ? "💕 默契考验规则" : isTurtle ? "🐢 海龟汤规则" : "📋 游戏规则"}
           </p>
           {isTelepathy ? (
             <ul className="text-xs text-ink-muted space-y-1">
@@ -316,6 +356,15 @@ export default function Lobby() {
               <li>· 答案一致 +10 分；相邻 +5 分；其他 +0 分</li>
               <li>· 题包：{currentPack?.icon} {currentPack?.name ?? "生活日常"}</li>
               <li>· 最终看默契度百分比和总分</li>
+            </ul>
+          ) : isTurtle ? (
+            <ul className="text-xs text-ink-muted space-y-1">
+              <li>· 双方合作，只看到"汤面"，"汤底"隐藏</li>
+              <li>· 任意一方可文字/语音提问</li>
+              <li>· AI 主持人回答"是 / 否 / 无关"</li>
+              <li>· 限制 20 问，用完未猜中则失败</li>
+              <li>· 任意一方可"揭晓答案"输入猜测</li>
+              <li>· AI 判断正确或接近即获胜</li>
             </ul>
           ) : (
             <ul className="text-xs text-ink-muted space-y-1">

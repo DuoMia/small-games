@@ -10,8 +10,8 @@ export type GamePhase =
   | "ROUND_RESULT"
   | "GAME_OVER";
 
-// 游戏类型：画词记忆 / 默契考验
-export type GameType = "draw-memory" | "telepathy";
+// 游戏类型：画词记忆 / 默契考验 / 海龟汤
+export type GameType = "draw-memory" | "telepathy" | "turtle-soup";
 
 // 默契考验单题结构
 export interface TelepathyQuestion {
@@ -63,6 +63,16 @@ export interface GameState {
   telepathyChoices?: Record<string, number>; // playerId -> 选项索引
   telepathyScores?: Record<string, number>; // playerId -> 本题得分
   telepathyRevealed?: boolean;
+  // 海龟汤专用字段
+  turtleSoupId?: string; // 当前汤面ID
+  turtleSoupSurface?: string; // 汤面
+  turtleSoupTruth?: string; // 汤底（只在后端用，不发给前端）
+  turtleSoupKeywords?: string[];
+  turtleSoupCategory?: string; // 汤面分类
+  turtleQuestions?: { question: string; asker: string; answer: "是" | "否" | "无关" }[]; // 提问历史
+  turtleGuesses?: { guess: string; guesser: string; correct: boolean; close: boolean; feedback: string }[];
+  turtleQuestionsLeft?: number; // 剩余提问次数，初始20
+  turtleResolved?: boolean; // 是否已猜中
 }
 
 export interface Room {
@@ -76,6 +86,7 @@ export interface Room {
   difficulty: Difficulty;
   gameType: GameType;
   telepathyPackId?: string; // 房主选的题包
+  turtleDifficulty?: string; // 海龟汤难度：any/easy/medium/hard
 }
 
 // 客户端用的简化玩家信息
@@ -99,6 +110,7 @@ export interface RoomView {
   difficulty: Difficulty;
   gameType: GameType;
   telepathyPackId?: string;
+  turtleDifficulty?: string;
 }
 
 // Socket 事件类型
@@ -120,6 +132,11 @@ export interface ClientToServerEvents {
   "telepathy:choose": (data: { roomId: string; questionIndex: number; choice: number }) => void;
   "telepathy:next": (data: { roomId: string }) => void;
   "telepathy:restart": (data: { roomId: string }) => void;
+  // 海龟汤
+  "room:set-turtle-difficulty": (data: { roomId: string; difficulty: string }) => void;
+  "turtle:ask": (data: { roomId: string; question: string }) => void;
+  "turtle:guess": (data: { roomId: string; guess: string }) => void;
+  "turtle:restart": (data: { roomId: string }) => void;
 }
 
 export interface ServerToClientEvents {
@@ -142,4 +159,10 @@ export interface ServerToClientEvents {
   "telepathy:question": (data: { questionIndex: number; question: string; options: string[]; totalQuestions: number }) => void;
   "telepathy:reveal": (data: { questionIndex: number; myChoice: number; opponentChoice: number; myScore: number; opponentScore: number; match: "full" | "partial" | "none" }) => void;
   "telepathy:opponent-chose": (data: { questionIndex: number }) => void;
+  // 海龟汤
+  "turtle:surface": (data: { soupId: string; surface: string; difficulty: string; category: string; questionsLeft: number }) => void;
+  "turtle:answered": (data: { questionIndex: number; question: string; asker: string; answer: "是" | "否" | "无关"; questionsLeft: number }) => void;
+  "turtle:guess-result": (data: { guessIndex: number; guess: string; guesser: string; correct: boolean; close: boolean; feedback: string }) => void;
+  "turtle:reveal": (data: { truth: string; won: boolean }) => void;
+  "turtle:judging": (data: { type: "question" | "guess" }) => void;
 }

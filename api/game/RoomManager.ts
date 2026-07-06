@@ -19,6 +19,9 @@ import {
 } from "./difficulty.js";
 // 默契考验题包数据
 import telepathyPacks from "../data/telepathy-questions.json";
+// 海龟汤题库
+import turtleSoups from "../data/turtle-soup.json";
+import { judgeQuestion, judgeGuess } from "../ai/judge.js";
 
 const TOTAL_ROUNDS = 3;
 const MAX_PLAYERS = 2;
@@ -28,6 +31,10 @@ const VALID_WORD_COUNTS = [15, 30];
 const TELEPATHY_TOTAL_QUESTIONS = 10;
 // 默契考验默认题包
 const DEFAULT_TELEPATHY_PACK = "life";
+// 海龟汤最大提问次数
+const TURTLE_MAX_QUESTIONS = 20;
+// 海龟汤默认难度
+const DEFAULT_TURTLE_DIFFICULTY = "any";
 
 // 题包数据结构
 interface TelepathyPack {
@@ -36,6 +43,17 @@ interface TelepathyPack {
   icon: string;
   color: string;
   questions: TelepathyQuestion[];
+}
+
+// 海龟汤题库结构
+interface TurtleSoupEntry {
+  id: string;
+  title: string;
+  difficulty: string; // easy/medium/hard
+  category: string;
+  surface: string;
+  truth: string;
+  keywords: string[];
 }
 
 class RoomManagerClass {
@@ -83,6 +101,7 @@ class RoomManagerClass {
       difficulty: DEFAULT_DIFFICULTY,
       gameType,
       telepathyPackId: gameType === "telepathy" ? DEFAULT_TELEPATHY_PACK : undefined,
+      turtleDifficulty: gameType === "turtle-soup" ? DEFAULT_TURTLE_DIFFICULTY : undefined,
     };
     this.rooms.set(roomId, room);
     return room;
@@ -169,6 +188,12 @@ class RoomManagerClass {
     if (room.gameType === "telepathy") {
       // 默契考验：进入"选择"阶段（复用 DRAWING）
       this.startTelepathy(room);
+      return { room, words: [] };
+    }
+
+    if (room.gameType === "turtle-soup") {
+      // 海龟汤：抽取汤面，进入 DRAWING（游戏中）
+      this.startTurtleSoupInternal(room);
       return { room, words: [] };
     }
 
@@ -466,6 +491,11 @@ class RoomManagerClass {
       return { room, words: [] };
     }
 
+    if (room.gameType === "turtle-soup") {
+      this.startTurtleSoupInternal(room);
+      return { room, words: [] };
+    }
+
     this.startNewRound(room, 1);
     return { room, words: room.state.words };
   }
@@ -732,6 +762,238 @@ class RoomManagerClass {
     return { room };
   }
 
+  // ============ 海龟汤相关 ============
+
+  /**
+   * 设置海龟汤难度（仅房主、仅 WAITING 阶段）
+   */
+  setTurtleDifficulty(roomId: string, socketId: string, difficulty: string): Room | null {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+    if (room.hostId !== socketId) return null;
+    if (room.state.phase !== "WAITING") return null;
+    if (room.gameType !== "turtle-soup") return null;
+    const valid = ["any", "easy", "medium", "hard"];
+    if (!valid.includes(difficulty)) return null;
+    if (room.turtleDifficulty === difficulty) return room;
+    room.turtleDifficulty = difficulty;
+    return room;
+  }
+
+  /**
+   * 按难度筛选随机抽取一个汤面
+   * 同一局内避免重复（用 usedWords 临时记 id）
+   */
+  private pickTurtleSoup(room: Room): TurtleSoupEntry {
+    const diff = room.turtleDifficulty || DEFAULT_TURTLE_DIFFICULTY;
+    const pool = (turtleSoups as TurtleSoupEntry[]).filter(
+      (s) => diff === "any" || s.difficulty === diff
+    );
+    // 排除本局已用过的汤面 id（记在 usedWords 里）
+    const available = pool.filter((s) => !room.usedWords.includes(s.id));
+    // 池子空了就重置 usedWords 中海龟汤 id 部分
+    const list = available.length > 0 ? available : pool;
+    const pick = list[Math.floor(Math.random() * list.length)];
+    // 记录已用 id（与画词 usedWords 共用，避免类型复杂化）
+    room.usedWords.push(pick.id);
+    return pick;
+  }
+
+  /**
+   * 内部启动海龟汤（开始或重玩都走这里）
+   */
+  private startTurtleSoupInternal(room: Room) {
+    const soup = this.pickTurtleSoup(room);
+
+    // 重置玩家分数
+    room.players.forEach((p) => {
+      p.totalScore = 0;
+      p.roundScore = 0;
+      p.drawings = [];
+      p.answers = [];
+    });
+
+    room.state = {
+      phase: "DRAWING", // 复用 DRAWING 作为"游戏中"
+      currentRound: 1,
+      words: [],
+      wordEntries: [],
+      questions: [],
+      currentQuestionIndex: 0,
+      stageReady: {},
+      drawingUploaded: {},
+      answers: {},
+      answerResults: {},
+      questionNextReady: {},
+      revealed: false,
+      // 海龟汤字段
+      turtleSoupId: soup.id,
+      turtleSoupSurface: soup.surface,
+      turtleSoupTruth: soup.truth,
+      turtleSoupKeywords: soup.keywords,
+      turtleSoupCategory: soup.category,
+      turtleQuestions: [],
+      turtleGuesses: [],
+      turtleQuestionsLeft: TURTLE_MAX_QUESTIONS,
+      turtleResolved: false,
+    };
+  }
+
+  /**
+   * 开始海龟汤游戏（房主触发）
+   */
+  startTurtleSoup(roomId: string, socketId: string): Room | null {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+    if (room.hostId !== socketId) return null;
+    if (room.gameType !== "turtle-soup") return null;
+    this.startTurtleSoupInternal(room);
+    return room;
+  }
+
+  /**
+   * 获取当前汤面信息（不含 truth）
+   */
+  getCurrentTurtleSurface(room: Room): {
+    soupId: string;
+    surface: string;
+    difficulty: string;
+    category: string;
+    questionsLeft: number;
+  } | null {
+    if (!room.state.turtleSoupId || !room.state.turtleSoupSurface) return null;
+    return {
+      soupId: room.state.turtleSoupId,
+      surface: room.state.turtleSoupSurface,
+      difficulty: room.turtleDifficulty || DEFAULT_TURTLE_DIFFICULTY,
+      category: room.state.turtleSoupCategory || "",
+      questionsLeft: room.state.turtleQuestionsLeft ?? TURTLE_MAX_QUESTIONS,
+    };
+  }
+
+  /**
+   * 提问：记录问题并调用 AI 判断
+   * 返回 { ok, answer, questionsLeft } 或 { error }
+   */
+  async askTurtleQuestion(
+    roomId: string,
+    socketId: string,
+    question: string
+  ): Promise<
+    | { ok: true; questionIndex: number; question: string; asker: string; answer: "是" | "否" | "无关"; questionsLeft: number; exhausted: boolean }
+    | { ok: false; error: string }
+  > {
+    const room = this.rooms.get(roomId);
+    if (!room) return { ok: false, error: "房间不存在" };
+    if (room.gameType !== "turtle-soup") return { ok: false, error: "非海龟汤房间" };
+    if (room.state.phase !== "DRAWING") return { ok: false, error: "当前不可提问" };
+    if (room.state.turtleResolved) return { ok: false, error: "已揭晓，不可提问" };
+    const player = room.players.find((p) => p.id === socketId);
+    if (!player) return { ok: false, error: "玩家不存在" };
+    const q = question.trim();
+    if (!q) return { ok: false, error: "提问不能为空" };
+    if ((room.state.turtleQuestionsLeft ?? 0) <= 0) return { ok: false, error: "提问次数已用完" };
+
+    const truth = room.state.turtleSoupTruth || "";
+    const keywords = room.state.turtleSoupKeywords || [];
+    const answer = await judgeQuestion(q, truth, keywords);
+
+    const questions = room.state.turtleQuestions || [];
+    const questionIndex = questions.length;
+    questions.push({ question: q, asker: player.nickname, answer });
+    room.state.turtleQuestions = questions;
+    room.state.turtleQuestionsLeft = (room.state.turtleQuestionsLeft ?? TURTLE_MAX_QUESTIONS) - 1;
+    const questionsLeft = room.state.turtleQuestionsLeft;
+
+    // 用完 20 问未猜中，自动失败
+    const exhausted = questionsLeft <= 0;
+    if (exhausted) {
+      room.state.turtleResolved = true;
+      room.state.phase = "GAME_OVER";
+    }
+
+    return {
+      ok: true,
+      questionIndex,
+      question: q,
+      asker: player.nickname,
+      answer,
+      questionsLeft,
+      exhausted,
+    };
+  }
+
+  /**
+   * 猜测汤底：调用 AI 判断
+   */
+  async guessTurtleAnswer(
+    roomId: string,
+    socketId: string,
+    guess: string
+  ): Promise<
+    | { ok: true; guessIndex: number; guess: string; guesser: string; correct: boolean; close: boolean; feedback: string }
+    | { ok: false; error: string }
+  > {
+    const room = this.rooms.get(roomId);
+    if (!room) return { ok: false, error: "房间不存在" };
+    if (room.gameType !== "turtle-soup") return { ok: false, error: "非海龟汤房间" };
+    if (room.state.phase !== "DRAWING") return { ok: false, error: "当前不可猜测" };
+    if (room.state.turtleResolved) return { ok: false, error: "已揭晓" };
+    const player = room.players.find((p) => p.id === socketId);
+    if (!player) return { ok: false, error: "玩家不存在" };
+    const g = guess.trim();
+    if (!g) return { ok: false, error: "猜测不能为空" };
+
+    const truth = room.state.turtleSoupTruth || "";
+    const keywords = room.state.turtleSoupKeywords || [];
+    const result = await judgeGuess(g, truth, keywords);
+
+    const guesses = room.state.turtleGuesses || [];
+    const guessIndex = guesses.length;
+    guesses.push({
+      guess: g,
+      guesser: player.nickname,
+      correct: result.correct,
+      close: result.close,
+      feedback: result.feedback,
+    });
+    room.state.turtleGuesses = guesses;
+
+    if (result.correct) {
+      room.state.turtleResolved = true;
+      room.state.phase = "GAME_OVER";
+    }
+
+    return {
+      ok: true,
+      guessIndex,
+      guess: g,
+      guesser: player.nickname,
+      correct: result.correct,
+      close: result.close,
+      feedback: result.feedback,
+    };
+  }
+
+  /**
+   * 重玩海龟汤（换一个汤面）
+   */
+  restartTurtle(roomId: string, socketId: string): Room | null {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+    if (room.hostId !== socketId) return null;
+    if (room.gameType !== "turtle-soup") return null;
+    this.startTurtleSoupInternal(room);
+    return room;
+  }
+
+  /**
+   * 获取海龟汤真相（揭晓用）
+   */
+  getTurtleTruth(room: Room): string {
+    return room.state.turtleSoupTruth || "";
+  }
+
   /**
    * 离开房间
    */
@@ -791,6 +1053,7 @@ class RoomManagerClass {
       difficulty: room.difficulty,
       gameType: room.gameType,
       telepathyPackId: room.telepathyPackId,
+      turtleDifficulty: room.turtleDifficulty,
     };
   }
 
