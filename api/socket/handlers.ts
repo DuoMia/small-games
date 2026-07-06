@@ -12,8 +12,8 @@ export function registerSocketHandlers(io: Io) {
 
     // ---------- 房间相关 ----------
 
-    socket.on("room:create", ({ nickname }) => {
-      const room = RoomManager.createRoom(nickname, socket.id);
+    socket.on("room:create", ({ nickname, gameType }) => {
+      const room = RoomManager.createRoom(nickname, socket.id, gameType || "draw-memory");
       socket.join(room.roomId);
       socket.emit("room:created", { roomId: room.roomId });
       socket.emit("room:joined", { room: RoomManager.toRoomView(room) });
@@ -56,6 +56,15 @@ export function registerSocketHandlers(io: Io) {
       }
     });
 
+    socket.on("room:set-telepathy-pack", ({ roomId, packId }) => {
+      const room = RoomManager.setTelepathyPack(roomId, socket.id, packId);
+      if (room) {
+        io.to(roomId).emit("room:updated", { room: RoomManager.toRoomView(room) });
+      } else {
+        socket.emit("room:error", { message: "无法修改题包" });
+      }
+    });
+
     socket.on("room:leave", ({ roomId }) => {
       handleLeave(io, socket, roomId);
     });
@@ -69,6 +78,27 @@ export function registerSocketHandlers(io: Io) {
         return;
       }
       const { room, words } = result;
+
+      if (room.gameType === "telepathy") {
+        // 默契考验：下发题目数据，进入选择阶段
+        io.to(roomId).emit("game:state", {
+          phase: room.state.phase,
+          currentRound: room.state.currentRound,
+        });
+        const q = RoomManager.getCurrentTelepathyQuestion(room);
+        if (q) {
+          io.to(roomId).emit("telepathy:question", q);
+        }
+        // 总题量配置
+        io.to(roomId).emit("game:config", {
+          viewTime: VIEW_TIME,
+          drawTime: DRAW_TIME,
+          wordDuration: WORD_DURATION,
+          totalQuestions: q?.totalQuestions ?? 10,
+        });
+        return;
+      }
+
       io.to(roomId).emit("game:state", {
         phase: room.state.phase,
         currentRound: room.state.currentRound,
@@ -214,6 +244,26 @@ export function registerSocketHandlers(io: Io) {
       const result = RoomManager.restartGame(roomId, socket.id);
       if (!result) return;
       const room = result.room;
+
+      if (room.gameType === "telepathy") {
+        // 默契考验重玩
+        io.to(roomId).emit("game:state", {
+          phase: room.state.phase,
+          currentRound: room.state.currentRound,
+        });
+        const q = RoomManager.getCurrentTelepathyQuestion(room);
+        if (q) {
+          io.to(roomId).emit("telepathy:question", q);
+        }
+        io.to(roomId).emit("game:config", {
+          viewTime: VIEW_TIME,
+          drawTime: DRAW_TIME,
+          wordDuration: WORD_DURATION,
+          totalQuestions: q?.totalQuestions ?? 10,
+        });
+        return;
+      }
+
       io.to(roomId).emit("game:state", {
         phase: room.state.phase,
         currentRound: room.state.currentRound,
@@ -224,6 +274,79 @@ export function registerSocketHandlers(io: Io) {
         drawTime: DRAW_TIME,
         wordDuration: WORD_DURATION,
         totalQuestions: room.wordsPerRound,
+      });
+    });
+
+    // ---------- 默契考验（心灵感应）----------
+
+    socket.on("telepathy:choose", ({ roomId, questionIndex, choice }) => {
+      const result = RoomManager.submitTelepathyChoice(roomId, socket.id, questionIndex, choice);
+      if (!result) return;
+      const { room, allChosen } = result;
+
+      if (!allChosen) {
+        // 仅自己选完，通知对方
+        socket.to(roomId).emit("telepathy:opponent-chose", { questionIndex });
+        return;
+      }
+
+      // 双方都选完，广播揭晓数据（每个玩家视角不同）
+      room.players.forEach((p) => {
+        const reveal = RoomManager.getTelepathyRevealData(room, p.id);
+        if (reveal) {
+          io.to(p.id).emit("telepathy:reveal", reveal);
+        }
+      });
+      // 通知阶段切换到 QUIZ（揭晓）
+      io.to(roomId).emit("game:state", {
+        phase: room.state.phase,
+        currentRound: room.state.currentRound,
+      });
+    });
+
+    socket.on("telepathy:next", ({ roomId }) => {
+      const result = RoomManager.nextTelepathyQuestion(roomId, socket.id);
+      if (!result) return;
+      const { room, isLast } = result;
+
+      if (isLast) {
+        // 游戏结束
+        io.to(roomId).emit("game:state", {
+          phase: room.state.phase,
+          currentRound: room.state.currentRound,
+        });
+        const overData = RoomManager.getGameOverData(room);
+        io.to(roomId).emit("game:over", overData);
+      } else {
+        // 下一题
+        io.to(roomId).emit("game:state", {
+          phase: room.state.phase,
+          currentRound: room.state.currentRound,
+        });
+        const q = RoomManager.getCurrentTelepathyQuestion(room);
+        if (q) {
+          io.to(roomId).emit("telepathy:question", q);
+        }
+      }
+    });
+
+    socket.on("telepathy:restart", ({ roomId }) => {
+      const result = RoomManager.restartTelepathy(roomId, socket.id);
+      if (!result) return;
+      const room = result.room;
+      io.to(roomId).emit("game:state", {
+        phase: room.state.phase,
+        currentRound: room.state.currentRound,
+      });
+      const q = RoomManager.getCurrentTelepathyQuestion(room);
+      if (q) {
+        io.to(roomId).emit("telepathy:question", q);
+      }
+      io.to(roomId).emit("game:config", {
+        viewTime: VIEW_TIME,
+        drawTime: DRAW_TIME,
+        wordDuration: WORD_DURATION,
+        totalQuestions: q?.totalQuestions ?? 10,
       });
     });
 

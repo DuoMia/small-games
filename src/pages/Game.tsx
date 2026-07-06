@@ -6,6 +6,7 @@ import DrawingPhase from "@/game/DrawingPhase";
 import QuizPhase from "@/game/QuizPhase";
 import RoundResult from "@/game/RoundResult";
 import GameResult from "@/game/GameResult";
+import TelepathyGame from "@/game/TelepathyGame";
 
 export default function Game() {
   const { roomId } = useParams<{ roomId: string }>();
@@ -34,6 +35,12 @@ export default function Game() {
     );
   }
 
+  // 默契考验：统一交给 TelepathyGame 处理（内部按 phase 分发，含 GAME_OVER）
+  if (room.gameType === "telepathy") {
+    return <TelepathyGame roomId={roomId} />;
+  }
+
+  // 画词记忆：原有逻辑
   switch (phase) {
     case "WORD_DISPLAY":
       return <WordDisplay roomId={roomId} />;

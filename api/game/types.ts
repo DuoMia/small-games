@@ -10,6 +10,15 @@ export type GamePhase =
   | "ROUND_RESULT"
   | "GAME_OVER";
 
+// 游戏类型：画词记忆 / 默契考验
+export type GameType = "draw-memory" | "telepathy";
+
+// 默契考验单题结构
+export interface TelepathyQuestion {
+  question: string;
+  options: string[];
+}
+
 export interface WordEntry {
   word: string;
   synonyms: string[];
@@ -48,6 +57,12 @@ export interface GameState {
   answerResults: Record<string, boolean>;
   questionNextReady: Record<string, boolean>;
   revealed: boolean;
+  // 默契考验专用字段
+  telepathyQuestions?: TelepathyQuestion[];
+  currentTelepathyIndex?: number;
+  telepathyChoices?: Record<string, number>; // playerId -> 选项索引
+  telepathyScores?: Record<string, number>; // playerId -> 本题得分
+  telepathyRevealed?: boolean;
 }
 
 export interface Room {
@@ -59,6 +74,8 @@ export interface Room {
   createdAt: number;
   wordsPerRound: number;
   difficulty: Difficulty;
+  gameType: GameType;
+  telepathyPackId?: string; // 房主选的题包
 }
 
 // 客户端用的简化玩家信息
@@ -80,15 +97,18 @@ export interface RoomView {
   currentRound: number;
   wordsPerRound: number;
   difficulty: Difficulty;
+  gameType: GameType;
+  telepathyPackId?: string;
 }
 
 // Socket 事件类型
 export interface ClientToServerEvents {
-  "room:create": (data: { nickname: string }) => void;
+  "room:create": (data: { nickname: string; gameType?: GameType }) => void;
   "room:join": (data: { roomId: string; nickname: string }) => void;
   "room:ready": (data: { roomId: string }) => void;
   "room:set-words-count": (data: { roomId: string; count: number }) => void;
   "room:set-difficulty": (data: { roomId: string; difficulty: Difficulty }) => void;
+  "room:set-telepathy-pack": (data: { roomId: string; packId: string }) => void;
   "game:start": (data: { roomId: string }) => void;
   "game:next-stage": (data: { roomId: string }) => void;
   "drawing:upload": (data: { roomId: string; drawings: string[] }) => void;
@@ -97,6 +117,9 @@ export interface ClientToServerEvents {
   "round:next": (data: { roomId: string }) => void;
   "game:restart": (data: { roomId: string }) => void;
   "room:leave": (data: { roomId: string }) => void;
+  "telepathy:choose": (data: { roomId: string; questionIndex: number; choice: number }) => void;
+  "telepathy:next": (data: { roomId: string }) => void;
+  "telepathy:restart": (data: { roomId: string }) => void;
 }
 
 export interface ServerToClientEvents {
@@ -116,4 +139,7 @@ export interface ServerToClientEvents {
   "game:over": (data: { finalScores: PlayerView[]; winnerId: string | null }) => void;
   "player:left": (data: { playerId: string }) => void;
   "connect_error": (data: { message: string }) => void;
+  "telepathy:question": (data: { questionIndex: number; question: string; options: string[]; totalQuestions: number }) => void;
+  "telepathy:reveal": (data: { questionIndex: number; myChoice: number; opponentChoice: number; myScore: number; opponentScore: number; match: "full" | "partial" | "none" }) => void;
+  "telepathy:opponent-chose": (data: { questionIndex: number }) => void;
 }

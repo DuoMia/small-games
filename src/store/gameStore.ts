@@ -9,6 +9,8 @@ import type {
   QuizRevealData,
   RoundResultData,
   GameOverData,
+  TelepathyQuestionData,
+  TelepathyRevealData,
 } from "@/lib/types";
 
 interface GameState {
@@ -33,6 +35,11 @@ interface GameState {
   quizReveal: QuizRevealData | null;
   opponentAnswered: boolean;
 
+  // 默契考验
+  telepathyQuestion: TelepathyQuestionData | null;
+  telepathyReveal: TelepathyRevealData | null;
+  telepathyOpponentChose: boolean;
+
   // 结算
   roundResult: RoundResultData | null;
   gameOver: GameOverData | null;
@@ -50,6 +57,9 @@ interface GameState {
   setQuizResult: (r: QuizResultData | null) => void;
   setQuizReveal: (r: QuizRevealData | null) => void;
   setOpponentAnswered: (v: boolean) => void;
+  setTelepathyQuestion: (q: TelepathyQuestionData | null) => void;
+  setTelepathyReveal: (r: TelepathyRevealData | null) => void;
+  setTelepathyOpponentChose: (v: boolean) => void;
   setRoundResult: (r: RoundResultData | null) => void;
   setGameOver: (g: GameOverData | null) => void;
   reset: () => void;
@@ -69,6 +79,9 @@ export const useGameStore = create<GameState>((set) => ({
   quizResult: null,
   quizReveal: null,
   opponentAnswered: false,
+  telepathyQuestion: null,
+  telepathyReveal: null,
+  telepathyOpponentChose: false,
   roundResult: null,
   gameOver: null,
 
@@ -82,6 +95,8 @@ export const useGameStore = create<GameState>((set) => ({
       currentRound: round ?? s.currentRound,
       ...(phase !== "QUIZ" ? { currentQuestion: null, quizResult: null, quizReveal: null, opponentAnswered: false } : {}),
       ...(phase === "WORD_DISPLAY" || phase === "DRAWING" ? { roundResult: null, gameOver: null } : {}),
+      // 默契考验：离开揭晓阶段时清理 reveal 数据
+      ...(phase !== "QUIZ" ? { telepathyReveal: null, telepathyOpponentChose: false } : {}),
     })),
   setWords: (words) => set({ words }),
   setDrawings: (drawings) => set({ drawings }),
@@ -96,6 +111,14 @@ export const useGameStore = create<GameState>((set) => ({
   setQuizResult: (r) => set({ quizResult: r }),
   setQuizReveal: (r) => set({ quizReveal: r }),
   setOpponentAnswered: (v) => set({ opponentAnswered: v }),
+  setTelepathyQuestion: (q) =>
+    set({
+      telepathyQuestion: q,
+      telepathyReveal: null,
+      telepathyOpponentChose: false,
+    }),
+  setTelepathyReveal: (r) => set({ telepathyReveal: r }),
+  setTelepathyOpponentChose: (v) => set({ telepathyOpponentChose: v }),
   setRoundResult: (r) => set({ roundResult: r }),
   setGameOver: (g) => set({ gameOver: g }),
   reset: () =>
@@ -111,6 +134,9 @@ export const useGameStore = create<GameState>((set) => ({
       quizResult: null,
       quizReveal: null,
       opponentAnswered: false,
+      telepathyQuestion: null,
+      telepathyReveal: null,
+      telepathyOpponentChose: false,
       roundResult: null,
       gameOver: null,
     }),

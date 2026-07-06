@@ -1,18 +1,27 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Pencil, LogIn, Sparkles, Palette, Brain, User } from "lucide-react";
+import { Pencil, LogIn, Sparkles, Palette, Brain, User, Heart, Lock } from "lucide-react";
 import { useRoomActions } from "@/hooks/useSocket";
 import { useGameStore } from "@/store/gameStore";
+import { useAudioStore } from "@/store/audioStore";
+import { sfx } from "@/audio/engine";
+import type { GameType } from "@/lib/types";
 
 export default function Home() {
   const { createRoom, joinRoom } = useRoomActions();
   const { connected, error, room, setError, reset } = useGameStore();
+  const { sfxEnabled } = useAudioStore();
   const navigate = useNavigate();
 
   const [nickname, setNickname] = useState("");
   const [roomCode, setRoomCode] = useState("");
   const [mode, setMode] = useState<"home" | "join">("home");
+  const [gameType, setGameType] = useState<GameType>("draw-memory");
   const pendingActionRef = useRef(false);
+
+  const playSfx = (fn: () => void) => {
+    if (sfxEnabled) fn();
+  };
 
   // 进入首页时重置房间状态
   useEffect(() => {
@@ -33,7 +42,7 @@ export default function Home() {
       return;
     }
     pendingActionRef.current = true;
-    createRoom(nickname.trim());
+    createRoom(nickname.trim(), gameType);
   };
 
   const handleJoin = () => {
@@ -46,6 +55,7 @@ export default function Home() {
       return;
     }
     pendingActionRef.current = true;
+    playSfx(sfx.click);
     joinRoom(roomCode.trim().toUpperCase(), nickname.trim());
   };
 
@@ -96,7 +106,7 @@ export default function Home() {
         {/* 主卡片 */}
         <div className="w-full bg-white rounded-blob shadow-card border-3 border-ink p-6 animate-slide-up">
           {/* 昵称输入 */}
-          <div className="mb-5">
+          <div className="mb-4">
             <label className="font-display text-ink text-sm flex items-center gap-1.5 mb-2">
               <Pencil size={16} />
               你的昵称
@@ -109,6 +119,46 @@ export default function Home() {
               placeholder="输入昵称"
               className="w-full px-4 py-3 rounded-doodle border-2 border-ink bg-cream font-body text-ink focus:border-coral focus:bg-white transition-colors"
             />
+          </div>
+
+          {/* 游戏选择 */}
+          <div className="mb-5">
+            <label className="font-display text-ink text-sm flex items-center gap-1.5 mb-2">
+              <Sparkles size={16} />
+              选择游戏
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              <GameCard
+                icon={<Palette size={18} />}
+                emoji="🎨"
+                title="画词记忆"
+                desc="画画猜词"
+                selected={gameType === "draw-memory"}
+                onClick={() => {
+                  setGameType("draw-memory");
+                  playSfx(sfx.uiTick);
+                }}
+              />
+              <GameCard
+                icon={<Heart size={18} />}
+                emoji="💕"
+                title="默契考验"
+                desc="心有灵犀"
+                selected={gameType === "telepathy"}
+                onClick={() => {
+                  setGameType("telepathy");
+                  playSfx(sfx.uiTick);
+                }}
+              />
+              <GameCard
+                icon={<Lock size={18} />}
+                emoji="🚧"
+                title="合作画画"
+                desc="即将推出"
+                disabled
+                onClick={() => playSfx(sfx.wrong)}
+              />
+            </div>
           </div>
 
           {mode === "home" ? (
@@ -248,5 +298,51 @@ function PlayStep({
         <div className="text-xs text-ink-muted">{desc}</div>
       </div>
     </div>
+  );
+}
+
+function GameCard({
+  icon,
+  emoji,
+  title,
+  desc,
+  selected,
+  disabled,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  emoji: string;
+  title: string;
+  desc: string;
+  selected?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`relative py-3 px-1 rounded-doodle border-2 font-display transition-all flex flex-col items-center gap-0.5 ${
+        disabled
+          ? "bg-cream-dark text-ink-muted border-ink/20 cursor-not-allowed opacity-70"
+          : selected
+          ? "bg-coral text-white border-ink shadow-soft btn-press"
+          : "bg-white text-ink border-ink/30 btn-press"
+      }`}
+    >
+      <div className="text-2xl leading-none">{emoji}</div>
+      <div className="text-xs flex items-center gap-0.5 mt-0.5">
+        {!disabled && icon}
+        {title}
+      </div>
+      <div className={`text-[10px] ${selected ? "text-white/80" : "text-ink-muted"}`}>
+        {desc}
+      </div>
+      {disabled && (
+        <div className="absolute -top-1.5 -right-1.5 bg-ink text-cream text-[9px] px-1.5 py-0.5 rounded-full border border-ink">
+          即将推出
+        </div>
+      )}
+    </button>
   );
 }
