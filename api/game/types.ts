@@ -10,8 +10,17 @@ export type GamePhase =
   | "ROUND_RESULT"
   | "GAME_OVER";
 
-// 游戏类型：画词记忆 / 默契考验 / 海龟汤 / 合作画画
-export type GameType = "draw-memory" | "telepathy" | "turtle-soup" | "co-op-drawing";
+// 游戏类型：画词记忆 / 默契考验 / 海龟汤 / 合作画画 / 表情包猜词
+export type GameType = "draw-memory" | "telepathy" | "turtle-soup" | "co-op-drawing" | "emoji-guessing";
+
+// 表情包猜词单题结构
+export interface EmojiPuzzle {
+  id: number;
+  category: string;
+  emoji: string;
+  answer: string;
+  alternatives: string[];
+}
 
 // 合作画画单笔笔画
 export interface CoOpStroke {
@@ -90,6 +99,14 @@ export interface GameState {
   coOpStrokesLeft?: number; // 剩余总笔画数，初始20
   coOpPlayerStrokes?: Record<string, number>; // 每人已画笔画
   coOpRatings?: Record<string, number>; // 双方评分
+  // 表情包猜词专用字段
+  emojiPuzzles?: EmojiPuzzle[]; // 选中的10题
+  currentEmojiIndex?: number; // 当前题目索引
+  emojiGuesses?: Record<string, string>; // playerId -> 猜测
+  emojiResults?: Record<string, boolean>; // playerId -> 是否答对
+  emojiScores?: Record<string, number>; // playerId -> 本题得分
+  emojiRevealed?: boolean; // 是否已揭晓
+  emojiTotalScores?: Record<string, number>; // playerId -> 累计总分
 }
 
 export interface Room {
@@ -160,6 +177,10 @@ export interface ClientToServerEvents {
   "coop:stroke-end": (data: { roomId: string }) => void;
   "coop:rate": (data: { roomId: string; rating: number }) => void;
   "coop:restart": (data: { roomId: string }) => void;
+  // 表情包猜词
+  "emoji:submit": (data: { roomId: string; questionIndex: number; guess: string }) => void;
+  "emoji:next": (data: { roomId: string }) => void;
+  "emoji:restart": (data: { roomId: string }) => void;
 }
 
 export interface ServerToClientEvents {
@@ -195,4 +216,8 @@ export interface ServerToClientEvents {
   "coop:stroke-point": (data: { point: { x: number; y: number } }) => void;
   "coop:stroke-end": (data: {}) => void;
   "coop:result": (data: { finalImage: string; ratings: Record<string, number>; avgRating: number }) => void;
+  // 表情包猜词
+  "emoji:question": (data: { questionIndex: number; emoji: string; category: string; totalQuestions: number; timeLimit: number }) => void;
+  "emoji:opponent-answered": (data: { questionIndex: number }) => void;
+  "emoji:reveal": (data: { questionIndex: number; myGuess: string; opponentGuess: string; answer: string; myCorrect: boolean; opponentCorrect: boolean; myScore: number; opponentScore: number; myTotal: number; opponentTotal: number }) => void;
 }

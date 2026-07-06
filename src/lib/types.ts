@@ -9,8 +9,8 @@ export type GamePhase =
   | "ROUND_RESULT"
   | "GAME_OVER";
 
-// 游戏类型：画词记忆 / 默契考验 / 海龟汤 / 合作画画
-export type GameType = "draw-memory" | "telepathy" | "turtle-soup" | "co-op-drawing";
+// 游戏类型：画词记忆 / 默契考验 / 海龟汤 / 合作画画 / 表情包猜词
+export type GameType = "draw-memory" | "telepathy" | "turtle-soup" | "co-op-drawing" | "emoji-guessing";
 
 export interface PlayerView {
   id: string;
@@ -179,4 +179,38 @@ export interface CoOpResultData {
   finalImage: string;
   ratings: Record<string, number>;
   avgRating: number;
+}
+
+// ===== 表情包猜词 =====
+
+// 表情包猜词单题结构
+export interface EmojiPuzzle {
+  id: number;
+  category: string;
+  emoji: string;
+  answer: string;
+  alternatives: string[];
+}
+
+// 题目下发数据
+export interface EmojiQuestionData {
+  questionIndex: number;
+  emoji: string;
+  category: string;
+  totalQuestions: number;
+  timeLimit: number;
+}
+
+// 揭晓数据（按玩家视角）
+export interface EmojiRevealData {
+  questionIndex: number;
+  myGuess: string;
+  opponentGuess: string;
+  answer: string;
+  myCorrect: boolean;
+  opponentCorrect: boolean;
+  myScore: number;
+  opponentScore: number;
+  myTotal: number;
+  opponentTotal: number;
 }

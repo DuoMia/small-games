@@ -45,6 +45,7 @@ export default function Lobby() {
   const isTelepathy = gameType === "telepathy";
   const isTurtle = gameType === "turtle-soup";
   const isCoOp = gameType === "co-op-drawing";
+  const isEmoji = gameType === "emoji-guessing";
   const turtleDifficulty = room?.turtleDifficulty ?? "any";
 
   // 当前选中的题包信息
@@ -143,11 +144,11 @@ export default function Lobby() {
         <div className="w-full mb-4 text-center">
           <span
             className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border-2 border-ink font-display text-sm ${
-              isTelepathy ? "bg-coral-light text-ink" : isTurtle ? "bg-mint text-ink" : isCoOp ? "bg-sun text-ink" : "bg-sun text-ink"
+              isTelepathy ? "bg-coral-light text-ink" : isTurtle ? "bg-mint text-ink" : isCoOp ? "bg-sun text-ink" : isEmoji ? "bg-coral-light text-ink" : "bg-sun text-ink"
             }`}
           >
-            <span>{isTelepathy ? "💕" : isTurtle ? "🐢" : isCoOp ? "✏️" : "🎨"}</span>
-            {isTelepathy ? "默契考验" : isTurtle ? "海龟汤" : isCoOp ? "合作画画" : "画词记忆"}
+            <span>{isTelepathy ? "💕" : isTurtle ? "🐢" : isCoOp ? "✏️" : isEmoji ? "😎" : "🎨"}</span>
+            {isTelepathy ? "默契考验" : isTurtle ? "海龟汤" : isCoOp ? "合作画画" : isEmoji ? "表情包猜词" : "画词记忆"}
           </span>
         </div>
 
@@ -237,6 +238,15 @@ export default function Lobby() {
             <p className="font-display text-ink text-sm mb-1">接龙共创</p>
             <p className="text-xs text-ink-muted">
               系统随机出题 · 双方轮流画一笔 · 共 20 笔
+            </p>
+          </div>
+        ) : isEmoji ? (
+          // 表情包猜词：无需配置，显示玩法提示
+          <div className="w-full bg-white rounded-doodle border-2 border-ink p-4 mb-6 shadow-soft text-center">
+            <div className="text-4xl mb-2">😎</div>
+            <p className="font-display text-ink text-sm mb-1">表情包猜词</p>
+            <p className="text-xs text-ink-muted">
+              看emoji组合猜词语 · 双人PK · 共 10 题
             </p>
           </div>
         ) : (
@@ -356,7 +366,7 @@ export default function Lobby() {
         {/* 规则提示 */}
         <div className="w-full mt-6 bg-cream-dark rounded-doodle p-4 border-2 border-ink-muted">
           <p className="font-display text-ink text-sm mb-2">
-            {isTelepathy ? "💕 默契考验规则" : isTurtle ? "🐢 海龟汤规则" : isCoOp ? "✏️ 合作画画规则" : "📋 游戏规则"}
+            {isTelepathy ? "💕 默契考验规则" : isTurtle ? "🐢 海龟汤规则" : isCoOp ? "✏️ 合作画画规则" : isEmoji ? "🎯 表情包猜词规则" : "📋 游戏规则"}
           </p>
           {isTelepathy ? (
             <ul className="text-xs text-ink-muted space-y-1">
@@ -384,6 +394,15 @@ export default function Lobby() {
               <li>· 实时同步：对方画的同时你能看到</li>
               <li>· 完成后双方各给 1-5 星评分</li>
               <li>· 可下载画作截图保存</li>
+            </ul>
+          ) : isEmoji ? (
+            <ul className="text-xs text-ink-muted space-y-1">
+              <li>· 看emoji组合猜词语，10题PK</li>
+              <li>· 双方同时作答，每题 30 秒</li>
+              <li>· 答对 +10 分，答错 +0 分</li>
+              <li>· 答案不区分大小写、忽略空格</li>
+              <li>· 题库覆盖成语/电影/动物/食物/网络梗等</li>
+              <li>· 10 题总分高者获胜，平局也算</li>
             </ul>
           ) : (
             <ul className="text-xs text-ink-muted space-y-1">

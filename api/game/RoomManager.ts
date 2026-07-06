@@ -9,6 +9,7 @@ import type {
   GameType,
   TelepathyQuestion,
   CoOpStroke,
+  EmojiPuzzle,
 } from "./types.js";
 import { pickRandomWords, generateQuestions, wordBank } from "./WordBank.js";
 import { checkAnswer } from "./AnswerChecker.js";
@@ -24,6 +25,8 @@ import telepathyPacks from "../data/telepathy-questions.json";
 import turtleSoups from "../data/turtle-soup.json";
 // 合作画画命题题库
 import drawingPrompts from "../data/drawing-prompts.json";
+// 表情包猜词题库
+import emojiPuzzlesData from "../data/emoji-puzzles.json";
 import { judgeQuestion, judgeGuess } from "../ai/judge.js";
 
 const TOTAL_ROUNDS = 3;
@@ -40,6 +43,12 @@ const TURTLE_MAX_QUESTIONS = 20;
 const DEFAULT_TURTLE_DIFFICULTY = "any";
 // 合作画画总笔画数（每人10笔）
 const CO_OP_TOTAL_STROKES = 20;
+// 表情包猜词总题数
+const EMOJI_TOTAL_QUESTIONS = 10;
+// 表情包猜词每题限时（秒）
+const EMOJI_TIME_LIMIT = 30;
+// 表情包猜词答对得分
+const EMOJI_CORRECT_SCORE = 10;
 
 // 题包数据结构
 interface TelepathyPack {
@@ -205,6 +214,12 @@ class RoomManagerClass {
     if (room.gameType === "co-op-drawing") {
       // 合作画画：随机抽命题，初始化 GameState
       this.startCoOpDrawingInternal(room);
+      return { room, words: [] };
+    }
+
+    if (room.gameType === "emoji-guessing") {
+      // 表情包猜词：随机抽10题，初始化 GameState
+      this.startEmojiGuessingInternal(room);
       return { room, words: [] };
     }
 
@@ -509,6 +524,11 @@ class RoomManagerClass {
 
     if (room.gameType === "co-op-drawing") {
       this.startCoOpDrawingInternal(room);
+      return { room, words: [] };
+    }
+
+    if (room.gameType === "emoji-guessing") {
+      this.restartEmoji(roomId, socketId);
       return { room, words: [] };
     }
 
@@ -1270,6 +1290,288 @@ class RoomManagerClass {
    */
   getCoOpStrokes(room: Room): CoOpStroke[] {
     return room.state.coOpStrokes || [];
+  }
+
+  // ============ 表情包猜词相关 ============
+
+  /**
+   * 标准化字符串：小写 + 去除所有空白
+   * 用于答案匹配（不区分大小写、忽略空格）
+   */
+  private normalizeEmojiAnswer(str: string): string {
+    return (str || "").toLowerCase().replace(/\s+/g, "").trim();
+  }
+
+  /**
+   * 判断猜测是否正确：匹配 answer 或 alternatives 中任一项（已标准化）
+   */
+  private checkEmojiGuess(guess: string, puzzle: EmojiPuzzle): boolean {
+    const g = this.normalizeEmojiAnswer(guess);
+    if (!g) return false;
+    const accepted = [puzzle.answer, ...(puzzle.alternatives || [])];
+    return accepted.some((a) => this.normalizeEmojiAnswer(a) === g);
+  }
+
+  /**
+   * 从题库随机抽取指定数量的题目（Fisher-Yates 洗牌）
+   */
+  private pickEmojiPuzzles(count: number): EmojiPuzzle[] {
+    const all = (emojiPuzzlesData as EmojiPuzzle[]).slice();
+    for (let i = all.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [all[i], all[j]] = [all[j], all[i]];
+    }
+    return all.slice(0, Math.min(count, all.length));
+  }
+
+  /**
+   * 内部启动表情包猜词（开始或重玩都走这里）
+   * 随机选10题，初始化所有 emoji 字段，phase=DRAWING，currentEmojiIndex=0
+   */
+  private startEmojiGuessingInternal(room: Room) {
+    const puzzles = this.pickEmojiPuzzles(EMOJI_TOTAL_QUESTIONS);
+
+    // 重置玩家分数
+    room.players.forEach((p) => {
+      p.totalScore = 0;
+      p.roundScore = 0;
+      p.drawings = [];
+      p.answers = [];
+    });
+
+    // 初始化双方累计总分
+    const totalScores: Record<string, number> = {};
+    room.players.forEach((p) => {
+      totalScores[p.id] = 0;
+    });
+
+    room.state = {
+      phase: "DRAWING", // 复用 DRAWING 作为"答题中"
+      currentRound: 1,
+      words: [],
+      wordEntries: [],
+      questions: [],
+      currentQuestionIndex: 0,
+      stageReady: {},
+      drawingUploaded: {},
+      answers: {},
+      answerResults: {},
+      questionNextReady: {},
+      revealed: false,
+      // 表情包猜词字段
+      emojiPuzzles: puzzles,
+      currentEmojiIndex: 0,
+      emojiGuesses: {},
+      emojiResults: {},
+      emojiScores: {},
+      emojiRevealed: false,
+      emojiTotalScores: totalScores,
+    };
+  }
+
+  /**
+   * 开始表情包猜词游戏（房主触发）
+   */
+  startEmojiGuessing(roomId: string, socketId: string): Room | null {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+    if (room.hostId !== socketId) return null;
+    if (room.gameType !== "emoji-guessing") return null;
+    this.startEmojiGuessingInternal(room);
+    return room;
+  }
+
+  /**
+   * 获取当前表情包猜词题目数据（不含 answer/alternatives）
+   */
+  getCurrentEmojiQuestion(room: Room): {
+    questionIndex: number;
+    emoji: string;
+    category: string;
+    totalQuestions: number;
+    timeLimit: number;
+  } | null {
+    if (!room.state.emojiPuzzles) return null;
+    const idx = room.state.currentEmojiIndex ?? 0;
+    const q = room.state.emojiPuzzles[idx];
+    if (!q) return null;
+    return {
+      questionIndex: idx,
+      emoji: q.emoji,
+      category: q.category,
+      totalQuestions: room.state.emojiPuzzles.length,
+      timeLimit: EMOJI_TIME_LIMIT,
+    };
+  }
+
+  /**
+   * 提交表情包猜词猜测
+   * - 两人都答完：判断对错、计算得分、更新总分、广播 emoji:reveal、phase=QUIZ
+   * - 仅一人答完：广播 emoji:opponent-answered 给对方
+   */
+  submitEmojiGuess(
+    roomId: string,
+    socketId: string,
+    questionIndex: number,
+    guess: string
+  ): {
+    room: Room;
+    allAnswered: boolean;
+    opponentId: string;
+  } | null {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+    if (room.gameType !== "emoji-guessing") return null;
+    if (room.state.phase !== "DRAWING") return null; // 答题阶段
+    if (questionIndex !== (room.state.currentEmojiIndex ?? 0)) return null;
+
+    const player = room.players.find((p) => p.id === socketId);
+    if (!player) return null;
+
+    const guesses = room.state.emojiGuesses || {};
+    // 已经答过的不重复处理
+    if (guesses[socketId] !== undefined) return null;
+
+    guesses[socketId] = guess;
+    room.state.emojiGuesses = guesses;
+
+    const opponent = room.players.find((p) => p.id !== socketId);
+    const allAnswered = room.players.every(
+      (p) => room.state.emojiGuesses![p.id] !== undefined
+    );
+
+    if (allAnswered) {
+      // 双方都答完，揭晓
+      this.resolveEmojiRound(room);
+    }
+
+    return {
+      room,
+      allAnswered,
+      opponentId: opponent?.id || "",
+    };
+  }
+
+  /**
+   * 计算表情包猜词单题得分并累加到总分
+   * 计分规则：答对 +10，答错 +0
+   */
+  private resolveEmojiRound(room: Room) {
+    const guesses = room.state.emojiGuesses || {};
+    const idx = room.state.currentEmojiIndex ?? 0;
+    const puzzle = room.state.emojiPuzzles?.[idx];
+    if (!puzzle) return;
+
+    const results: Record<string, boolean> = {};
+    const scores: Record<string, number> = {};
+    const totalScores = room.state.emojiTotalScores || {};
+
+    room.players.forEach((p) => {
+      const guess = guesses[p.id] || "";
+      const correct = this.checkEmojiGuess(guess, puzzle);
+      const score = correct ? EMOJI_CORRECT_SCORE : 0;
+      results[p.id] = correct;
+      scores[p.id] = score;
+      totalScores[p.id] = (totalScores[p.id] || 0) + score;
+    });
+
+    room.state.emojiResults = results;
+    room.state.emojiScores = scores;
+    room.state.emojiTotalScores = totalScores;
+    room.state.emojiRevealed = true;
+    // 进入揭晓阶段（复用 QUIZ）
+    room.state.phase = "QUIZ";
+  }
+
+  /**
+   * 获取表情包猜词揭晓数据（针对每个玩家视角）
+   */
+  getEmojiRevealData(room: Room, socketId: string): {
+    questionIndex: number;
+    myGuess: string;
+    opponentGuess: string;
+    answer: string;
+    myCorrect: boolean;
+    opponentCorrect: boolean;
+    myScore: number;
+    opponentScore: number;
+    myTotal: number;
+    opponentTotal: number;
+  } | null {
+    if (!room.state.emojiRevealed) return null;
+    const idx = room.state.currentEmojiIndex ?? 0;
+    const puzzle = room.state.emojiPuzzles?.[idx];
+    if (!puzzle) return null;
+    const guesses = room.state.emojiGuesses || {};
+    const results = room.state.emojiResults || {};
+    const scores = room.state.emojiScores || {};
+    const totalScores = room.state.emojiTotalScores || {};
+    const opponent = room.players.find((p) => p.id !== socketId);
+    if (!opponent) return null;
+    return {
+      questionIndex: idx,
+      myGuess: guesses[socketId] || "",
+      opponentGuess: guesses[opponent.id] || "",
+      answer: puzzle.answer,
+      myCorrect: results[socketId] || false,
+      opponentCorrect: results[opponent.id] || false,
+      myScore: scores[socketId] || 0,
+      opponentScore: scores[opponent.id] || 0,
+      myTotal: totalScores[socketId] || 0,
+      opponentTotal: totalScores[opponent.id] || 0,
+    };
+  }
+
+  /**
+   * 推进到下一道表情包猜词题
+   * 最后一题则进入 GAME_OVER 并同步玩家 totalScore 用于终局排名
+   */
+  nextEmojiQuestion(roomId: string, socketId: string): {
+    room: Room;
+    isLast: boolean;
+    nextIndex: number;
+  } | null {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+    if (room.gameType !== "emoji-guessing") return null;
+    if (room.state.phase !== "QUIZ") return null;
+    if (!room.state.emojiRevealed) return null;
+
+    const total = room.state.emojiPuzzles?.length ?? 0;
+    const cur = room.state.currentEmojiIndex ?? 0;
+
+    if (cur >= total - 1) {
+      // 最后一题：把累计总分同步到玩家 totalScore，用于 getGameOverData 排名
+      const totalScores = room.state.emojiTotalScores || {};
+      room.players.forEach((p) => {
+        p.totalScore = totalScores[p.id] || 0;
+      });
+      room.state.phase = "GAME_OVER";
+      return { room, isLast: true, nextIndex: -1 };
+    }
+
+    const nextIndex = cur + 1;
+    room.state.currentEmojiIndex = nextIndex;
+    room.state.emojiGuesses = {};
+    room.state.emojiResults = {};
+    room.state.emojiScores = {};
+    room.state.emojiRevealed = false;
+    // 回到答题阶段
+    room.state.phase = "DRAWING";
+    return { room, isLast: false, nextIndex };
+  }
+
+  /**
+   * 重玩表情包猜词（重新抽题）
+   * 保留 usedWords（与表情包题库无关，但保持一致性）
+   */
+  restartEmoji(roomId: string, socketId: string): { room: Room } | null {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+    if (room.hostId !== socketId) return null;
+    if (room.gameType !== "emoji-guessing") return null;
+    this.startEmojiGuessingInternal(room);
+    return { room };
   }
 
   /**

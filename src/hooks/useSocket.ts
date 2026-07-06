@@ -36,6 +36,9 @@ export function useSocketConnection() {
     setCoOpIncomingStroke,
     appendCoOpStroke,
     setCoOpResult,
+    setEmojiQuestion,
+    setEmojiOpponentAnswered,
+    setEmojiReveal,
     setRoundResult,
     setGameOver,
   } = useGameStore();
@@ -193,6 +196,22 @@ export function useSocketConnection() {
       playSfx(sfx.roundEnd);
     };
 
+    // ---- 表情包猜词事件 ----
+    const onEmojiQuestion = (q) => setEmojiQuestion(q);
+    const onEmojiOpponentAnswered = () => {
+      setEmojiOpponentAnswered();
+      playSfx(sfx.opponentAnswered);
+    };
+    const onEmojiReveal = (r) => {
+      setEmojiReveal(r);
+      // 揭晓音效：自己答对=correct，否则=wrong
+      if (r.myCorrect) {
+        playSfx(sfx.correct);
+      } else {
+        playSfx(sfx.wrong);
+      }
+    };
+
     const onRoundResult = (r) => {
       setRoundResult(r);
       playSfx(sfx.roundEnd);
@@ -240,6 +259,9 @@ export function useSocketConnection() {
     socket.on("coop:stroke-point", onCoOpStrokePoint);
     socket.on("coop:stroke-end", onCoOpStrokeEnd);
     socket.on("coop:result", onCoOpResult);
+    socket.on("emoji:question", onEmojiQuestion);
+    socket.on("emoji:opponent-answered", onEmojiOpponentAnswered);
+    socket.on("emoji:reveal", onEmojiReveal);
     socket.on("round:result", onRoundResult);
     socket.on("game:over", onGameOver);
     socket.on("player:left", onPlayerLeft);
@@ -273,6 +295,9 @@ export function useSocketConnection() {
       socket.off("coop:stroke-point", onCoOpStrokePoint);
       socket.off("coop:stroke-end", onCoOpStrokeEnd);
       socket.off("coop:result", onCoOpResult);
+      socket.off("emoji:question", onEmojiQuestion);
+      socket.off("emoji:opponent-answered", onEmojiOpponentAnswered);
+      socket.off("emoji:reveal", onEmojiReveal);
       socket.off("round:result", onRoundResult);
       socket.off("game:over", onGameOver);
       socket.off("player:left", onPlayerLeft);
@@ -332,6 +357,11 @@ export function useRoomActions() {
     coOpRate: (roomId: string, rating: number) =>
       socket.emit("coop:rate", { roomId, rating }),
     coOpRestart: (roomId: string) => socket.emit("coop:restart", { roomId }),
+    // 表情包猜词
+    emojiSubmit: (roomId: string, questionIndex: number, guess: string) =>
+      socket.emit("emoji:submit", { roomId, questionIndex, guess }),
+    emojiNext: (roomId: string) => socket.emit("emoji:next", { roomId }),
+    emojiRestart: (roomId: string) => socket.emit("emoji:restart", { roomId }),
     cleanup: () => disconnectSocket(),
   };
 }

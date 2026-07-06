@@ -138,6 +138,25 @@ export function registerSocketHandlers(io: Io) {
         return;
       }
 
+      if (room.gameType === "emoji-guessing") {
+        // 表情包猜词：下发第一题，进入 DRAWING（答题中）
+        io.to(roomId).emit("game:state", {
+          phase: room.state.phase,
+          currentRound: room.state.currentRound,
+        });
+        const q = RoomManager.getCurrentEmojiQuestion(room);
+        if (q) {
+          io.to(roomId).emit("emoji:question", q);
+        }
+        io.to(roomId).emit("game:config", {
+          viewTime: VIEW_TIME,
+          drawTime: DRAW_TIME,
+          wordDuration: WORD_DURATION,
+          totalQuestions: q?.totalQuestions ?? 10,
+        });
+        return;
+      }
+
       io.to(roomId).emit("game:state", {
         phase: room.state.phase,
         currentRound: room.state.currentRound,
@@ -330,6 +349,25 @@ export function registerSocketHandlers(io: Io) {
         if (turnData) {
           io.to(roomId).emit("coop:turn", turnData);
         }
+        return;
+      }
+
+      if (room.gameType === "emoji-guessing") {
+        // 表情包猜词重玩（换题）
+        io.to(roomId).emit("game:state", {
+          phase: room.state.phase,
+          currentRound: room.state.currentRound,
+        });
+        const q = RoomManager.getCurrentEmojiQuestion(room);
+        if (q) {
+          io.to(roomId).emit("emoji:question", q);
+        }
+        io.to(roomId).emit("game:config", {
+          viewTime: VIEW_TIME,
+          drawTime: DRAW_TIME,
+          wordDuration: WORD_DURATION,
+          totalQuestions: q?.totalQuestions ?? 10,
+        });
         return;
       }
 
@@ -568,6 +606,79 @@ export function registerSocketHandlers(io: Io) {
       if (turnData) {
         io.to(roomId).emit("coop:turn", turnData);
       }
+    });
+
+    // ---------- 表情包猜词 ----------
+
+    socket.on("emoji:submit", ({ roomId, questionIndex, guess }) => {
+      const result = RoomManager.submitEmojiGuess(roomId, socket.id, questionIndex, guess);
+      if (!result) return;
+      const { room, allAnswered } = result;
+
+      if (!allAnswered) {
+        // 仅自己答完，通知对方
+        socket.to(roomId).emit("emoji:opponent-answered", { questionIndex });
+        return;
+      }
+
+      // 双方都答完，广播揭晓数据（每个玩家视角不同）
+      room.players.forEach((p) => {
+        const reveal = RoomManager.getEmojiRevealData(room, p.id);
+        if (reveal) {
+          io.to(p.id).emit("emoji:reveal", reveal);
+        }
+      });
+      // 通知阶段切换到 QUIZ（揭晓）
+      io.to(roomId).emit("game:state", {
+        phase: room.state.phase,
+        currentRound: room.state.currentRound,
+      });
+    });
+
+    socket.on("emoji:next", ({ roomId }) => {
+      const result = RoomManager.nextEmojiQuestion(roomId, socket.id);
+      if (!result) return;
+      const { room, isLast } = result;
+
+      if (isLast) {
+        // 游戏结束
+        io.to(roomId).emit("game:state", {
+          phase: room.state.phase,
+          currentRound: room.state.currentRound,
+        });
+        const overData = RoomManager.getGameOverData(room);
+        io.to(roomId).emit("game:over", overData);
+      } else {
+        // 下一题
+        io.to(roomId).emit("game:state", {
+          phase: room.state.phase,
+          currentRound: room.state.currentRound,
+        });
+        const q = RoomManager.getCurrentEmojiQuestion(room);
+        if (q) {
+          io.to(roomId).emit("emoji:question", q);
+        }
+      }
+    });
+
+    socket.on("emoji:restart", ({ roomId }) => {
+      const result = RoomManager.restartEmoji(roomId, socket.id);
+      if (!result) return;
+      const room = result.room;
+      io.to(roomId).emit("game:state", {
+        phase: room.state.phase,
+        currentRound: room.state.currentRound,
+      });
+      const q = RoomManager.getCurrentEmojiQuestion(room);
+      if (q) {
+        io.to(roomId).emit("emoji:question", q);
+      }
+      io.to(roomId).emit("game:config", {
+        viewTime: VIEW_TIME,
+        drawTime: DRAW_TIME,
+        wordDuration: WORD_DURATION,
+        totalQuestions: q?.totalQuestions ?? 10,
+      });
     });
 
     // ---------- 断线处理 ----------

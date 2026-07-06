@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Pencil, LogIn, Sparkles, Palette, Brain, User, Heart, HelpCircle } from "lucide-react";
+import { Pencil, LogIn, Sparkles, Palette, Brain, User, Heart, HelpCircle, Smile } from "lucide-react";
 import { useRoomActions } from "@/hooks/useSocket";
 import { useGameStore } from "@/store/gameStore";
 import { useAudioStore } from "@/store/audioStore";
@@ -169,6 +169,17 @@ export default function Home() {
                 selected={gameType === "co-op-drawing"}
                 onClick={() => {
                   setGameType("co-op-drawing");
+                  playSfx(sfx.uiTick);
+                }}
+              />
+              <GameCard
+                icon={<Smile size={18} />}
+                emoji="😎"
+                title="表情包猜词"
+                desc="看emoji猜词"
+                selected={gameType === "emoji-guessing"}
+                onClick={() => {
+                  setGameType("emoji-guessing");
                   playSfx(sfx.uiTick);
                 }}
               />

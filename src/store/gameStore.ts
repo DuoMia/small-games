@@ -20,6 +20,8 @@ import type {
   CoOpPromptData,
   CoOpTurnData,
   CoOpResultData,
+  EmojiQuestionData,
+  EmojiRevealData,
 } from "@/lib/types";
 
 interface GameState {
@@ -65,6 +67,11 @@ interface GameState {
   coOpResult: CoOpResultData | null;
   coOpMyRated: boolean; // 自己是否已评分
 
+  // 表情包猜词
+  emojiQuestion: EmojiQuestionData | null;
+  emojiOpponentAnswered: boolean;
+  emojiReveal: EmojiRevealData | null;
+
   // 结算
   roundResult: RoundResultData | null;
   gameOver: GameOverData | null;
@@ -99,6 +106,10 @@ interface GameState {
   setCoOpStrokes: (s: CoOpStroke[]) => void;
   setCoOpResult: (r: CoOpResultData | null) => void;
   setCoOpMyRated: (v: boolean) => void;
+  // 表情包猜词
+  setEmojiQuestion: (q: EmojiQuestionData | null) => void;
+  setEmojiOpponentAnswered: () => void;
+  setEmojiReveal: (r: EmojiRevealData | null) => void;
   setRoundResult: (r: RoundResultData | null) => void;
   setGameOver: (g: GameOverData | null) => void;
   reset: () => void;
@@ -134,6 +145,10 @@ export const useGameStore = create<GameState>((set) => ({
   coOpStrokes: [],
   coOpResult: null,
   coOpMyRated: false,
+  // 表情包猜词
+  emojiQuestion: null,
+  emojiOpponentAnswered: false,
+  emojiReveal: null,
   roundResult: null,
   gameOver: null,
 
@@ -149,6 +164,8 @@ export const useGameStore = create<GameState>((set) => ({
       ...(phase === "WORD_DISPLAY" || phase === "DRAWING" ? { roundResult: null, gameOver: null } : {}),
       // 默契考验：离开揭晓阶段时清理 reveal 数据
       ...(phase !== "QUIZ" ? { telepathyReveal: null, telepathyOpponentChose: false } : {}),
+      // 表情包猜词：离开揭晓阶段时清理 reveal 数据
+      ...(phase !== "QUIZ" ? { emojiReveal: null, emojiOpponentAnswered: false } : {}),
     })),
   setWords: (words) => set({ words }),
   setDrawings: (drawings) => set({ drawings }),
@@ -204,6 +221,15 @@ export const useGameStore = create<GameState>((set) => ({
   setCoOpStrokes: (s) => set({ coOpStrokes: s }),
   setCoOpResult: (r) => set({ coOpResult: r }),
   setCoOpMyRated: (v) => set({ coOpMyRated: v }),
+  // 表情包猜词
+  setEmojiQuestion: (q) =>
+    set({
+      emojiQuestion: q,
+      emojiOpponentAnswered: false,
+      emojiReveal: null,
+    }),
+  setEmojiOpponentAnswered: () => set({ emojiOpponentAnswered: true }),
+  setEmojiReveal: (r) => set({ emojiReveal: r }),
   setRoundResult: (r) => set({ roundResult: r }),
   setGameOver: (g) => set({ gameOver: g }),
   reset: () =>
@@ -234,6 +260,9 @@ export const useGameStore = create<GameState>((set) => ({
       coOpStrokes: [],
       coOpResult: null,
       coOpMyRated: false,
+      emojiQuestion: null,
+      emojiOpponentAnswered: false,
+      emojiReveal: null,
       roundResult: null,
       gameOver: null,
     }),

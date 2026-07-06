@@ -9,6 +9,7 @@ import GameResult from "@/game/GameResult";
 import TelepathyGame from "@/game/TelepathyGame";
 import TurtleSoup from "@/game/TurtleSoup";
 import CoOpDrawing from "@/game/CoOpDrawing";
+import EmojiGuessing from "@/game/EmojiGuessing";
 
 export default function Game() {
   const { roomId } = useParams<{ roomId: string }>();
@@ -50,6 +51,11 @@ export default function Game() {
   // 合作画画：统一交给 CoOpDrawing 处理
   if (room.gameType === "co-op-drawing") {
     return <CoOpDrawing roomId={roomId} />;
+  }
+
+  // 表情包猜词：统一交给 EmojiGuessing 处理
+  if (room.gameType === "emoji-guessing") {
+    return <EmojiGuessing roomId={roomId} />;
   }
 
   // 画词记忆：原有逻辑
