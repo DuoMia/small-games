@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.0
+#Requires -Version 5.0
 # 画词记忆 · 服务管理器（GUI 版）
 # 双击「在线游玩.bat」即可启动
 #
@@ -95,6 +95,34 @@ function Start-Backend {
     if ($script:pagesDomain) {
         $env:CORS_ORIGINS = $script:pagesDomain
         Write-Log "CORS 白名单: $($script:pagesDomain)"
+    }
+
+    # 加载 scripts/.env 中的环境变量（GLM_API_KEY 等），供海龟汤 AI 主持人使用
+    # 该文件已被 .gitignore 忽略，不会提交到仓库
+    $EnvFile = Join-Path $PSScriptRoot ".env"
+    if (Test-Path $EnvFile) {
+        try {
+            Get-Content $EnvFile -ErrorAction SilentlyContinue | ForEach-Object {
+                $line = $_.Trim()
+                if ($line -and -not $line.StartsWith("#")) {
+                    $idx = $line.IndexOf("=")
+                    if ($idx -gt 0) {
+                        $k = $line.Substring(0, $idx).Trim()
+                        $v = $line.Substring($idx + 1).Trim()
+                        Set-Item -Path "Env:$k" -Value $v
+                    }
+                }
+            }
+            if ($env:GLM_API_KEY) {
+                Write-Log "已加载 GLM_API_KEY（海龟汤 AI 主持人可用）"
+            } else {
+                Write-Log "警告: scripts/.env 中未找到 GLM_API_KEY，海龟汤 AI 将全部返回'无关'"
+            }
+        } catch {
+            Write-Log "读取 scripts/.env 失败: $_"
+        }
+    } else {
+        Write-Log "提示: 未找到 scripts/.env，海龟汤 AI 主持人将不可用"
     }
 
     # Windows 上 npx 是 npx.cmd 批处理文件，Start-Process 需要明确指定
