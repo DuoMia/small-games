@@ -26,13 +26,19 @@ interface DrawingCanvasProps {
   color: string;
   brushSize: number;
   tool: "pen" | "eraser";
+  // 合作画画专用：禁用绘制（对方回合时）
+  disabled?: boolean;
+  // 合作画画专用：笔画事件回调（用于实时同步）
+  onStrokeStart?: (stroke: Stroke) => void;
+  onStrokePoint?: (point: Point) => void;
+  onStrokeEnd?: () => void;
 }
 
 const CANVAS_WIDTH = 600;
 const CANVAS_HEIGHT = 450;
 
 export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
-  ({ strokes, onStrokesChange, color, brushSize, tool }, ref) => {
+  ({ strokes, onStrokesChange, color, brushSize, tool, disabled, onStrokeStart, onStrokePoint, onStrokeEnd }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
     const drawingRef = useRef(false);
@@ -105,6 +111,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
     };
 
     const handlePointerDown = (e: React.PointerEvent) => {
+      if (disabled) return;
       e.preventDefault();
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -122,6 +129,8 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
       if (ctx && currentStrokeRef.current) {
         drawStroke(ctx, currentStrokeRef.current);
       }
+      // 合作画画：通知开始一笔
+      onStrokeStart?.(currentStrokeRef.current);
     };
 
     const handlePointerMove = (e: React.PointerEvent) => {
@@ -146,6 +155,8 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
         ctx.stroke();
         ctx.restore();
       }
+      // 合作画画：通知笔画进行中的点
+      onStrokePoint?.(point);
     };
 
     const handlePointerUp = (e: React.PointerEvent) => {
@@ -158,6 +169,8 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
         onStrokesChange(newStrokes);
       }
       currentStrokeRef.current = null;
+      // 合作画画：通知一笔结束
+      onStrokeEnd?.();
     };
 
     // 暴露方法

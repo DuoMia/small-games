@@ -9,8 +9,8 @@ export type GamePhase =
   | "ROUND_RESULT"
   | "GAME_OVER";
 
-// 游戏类型：画词记忆 / 默契考验 / 海龟汤
-export type GameType = "draw-memory" | "telepathy" | "turtle-soup";
+// 游戏类型：画词记忆 / 默契考验 / 海龟汤 / 合作画画
+export type GameType = "draw-memory" | "telepathy" | "turtle-soup" | "co-op-drawing";
 
 export interface PlayerView {
   id: string;
@@ -148,4 +148,35 @@ export interface TurtleRevealData {
 // AI 思考中提示
 export interface TurtleJudgingData {
   type: "question" | "guess";
+}
+
+// ===== 合作画画（接龙画）=====
+
+// 合作画画笔画（含作者）
+export interface CoOpStroke {
+  color: string;
+  size: number;
+  isEraser: boolean;
+  points: { x: number; y: number }[];
+  author: string; // 画该笔的玩家 playerId
+}
+
+// 命题数据
+export interface CoOpPromptData {
+  prompt: string;
+  totalStrokes: number;
+}
+
+// 轮次数据
+export interface CoOpTurnData {
+  currentPlayer: string;
+  strokesLeft: number;
+  playerStrokes: Record<string, number>;
+}
+
+// 结果数据
+export interface CoOpResultData {
+  finalImage: string;
+  ratings: Record<string, number>;
+  avgRating: number;
 }

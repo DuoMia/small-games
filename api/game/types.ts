@@ -10,8 +10,17 @@ export type GamePhase =
   | "ROUND_RESULT"
   | "GAME_OVER";
 
-// 游戏类型：画词记忆 / 默契考验 / 海龟汤
-export type GameType = "draw-memory" | "telepathy" | "turtle-soup";
+// 游戏类型：画词记忆 / 默契考验 / 海龟汤 / 合作画画
+export type GameType = "draw-memory" | "telepathy" | "turtle-soup" | "co-op-drawing";
+
+// 合作画画单笔笔画
+export interface CoOpStroke {
+  color: string;
+  size: number;
+  isEraser: boolean;
+  points: { x: number; y: number }[];
+  author: string; // 画该笔的玩家 playerId
+}
 
 // 默契考验单题结构
 export interface TelepathyQuestion {
@@ -73,6 +82,14 @@ export interface GameState {
   turtleGuesses?: { guess: string; guesser: string; correct: boolean; close: boolean; feedback: string }[];
   turtleQuestionsLeft?: number; // 剩余提问次数，初始20
   turtleResolved?: boolean; // 是否已猜中
+  // 合作画画专用字段
+  coOpPrompt?: string; // 当前命题
+  coOpStrokes?: CoOpStroke[]; // 所有已完成笔画
+  coOpCurrentStroke?: CoOpStroke | null; // 当前进行中的笔画（未完成）
+  coOpCurrentPlayer?: string; // 当前轮到谁画，playerId
+  coOpStrokesLeft?: number; // 剩余总笔画数，初始20
+  coOpPlayerStrokes?: Record<string, number>; // 每人已画笔画
+  coOpRatings?: Record<string, number>; // 双方评分
 }
 
 export interface Room {
@@ -137,6 +154,12 @@ export interface ClientToServerEvents {
   "turtle:ask": (data: { roomId: string; question: string }) => void;
   "turtle:guess": (data: { roomId: string; guess: string }) => void;
   "turtle:restart": (data: { roomId: string }) => void;
+  // 合作画画
+  "coop:stroke-start": (data: { roomId: string; stroke: Omit<CoOpStroke, "author"> }) => void;
+  "coop:stroke-point": (data: { roomId: string; point: { x: number; y: number } }) => void;
+  "coop:stroke-end": (data: { roomId: string }) => void;
+  "coop:rate": (data: { roomId: string; rating: number }) => void;
+  "coop:restart": (data: { roomId: string }) => void;
 }
 
 export interface ServerToClientEvents {
@@ -165,4 +188,11 @@ export interface ServerToClientEvents {
   "turtle:guess-result": (data: { guessIndex: number; guess: string; guesser: string; correct: boolean; close: boolean; feedback: string }) => void;
   "turtle:reveal": (data: { truth: string; won: boolean }) => void;
   "turtle:judging": (data: { type: "question" | "guess" }) => void;
+  // 合作画画
+  "coop:prompt": (data: { prompt: string; totalStrokes: number }) => void;
+  "coop:turn": (data: { currentPlayer: string; strokesLeft: number; playerStrokes: Record<string, number> }) => void;
+  "coop:stroke-start": (data: { stroke: CoOpStroke }) => void;
+  "coop:stroke-point": (data: { point: { x: number; y: number } }) => void;
+  "coop:stroke-end": (data: {}) => void;
+  "coop:result": (data: { finalImage: string; ratings: Record<string, number>; avgRating: number }) => void;
 }

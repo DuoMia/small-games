@@ -121,6 +121,23 @@ export function registerSocketHandlers(io: Io) {
         return;
       }
 
+      if (room.gameType === "co-op-drawing") {
+        // 合作画画：下发命题 + 轮次信息，进入 DRAWING
+        io.to(roomId).emit("game:state", {
+          phase: room.state.phase,
+          currentRound: room.state.currentRound,
+        });
+        io.to(roomId).emit("coop:prompt", {
+          prompt: room.state.coOpPrompt || "",
+          totalStrokes: 20,
+        });
+        const turnData = RoomManager.getCoOpTurnData(room);
+        if (turnData) {
+          io.to(roomId).emit("coop:turn", turnData);
+        }
+        return;
+      }
+
       io.to(roomId).emit("game:state", {
         phase: room.state.phase,
         currentRound: room.state.currentRound,
@@ -299,6 +316,23 @@ export function registerSocketHandlers(io: Io) {
         return;
       }
 
+      if (room.gameType === "co-op-drawing") {
+        // 合作画画重玩（换命题）
+        io.to(roomId).emit("game:state", {
+          phase: room.state.phase,
+          currentRound: room.state.currentRound,
+        });
+        io.to(roomId).emit("coop:prompt", {
+          prompt: room.state.coOpPrompt || "",
+          totalStrokes: 20,
+        });
+        const turnData = RoomManager.getCoOpTurnData(room);
+        if (turnData) {
+          io.to(roomId).emit("coop:turn", turnData);
+        }
+        return;
+      }
+
       io.to(roomId).emit("game:state", {
         phase: room.state.phase,
         currentRound: room.state.currentRound,
@@ -459,6 +493,80 @@ export function registerSocketHandlers(io: Io) {
       const surface = RoomManager.getCurrentTurtleSurface(room);
       if (surface) {
         io.to(roomId).emit("turtle:surface", surface);
+      }
+    });
+
+    // ---------- 合作画画（接龙画）----------
+
+    socket.on("coop:stroke-start", ({ roomId, stroke }) => {
+      const result = RoomManager.coOpStrokeStart(roomId, socket.id, stroke);
+      if (!result) return;
+      // 广播给除发送者外的玩家
+      socket.to(roomId).emit("coop:stroke-start", { stroke: result.fullStroke });
+    });
+
+    socket.on("coop:stroke-point", ({ roomId, point }) => {
+      const result = RoomManager.coOpStrokePoint(roomId, socket.id, point);
+      if (!result) return;
+      socket.to(roomId).emit("coop:stroke-point", { point });
+    });
+
+    socket.on("coop:stroke-end", ({ roomId }) => {
+      const result = RoomManager.coOpStrokeEnd(roomId, socket.id);
+      if (!result) return;
+      const { room, isLast, turnData } = result;
+      // 广播给除发送者外的玩家：笔画结束
+      socket.to(roomId).emit("coop:stroke-end", {});
+      if (isLast) {
+        // 最后一笔：进入 ROUND_RESULT 评分阶段
+        io.to(roomId).emit("game:state", {
+          phase: room.state.phase,
+          currentRound: room.state.currentRound,
+        });
+        const resultData = RoomManager.getCoOpResultData(room);
+        io.to(roomId).emit("coop:result", resultData || {
+          finalImage: "",
+          ratings: {},
+          avgRating: 0,
+        });
+      } else if (turnData) {
+        // 切换轮次
+        io.to(roomId).emit("coop:turn", turnData);
+      }
+    });
+
+    socket.on("coop:rate", ({ roomId, rating }) => {
+      const result = RoomManager.rateCoOp(roomId, socket.id, rating);
+      if (!result) return;
+      const { room, allRated, ratings, avgRating } = result;
+      if (allRated) {
+        // 双方都评完：进入 GAME_OVER
+        io.to(roomId).emit("game:state", {
+          phase: room.state.phase,
+          currentRound: room.state.currentRound,
+        });
+        io.to(roomId).emit("coop:result", {
+          finalImage: "",
+          ratings,
+          avgRating,
+        });
+      }
+    });
+
+    socket.on("coop:restart", ({ roomId }) => {
+      const room = RoomManager.restartCoOp(roomId, socket.id);
+      if (!room) return;
+      io.to(roomId).emit("game:state", {
+        phase: room.state.phase,
+        currentRound: room.state.currentRound,
+      });
+      io.to(roomId).emit("coop:prompt", {
+        prompt: room.state.coOpPrompt || "",
+        totalStrokes: 20,
+      });
+      const turnData = RoomManager.getCoOpTurnData(room);
+      if (turnData) {
+        io.to(roomId).emit("coop:turn", turnData);
       }
     });
 

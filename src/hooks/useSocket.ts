@@ -31,6 +31,11 @@ export function useSocketConnection() {
     addTurtleGuess,
     setTurtleReveal,
     setTurtleJudging,
+    setCoOpPrompt,
+    setCoOpTurn,
+    setCoOpIncomingStroke,
+    appendCoOpStroke,
+    setCoOpResult,
     setRoundResult,
     setGameOver,
   } = useGameStore();
@@ -151,6 +156,43 @@ export function useSocketConnection() {
       playSfx(r.won ? sfx.win : sfx.lose);
     };
 
+    // ---- 合作画画事件 ----
+    const onCoOpPrompt = (p) => setCoOpPrompt(p);
+    const onCoOpTurn = (t) => {
+      setCoOpTurn(t);
+      // 轮到自己画时播放提示音
+      const myId = useGameStore.getState().myId;
+      if (t.currentPlayer === myId) {
+        playSfx(sfx.click);
+      }
+    };
+    const onCoOpStrokeStart = (data) => {
+      // 对方开始一笔
+      setCoOpIncomingStroke(data.stroke);
+    };
+    const onCoOpStrokePoint = (data) => {
+      // 对方笔画进行中：增量追加到 incoming stroke
+      const cur = useGameStore.getState().coOpIncomingStroke;
+      if (cur) {
+        setCoOpIncomingStroke({
+          ...cur,
+          points: [...cur.points, data.point],
+        });
+      }
+    };
+    const onCoOpStrokeEnd = () => {
+      // 对方一笔完成：把 incoming 追加到已完成列表
+      const cur = useGameStore.getState().coOpIncomingStroke;
+      if (cur) {
+        appendCoOpStroke(cur);
+      }
+    };
+    const onCoOpResult = (r) => {
+      setCoOpResult(r);
+      // 结果揭晓音效
+      playSfx(sfx.roundEnd);
+    };
+
     const onRoundResult = (r) => {
       setRoundResult(r);
       playSfx(sfx.roundEnd);
@@ -192,6 +234,12 @@ export function useSocketConnection() {
     socket.on("turtle:answered", onTurtleAnswered);
     socket.on("turtle:guess-result", onTurtleGuessResult);
     socket.on("turtle:reveal", onTurtleReveal);
+    socket.on("coop:prompt", onCoOpPrompt);
+    socket.on("coop:turn", onCoOpTurn);
+    socket.on("coop:stroke-start", onCoOpStrokeStart);
+    socket.on("coop:stroke-point", onCoOpStrokePoint);
+    socket.on("coop:stroke-end", onCoOpStrokeEnd);
+    socket.on("coop:result", onCoOpResult);
     socket.on("round:result", onRoundResult);
     socket.on("game:over", onGameOver);
     socket.on("player:left", onPlayerLeft);
@@ -219,6 +267,12 @@ export function useSocketConnection() {
       socket.off("turtle:answered", onTurtleAnswered);
       socket.off("turtle:guess-result", onTurtleGuessResult);
       socket.off("turtle:reveal", onTurtleReveal);
+      socket.off("coop:prompt", onCoOpPrompt);
+      socket.off("coop:turn", onCoOpTurn);
+      socket.off("coop:stroke-start", onCoOpStrokeStart);
+      socket.off("coop:stroke-point", onCoOpStrokePoint);
+      socket.off("coop:stroke-end", onCoOpStrokeEnd);
+      socket.off("coop:result", onCoOpResult);
       socket.off("round:result", onRoundResult);
       socket.off("game:over", onGameOver);
       socket.off("player:left", onPlayerLeft);
@@ -269,6 +323,15 @@ export function useRoomActions() {
     turtleGuess: (roomId: string, guess: string) =>
       socket.emit("turtle:guess", { roomId, guess }),
     turtleRestart: (roomId: string) => socket.emit("turtle:restart", { roomId }),
+    // 合作画画
+    coOpStrokeStart: (roomId: string, stroke: { color: string; size: number; isEraser: boolean; points: { x: number; y: number }[] }) =>
+      socket.emit("coop:stroke-start", { roomId, stroke }),
+    coOpStrokePoint: (roomId: string, point: { x: number; y: number }) =>
+      socket.emit("coop:stroke-point", { roomId, point }),
+    coOpStrokeEnd: (roomId: string) => socket.emit("coop:stroke-end", { roomId }),
+    coOpRate: (roomId: string, rating: number) =>
+      socket.emit("coop:rate", { roomId, rating }),
+    coOpRestart: (roomId: string) => socket.emit("coop:restart", { roomId }),
     cleanup: () => disconnectSocket(),
   };
 }

@@ -44,6 +44,7 @@ export default function Lobby() {
   const telepathyPackId = room?.telepathyPackId ?? "life";
   const isTelepathy = gameType === "telepathy";
   const isTurtle = gameType === "turtle-soup";
+  const isCoOp = gameType === "co-op-drawing";
   const turtleDifficulty = room?.turtleDifficulty ?? "any";
 
   // 当前选中的题包信息
@@ -142,11 +143,11 @@ export default function Lobby() {
         <div className="w-full mb-4 text-center">
           <span
             className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border-2 border-ink font-display text-sm ${
-              isTelepathy ? "bg-coral-light text-ink" : isTurtle ? "bg-mint text-ink" : "bg-sun text-ink"
+              isTelepathy ? "bg-coral-light text-ink" : isTurtle ? "bg-mint text-ink" : isCoOp ? "bg-sun text-ink" : "bg-sun text-ink"
             }`}
           >
-            <span>{isTelepathy ? "💕" : isTurtle ? "🐢" : "🎨"}</span>
-            {isTelepathy ? "默契考验" : isTurtle ? "海龟汤" : "画词记忆"}
+            <span>{isTelepathy ? "💕" : isTurtle ? "🐢" : isCoOp ? "✏️" : "🎨"}</span>
+            {isTelepathy ? "默契考验" : isTurtle ? "海龟汤" : isCoOp ? "合作画画" : "画词记忆"}
           </span>
         </div>
 
@@ -227,6 +228,15 @@ export default function Lobby() {
             </div>
             <p className="text-center text-xs text-ink-muted mt-2">
               AI 主持人回答"是/否/无关" · 20 问内还原真相
+            </p>
+          </div>
+        ) : isCoOp ? (
+          // 合作画画：无需配置，显示玩法提示
+          <div className="w-full bg-white rounded-doodle border-2 border-ink p-4 mb-6 shadow-soft text-center">
+            <div className="text-4xl mb-2">✏️</div>
+            <p className="font-display text-ink text-sm mb-1">接龙共创</p>
+            <p className="text-xs text-ink-muted">
+              系统随机出题 · 双方轮流画一笔 · 共 20 笔
             </p>
           </div>
         ) : (
@@ -346,7 +356,7 @@ export default function Lobby() {
         {/* 规则提示 */}
         <div className="w-full mt-6 bg-cream-dark rounded-doodle p-4 border-2 border-ink-muted">
           <p className="font-display text-ink text-sm mb-2">
-            {isTelepathy ? "💕 默契考验规则" : isTurtle ? "🐢 海龟汤规则" : "📋 游戏规则"}
+            {isTelepathy ? "💕 默契考验规则" : isTurtle ? "🐢 海龟汤规则" : isCoOp ? "✏️ 合作画画规则" : "📋 游戏规则"}
           </p>
           {isTelepathy ? (
             <ul className="text-xs text-ink-muted space-y-1">
@@ -365,6 +375,15 @@ export default function Lobby() {
               <li>· 限制 20 问，用完未猜中则失败</li>
               <li>· 任意一方可"揭晓答案"输入猜测</li>
               <li>· AI 判断正确或接近即获胜</li>
+            </ul>
+          ) : isCoOp ? (
+            <ul className="text-xs text-ink-muted space-y-1">
+              <li>· 系统给一个画图命题（动物/食物/场景等）</li>
+              <li>· 双方轮流画一笔，每人共 10 笔（总 20 笔）</li>
+              <li>· 每笔限时 15 秒，超时自动跳过</li>
+              <li>· 实时同步：对方画的同时你能看到</li>
+              <li>· 完成后双方各给 1-5 星评分</li>
+              <li>· 可下载画作截图保存</li>
             </ul>
           ) : (
             <ul className="text-xs text-ink-muted space-y-1">

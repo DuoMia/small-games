@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Pencil, LogIn, Sparkles, Palette, Brain, User, Heart, Lock, HelpCircle } from "lucide-react";
+import { Pencil, LogIn, Sparkles, Palette, Brain, User, Heart, HelpCircle } from "lucide-react";
 import { useRoomActions } from "@/hooks/useSocket";
 import { useGameStore } from "@/store/gameStore";
 import { useAudioStore } from "@/store/audioStore";
@@ -162,12 +162,15 @@ export default function Home() {
                 }}
               />
               <GameCard
-                icon={<Lock size={18} />}
-                emoji="🚧"
+                icon={<Pencil size={18} />}
+                emoji="✏️"
                 title="合作画画"
-                desc="即将推出"
-                disabled
-                onClick={() => playSfx(sfx.wrong)}
+                desc="接龙共创"
+                selected={gameType === "co-op-drawing"}
+                onClick={() => {
+                  setGameType("co-op-drawing");
+                  playSfx(sfx.uiTick);
+                }}
               />
             </div>
           </div>

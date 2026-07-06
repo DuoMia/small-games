@@ -16,6 +16,10 @@ import type {
   TurtleGuessRecord,
   TurtleRevealData,
   TurtleJudgingData,
+  CoOpStroke,
+  CoOpPromptData,
+  CoOpTurnData,
+  CoOpResultData,
 } from "@/lib/types";
 
 interface GameState {
@@ -53,6 +57,14 @@ interface GameState {
   turtleReveal: TurtleRevealData | null;
   turtleJudging: TurtleJudgingData | null;
 
+  // 合作画画
+  coOpPrompt: CoOpPromptData | null;
+  coOpTurn: CoOpTurnData | null;
+  coOpIncomingStroke: CoOpStroke | null; // 对方正在画的笔画
+  coOpStrokes: CoOpStroke[]; // 已完成的所有笔画
+  coOpResult: CoOpResultData | null;
+  coOpMyRated: boolean; // 自己是否已评分
+
   // 结算
   roundResult: RoundResultData | null;
   gameOver: GameOverData | null;
@@ -79,6 +91,14 @@ interface GameState {
   addTurtleGuess: (g: TurtleGuessRecord) => void;
   setTurtleReveal: (r: TurtleRevealData | null) => void;
   setTurtleJudging: (j: TurtleJudgingData | null) => void;
+  // 合作画画
+  setCoOpPrompt: (p: CoOpPromptData | null) => void;
+  setCoOpTurn: (t: CoOpTurnData | null) => void;
+  setCoOpIncomingStroke: (s: CoOpStroke | null) => void;
+  appendCoOpStroke: (s: CoOpStroke) => void;
+  setCoOpStrokes: (s: CoOpStroke[]) => void;
+  setCoOpResult: (r: CoOpResultData | null) => void;
+  setCoOpMyRated: (v: boolean) => void;
   setRoundResult: (r: RoundResultData | null) => void;
   setGameOver: (g: GameOverData | null) => void;
   reset: () => void;
@@ -107,6 +127,13 @@ export const useGameStore = create<GameState>((set) => ({
   turtleQuestionsLeft: 20,
   turtleReveal: null,
   turtleJudging: null,
+  // 合作画画
+  coOpPrompt: null,
+  coOpTurn: null,
+  coOpIncomingStroke: null,
+  coOpStrokes: [],
+  coOpResult: null,
+  coOpMyRated: false,
   roundResult: null,
   gameOver: null,
 
@@ -160,6 +187,23 @@ export const useGameStore = create<GameState>((set) => ({
     set((s) => ({ turtleGuesses: [...s.turtleGuesses, g] })),
   setTurtleReveal: (r) => set({ turtleReveal: r, turtleJudging: null }),
   setTurtleJudging: (j) => set({ turtleJudging: j }),
+  // 合作画画
+  setCoOpPrompt: (p) =>
+    set({
+      coOpPrompt: p,
+      coOpTurn: null,
+      coOpIncomingStroke: null,
+      coOpStrokes: [],
+      coOpResult: null,
+      coOpMyRated: false,
+    }),
+  setCoOpTurn: (t) => set({ coOpTurn: t, coOpIncomingStroke: null }),
+  setCoOpIncomingStroke: (s) => set({ coOpIncomingStroke: s }),
+  appendCoOpStroke: (s) =>
+    set((st) => ({ coOpStrokes: [...st.coOpStrokes, s], coOpIncomingStroke: null })),
+  setCoOpStrokes: (s) => set({ coOpStrokes: s }),
+  setCoOpResult: (r) => set({ coOpResult: r }),
+  setCoOpMyRated: (v) => set({ coOpMyRated: v }),
   setRoundResult: (r) => set({ roundResult: r }),
   setGameOver: (g) => set({ gameOver: g }),
   reset: () =>
@@ -184,6 +228,12 @@ export const useGameStore = create<GameState>((set) => ({
       turtleQuestionsLeft: 20,
       turtleReveal: null,
       turtleJudging: null,
+      coOpPrompt: null,
+      coOpTurn: null,
+      coOpIncomingStroke: null,
+      coOpStrokes: [],
+      coOpResult: null,
+      coOpMyRated: false,
       roundResult: null,
       gameOver: null,
     }),
