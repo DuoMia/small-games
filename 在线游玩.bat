@@ -1,21 +1,22 @@
 @echo off
-title 派对小游戏 · 服务管理器
+title Party Games Launcher
 
 cd /d "%~dp0"
 
 echo.
 echo ========================================
-echo   派对小游戏 · 服务管理器
+echo   Party Games Launcher
 echo ========================================
 echo.
-echo 正在启动服务管理器...
-echo 公网链接和二维码会自动弹出.
+echo Starting service manager...
+echo.
+echo If no window pops up, run scripts\start-online.ps1 manually.
 echo.
 
 powershell -ExecutionPolicy Bypass -NoProfile -File "%~dp0scripts\start-online.ps1"
 
 echo.
 echo ----------------------------------------
-echo 脚本已结束 (退出码 %errorlevel%)
+echo Script finished (exit code %errorlevel%)
 echo ----------------------------------------
 pause
