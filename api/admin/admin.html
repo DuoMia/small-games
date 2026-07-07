@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🎮 派对小游戏 · 题库管理后台</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* 暖色调配色变量 */
+    :root {
+      --coral: #FF6B6B;
+      --mint: #4ECDC4;
+      --sun: #FFE66D;
+      --ink: #2D3142;
+      --cream: #FFF8F0;
+    }
+    body {
+      background-color: var(--cream);
+      color: var(--ink);
+      font-family: "Microsoft YaHei UI", "PingFang SC", system-ui, sans-serif;
+    }
+    /* 卡片涂鸦风格：圆角 + 粗边框 */
+    .doodle-card {
+      background: white;
+      border: 2.5px solid var(--ink);
+      border-radius: 16px;
+      box-shadow: 3px 3px 0 var(--ink);
+      transition: all 0.15s ease;
+    }
+    .doodle-card:hover {
+      transform: translate(-1px, -1px);
+      box-shadow: 4px 4px 0 var(--ink);
+    }
+    .doodle-btn {
+      border: 2px solid var(--ink);
+      border-radius: 10px;
+      font-weight: 600;
+      transition: all 0.1s ease;
+      box-shadow: 2px 2px 0 var(--ink);
+    }
+    .doodle-btn:hover:not(:disabled) {
+      transform: translate(-1px, -1px);
+      box-shadow: 3px 3px 0 var(--ink);
+    }
+    .doodle-btn:active:not(:disabled) {
+      transform: translate(1px, 1px);
+      box-shadow: 1px 1px 0 var(--ink);
+    }
+    .doodle-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .doodle-input {
+      border: 2px solid var(--ink);
+      border-radius: 8px;
+      padding: 6px 10px;
+      background: white;
+      transition: border-color 0.1s;
+    }
+    .doodle-input:focus {
+      outline: none;
+      border-color: var(--coral);
+      box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.2);
+    }
+    .tab-active {
+      background: var(--sun);
+      transform: translate(-1px, -1px);
+      box-shadow: 3px 3px 0 var(--ink);
+    }
+    /* loading 遮罩 */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(45, 49, 66, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .spinner {
+      width: 56px;
+      height: 56px;
+      border: 6px solid var(--sun);
+      border-top-color: var(--coral);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    /* 滚动条美化 */
+    ::-webkit-scrollbar { width: 10px; }
+    ::-webkit-scrollbar-track { background: var(--cream); }
+    ::-webkit-scrollbar-thumb { background: var(--ink); border-radius: 5px; }
+  </style>
+</head>
+<body class="min-h-screen">
+  <!-- 顶部标题 -->
+  <header class="bg-[var(--ink)] text-white px-6 py-4 sticky top-0 z-10">
+    <div class="max-w-6xl mx-auto flex items-center justify-between flex-wrap gap-2">
+      <h1 class="text-2xl font-bold">🎮 派对小游戏 · 题库管理后台</h1>
+      <span class="text-sm text-gray-300">仅本机访问 · 127.0.0.1:8788</span>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6">
+    <!-- 题库切换 Tab -->
+    <nav class="flex gap-2 mb-6 flex-wrap">
+      <button data-db="draw-words" class="tab-btn doodle-btn px-5 py-2.5 bg-white">🎨 画图猜词</button>
+      <button data-db="telepathy" class="tab-btn doodle-btn px-5 py-2.5 bg-white">💭 默契考验</button>
+      <button data-db="emoji" class="tab-btn doodle-btn px-5 py-2.5 bg-white">😀 表情包</button>
+      <button data-db="turtle-soup" class="tab-btn doodle-btn px-5 py-2.5 bg-white">🐢 海龟汤</button>
+    </nav>
+
+    <!-- 统计 + 操作栏 -->
+    <section class="doodle-card p-4 mb-6 flex items-center justify-between flex-wrap gap-3">
+      <div class="flex items-center gap-4 flex-wrap">
+        <span class="text-lg font-bold">📊 共 <span id="totalCount" class="text-[var(--coral)]">-</span> 题</span>
+        <span id="packInfo" class="text-sm text-gray-600 hidden"></span>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <input id="searchBox" type="text" placeholder="🔍 搜索题目..." class="doodle-input w-48" />
+        <button id="btnAiExpand" class="doodle-btn px-4 py-2 bg-[var(--mint)] text-white">🤖 AI扩展</button>
+        <button id="btnAdd" class="doodle-btn px-4 py-2 bg-[var(--coral)] text-white">➕ 新增</button>
+      </div>
+    </section>
+
+    <!-- 题目列表 -->
+    <section id="listArea" class="space-y-3">
+      <div class="text-center text-gray-500 py-10">加载中...</div>
+    </section>
+  </main>
+
+  <!-- 新增/编辑表单弹窗 -->
+  <div id="formModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50 p-4">
+    <div class="doodle-card max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 id="formTitle" class="text-xl font-bold">新增题目</h2>
+        <button id="formClose" class="text-2xl leading-none">&times;</button>
+      </div>
+      <form id="itemForm" class="space-y-3"></form>
+    </div>
+  </div>
+
+  <!-- AI 扩展对话框 -->
+  <div id="aiModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50 p-4">
+    <div class="doodle-card max-w-md w-full p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-bold">🤖 AI 扩展题库</h2>
+        <button id="aiClose" class="text-2xl leading-none">&times;</button>
+      </div>
+      <div id="aiForm" class="space-y-3"></div>
+      <div class="flex gap-2 mt-4">
+        <button id="aiConfirm" class="doodle-btn flex-1 px-4 py-2 bg-[var(--mint)] text-white">开始生成</button>
+        <button id="aiCancel" class="doodle-btn px-4 py-2 bg-gray-200">取消</button>
+      </div>
+      <p class="text-xs text-gray-500 mt-3">提示：使用 GLM-4-Flash 模型，生成后自动去重合并。未配置 GLM_API_KEY 会返回错误。</p>
+    </div>
+  </div>
+
+  <!-- loading 遮罩 -->
+  <div id="loadingOverlay" class="loading-overlay hidden">
+    <div class="doodle-card p-8 flex flex-col items-center gap-4">
+      <div class="spinner"></div>
+      <p id="loadingText" class="font-bold text-lg">处理中...</p>
+    </div>
+  </div>
+
+  <!-- Toast 提示 -->
+  <div id="toast" class="fixed bottom-6 right-6 doodle-card px-5 py-3 font-bold hidden z-50"></div>
+
+  <script>
+    // === 全局状态 ===
+    const STATE = {
+      currentDb: "draw-words",
+      items: [],
+      packs: [], // telepathy 题包元数据
+      searchQuery: "",
+    };
+
+    // 各题库配置：标签 + 字段定义
+    const DB_CONFIG = {
+      "draw-words": {
+        label: "画图猜词",
+        fields: [
+          { key: "word", label: "词语", type: "text", required: true },
+          { key: "synonyms", label: "同义词（逗号分隔）", type: "csv" },
+          { key: "category", label: "分类", type: "select", options: ["食物", "动物", "物品", "交通", "建筑", "人物", "自然"], default: "物品" },
+        ],
+        aiOptions: [
+          { key: "category", label: "分类（可选）", type: "select", options: ["随机", "食物", "动物", "物品", "交通", "建筑", "人物", "自然"], default: "随机" },
+        ],
+      },
+      telepathy: {
+        label: "默契考验",
+        fields: [
+          { key: "packId", label: "题包", type: "select", options: [], default: "life", dynamic: "packs" },
+          { key: "question", label: "题干", type: "text", required: true },
+          { key: "options", label: "选项（5个）", type: "options5" },
+        ],
+        aiOptions: [
+          { key: "packId", label: "题包", type: "select", options: [], default: "life", dynamic: "packs" },
+        ],
+      },
+      emoji: {
+        label: "表情包",
+        fields: [
+          { key: "category", label: "分类", type: "select", options: ["成语", "电影", "歌曲", "动物", "食物", "城市", "网络梗", "节日", "日用品", "自然现象"], default: "成语" },
+          { key: "emoji", label: "Emoji（纯符号，禁止汉字/字母/数字）", type: "text", required: true },
+          { key: "answer", label: "答案", type: "text", required: true },
+          { key: "alternatives", label: "备选答案（逗号分隔）", type: "csv" },
+        ],
+        aiOptions: [],
+      },
+      "turtle-soup": {
+        label: "海龟汤",
+        fields: [
+          { key: "title", label: "标题", type: "text", required: true },
+          { key: "difficulty", label: "难度", type: "select", options: ["easy", "medium", "hard"], default: "medium" },
+          { key: "category", label: "分类", type: "select", options: ["悬疑", "惊悚", "日常", "奇幻", "温情"], default: "悬疑" },
+          { key: "surface", label: "汤面", type: "textarea", required: true },
+          { key: "truth", label: "汤底", type: "textarea", required: true },
+          { key: "keywords", label: "关键词（逗号分隔）", type: "csv" },
+        ],
+        aiOptions: [
+          { key: "difficulty", label: "难度（可选）", type: "select", options: ["随机", "easy", "medium", "hard"], default: "随机" },
+        ],
+      },
+    };
+
+    // === 工具函数 ===
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => document.querySelectorAll(sel);
+
+    function showToast(msg, isError = false) {
+      const t = $("#toast");
+      t.textContent = msg;
+      t.style.background = isError ? "#FFD0D0" : "#D0F5E8";
+      t.classList.remove("hidden");
+      setTimeout(() => t.classList.add("hidden"), 3000);
+    }
+
+    function showLoading(text = "处理中...") {
+      $("#loadingText").textContent = text;
+      $("#loadingOverlay").classList.remove("hidden");
+    }
+    function hideLoading() {
+      $("#loadingOverlay").classList.add("hidden");
+    }
+
+    async function api(method, path, body) {
+      const opts = { method, headers: { "Content-Type": "application/json" } };
+      if (body !== undefined) opts.body = JSON.stringify(body);
+      const res = await fetch(path, opts);
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || `请求失败 (${res.status})`);
+      }
+      return data;
+    }
+
+    // 获取题包选项（telepathy 用）
+    function getPackOptions() {
+      return STATE.packs.map((p) => ({ value: p.id, label: `${p.icon} ${p.name}` }));
+    }
+
+    // 把字段配置中的 dynamic 解析成实际选项
+    function resolveFieldOptions(field) {
+      if (field.dynamic === "packs") {
+        return getPackOptions().map((o) => o.label);
+      }
+      return field.options || [];
+    }
+    function resolveFieldValue(field, item) {
+      if (field.dynamic === "packs") {
+        const opt = getPackOptions().find((o) => o.value === (item && item[field.key]));
+        return opt ? opt.label : "";
+      }
+      return item ? item[field.key] : "";
+    }
+    function packLabelToId(label) {
+      const opt = getPackOptions().find((o) => o.label === label);
+      return opt ? opt.value : "life";
+    }
+
+    // === Tab 切换 ===
+    $$(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => switchDb(btn.dataset.db));
+    });
+
+    async function switchDb(db) {
+      STATE.currentDb = db;
+      $$(".tab-btn").forEach((b) => {
+        b.classList.toggle("tab-active", b.dataset.db === db);
+      });
+      await loadItems();
+    }
+
+    // === 加载题目列表 ===
+    async function loadItems() {
+      const area = $("#listArea");
+      area.innerHTML = '<div class="text-center text-gray-500 py-10">加载中...</div>';
+      try {
+        const data = await api("GET", `/api/${STATE.currentDb}`);
+        STATE.items = data.items || [];
+        STATE.packs = data.packs || [];
+        renderList();
+        updateStats();
+      } catch (err) {
+        area.innerHTML = `<div class="text-center text-[var(--coral)] py-10">加载失败：${err.message}</div>`;
+      }
+    }
+
+    function updateStats() {
+      $("#totalCount").textContent = STATE.items.length;
+      const packInfo = $("#packInfo");
+      if (STATE.currentDb === "telepathy" && STATE.packs.length) {
+        packInfo.textContent = `（${STATE.packs.map((p) => `${p.icon}${p.name}:${STATE.items.filter((i) => i.packId === p.id).length}`).join(" · ")}）`;
+        packInfo.classList.remove("hidden");
+      } else {
+        packInfo.classList.add("hidden");
+      }
+    }
+
+    // === 渲染列表 ===
+    function renderList() {
+      const area = $("#listArea");
+      const q = STATE.searchQuery.trim().toLowerCase();
+      const filtered = q
+        ? STATE.items.filter((item, idx) => matchesSearch(item, q))
+        : STATE.items;
+
+      if (filtered.length === 0) {
+        area.innerHTML = `<div class="text-center text-gray-500 py-10">${q ? "未找到匹配的题目" : "暂无题目，点击 [新增] 或 [AI扩展] 添加"}</div>`;
+        return;
+      }
+
+      area.innerHTML = filtered.map((item) => renderCard(item, STATE.items.indexOf(item))).join("");
+      // 绑定按钮事件
+      $$(".card-edit").forEach((b) => b.addEventListener("click", () => openForm("edit", parseInt(b.dataset.idx))));
+      $$(".card-delete").forEach((b) => b.addEventListener("click", () => deleteItem(parseInt(b.dataset.idx))));
+    }
+
+    function matchesSearch(item, q) {
+      return JSON.stringify(item).toLowerCase().includes(q);
+    }
+
+    // 渲染单个卡片
+    function renderCard(item, idx) {
+      const db = STATE.currentDb;
+      let content = "";
+      let badge = "";
+
+      if (db === "draw-words") {
+        badge = `<span class="px-2 py-0.5 text-xs rounded-full bg-[var(--sun)] border-2 border-[var(--ink)]">${item.category}</span>`;
+        content = `
+          <div class="font-bold text-lg">${escapeHtml(item.word)}</div>
+          ${item.synonyms && item.synonyms.length ? `<div class="text-sm text-gray-600 mt-1">同义：${item.synonyms.map(escapeHtml).join("、")}</div>` : ""}
+        `;
+      } else if (db === "telepathy") {
+        const pack = STATE.packs.find((p) => p.id === item.packId);
+        badge = `<span class="px-2 py-0.5 text-xs rounded-full bg-[var(--mint)] text-white border-2 border-[var(--ink)]">${pack ? pack.icon + " " + pack.name : item.packId}</span>`;
+        const opts = (item.options || []).map((o, i) => `<span class="inline-block px-2 py-0.5 mr-1 mb-1 text-xs bg-gray-100 rounded">${"ABCDE"[i]} ${escapeHtml(o)}</span>`).join("");
+        content = `
+          <div class="font-bold">${escapeHtml(item.question)}</div>
+          <div class="mt-2">${opts}</div>
+        `;
+      } else if (db === "emoji") {
+        badge = `<span class="px-2 py-0.5 text-xs rounded-full bg-[var(--coral)] text-white border-2 border-[var(--ink)]">${item.category}</span><span class="text-xs text-gray-500 ml-2">#${item.id}</span>`;
+        content = `
+          <div class="text-3xl mb-1">${escapeHtml(item.emoji)}</div>
+          <div class="font-bold">答案：${escapeHtml(item.answer)}</div>
+          ${item.alternatives && item.alternatives.length ? `<div class="text-sm text-gray-600 mt-1">备选：${item.alternatives.map(escapeHtml).join("、")}</div>` : ""}
+        `;
+      } else if (db === "turtle-soup") {
+        const diffColor = { easy: "bg-green-200", medium: "bg-yellow-200", hard: "bg-red-200" }[item.difficulty] || "bg-gray-200";
+        badge = `<span class="px-2 py-0.5 text-xs rounded-full ${diffColor} border-2 border-[var(--ink)]">${item.difficulty}</span><span class="px-2 py-0.5 text-xs rounded-full bg-[var(--sun)] border-2 border-[var(--ink)] ml-1">${item.category}</span><span class="text-xs text-gray-500 ml-2">${item.id}</span>`;
+        content = `
+          <div class="font-bold text-lg">${escapeHtml(item.title)}</div>
+          <div class="text-sm mt-1"><span class="font-semibold">汤面：</span>${escapeHtml(item.surface)}</div>
+          <details class="mt-2"><summary class="cursor-pointer text-sm font-semibold text-[var(--coral)]">查看汤底</summary><div class="text-sm mt-1 bg-gray-50 p-2 rounded">${escapeHtml(item.truth)}</div></details>
+          ${item.keywords && item.keywords.length ? `<div class="text-xs text-gray-500 mt-2">关键词：${item.keywords.map(escapeHtml).join("、")}</div>` : ""}
+        `;
+      }
+
+      return `
+        <div class="doodle-card p-4">
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex-1 min-w-0">
+              <div class="mb-2">${badge}</div>
+              ${content}
+            </div>
+            <div class="flex flex-col gap-1 shrink-0">
+              <button class="card-edit doodle-btn px-3 py-1 bg-[var(--sun)] text-sm" data-idx="${idx}">编辑</button>
+              <button class="card-delete doodle-btn px-3 py-1 bg-[var(--coral)] text-white text-sm" data-idx="${idx}">删除</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function escapeHtml(s) {
+      if (s == null) return "";
+      return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+
+    // === 新增/编辑表单 ===
+    let formMode = "add"; // add | edit
+    let formEditIndex = -1;
+
+    $("#btnAdd").addEventListener("click", () => openForm("add"));
+    $("#formClose").addEventListener("click", closeForm);
+
+    function openForm(mode, idx = -1) {
+      formMode = mode;
+      formEditIndex = idx;
+      const config = DB_CONFIG[STATE.currentDb];
+      $("#formTitle").textContent = mode === "add" ? `新增${config.label}题目` : `编辑${config.label}题目`;
+
+      const item = mode === "edit" ? STATE.items[idx] : null;
+      const form = $("#itemForm");
+      form.innerHTML = config.fields.map((field) => renderField(field, item)).join("");
+
+      // 表单提交按钮
+      form.innerHTML += `
+        <div class="flex gap-2 pt-2">
+          <button type="button" id="formSubmit" class="doodle-btn flex-1 px-4 py-2 bg-[var(--coral)] text-white">${mode === "add" ? "新增" : "保存"}</button>
+          <button type="button" id="formCancel" class="doodle-btn px-4 py-2 bg-gray-200">取消</button>
+        </div>
+      `;
+      $("#formSubmit").addEventListener("click", submitForm);
+      $("#formCancel").addEventListener("click", closeForm);
+
+      $("#formModal").classList.remove("hidden");
+      $("#formModal").classList.add("flex");
+    }
+
+    function closeForm() {
+      $("#formModal").classList.add("hidden");
+      $("#formModal").classList.remove("flex");
+    }
+
+    function renderField(field, item) {
+      const val = item ? item[field.key] : (field.default !== undefined ? field.default : "");
+      const label = `<label class="block text-sm font-semibold mb-1">${field.label}</label>`;
+
+      if (field.type === "text") {
+        return `<div>${label}<input type="text" name="${field.key}" value="${escapeHtml(val)}" class="doodle-input w-full" ${field.required ? "required" : ""} /></div>`;
+      }
+      if (field.type === "textarea") {
+        return `<div>${label}<textarea name="${field.key}" rows="4" class="doodle-input w-full" ${field.required ? "required" : ""}>${escapeHtml(val)}</textarea></div>`;
+      }
+      if (field.type === "csv") {
+        const csvVal = Array.isArray(val) ? val.join(", ") : val;
+        return `<div>${label}<input type="text" name="${field.key}" value="${escapeHtml(csvVal)}" class="doodle-input w-full" placeholder="用逗号分隔多个值" /></div>`;
+      }
+      if (field.type === "select") {
+        const options = resolveFieldOptions(field);
+        const currentVal = item ? (field.dynamic === "packs" ? resolveFieldValue(field, item) : val) : (field.default || options[0] || "");
+        const optsHtml = options.map((o) => `<option value="${escapeHtml(o)}" ${o === currentVal ? "selected" : ""}>${escapeHtml(o)}</option>`).join("");
+        return `<div>${label}<select name="${field.key}" class="doodle-input w-full">${optsHtml}</select></div>`;
+      }
+      if (field.type === "options5") {
+        const opts = Array.isArray(val) ? val : ["", "", "", "", ""];
+        const inputs = [0, 1, 2, 3, 4].map((i) => `<input type="text" name="${field.key}_${i}" value="${escapeHtml(opts[i] || "")}" class="doodle-input w-full mb-1" placeholder="选项${"ABCDE"[i]}" />`).join("");
+        return `<div>${label}${inputs}</div>`;
+      }
+      return "";
+    }
+
+    function collectForm() {
+      const config = DB_CONFIG[STATE.currentDb];
+      const data = {};
+      for (const field of config.fields) {
+        if (field.type === "options5") {
+          data[field.key] = [0, 1, 2, 3, 4].map((i) => $(`[name="${field.key}_${i}"]`).value.trim()).filter(Boolean);
+        } else if (field.type === "csv") {
+          const raw = $(`[name="${field.key}"]`).value.trim();
+          data[field.key] = raw ? raw.split(/[,，]/).map((s) => s.trim()).filter(Boolean) : [];
+        } else if (field.type === "select") {
+          const v = $(`[name="${field.key}"]`).value;
+          data[field.key] = field.dynamic === "packs" ? packLabelToId(v) : v;
+        } else {
+          data[field.key] = $(`[name="${field.key}"]`).value.trim();
+        }
+      }
+      return data;
+    }
+
+    async function submitForm() {
+      const data = collectForm();
+      // 简单校验必填
+      const config = DB_CONFIG[STATE.currentDb];
+      for (const field of config.fields) {
+        if (field.required) {
+          const v = field.type === "options5" ? data[field.key] : data[field.key];
+          if (!v || (Array.isArray(v) && v.length === 0)) {
+            showToast(`请填写：${field.label}`, true);
+            return;
+          }
+        }
+      }
+      try {
+        showLoading(formMode === "add" ? "新增中..." : "保存中...");
+        if (formMode === "add") {
+          await api("POST", `/api/${STATE.currentDb}`, data);
+          showToast("新增成功");
+        } else {
+          await api("PUT", `/api/${STATE.currentDb}/${formEditIndex}`, data);
+          showToast("保存成功");
+        }
+        closeForm();
+        await loadItems();
+      } catch (err) {
+        showToast(`操作失败：${err.message}`, true);
+      } finally {
+        hideLoading();
+      }
+    }
+
+    // === 删除 ===
+    async function deleteItem(idx) {
+      const item = STATE.items[idx];
+      let preview = "";
+      if (STATE.currentDb === "draw-words") preview = item.word;
+      else if (STATE.currentDb === "telepathy") preview = item.question;
+      else if (STATE.currentDb === "emoji") preview = `${item.emoji} = ${item.answer}`;
+      else if (STATE.currentDb === "turtle-soup") preview = item.title;
+      if (!confirm(`确定删除「${preview}」吗？此操作不可撤销。`)) return;
+      try {
+        showLoading("删除中...");
+        await api("DELETE", `/api/${STATE.currentDb}/${idx}`);
+        showToast("已删除");
+        await loadItems();
+      } catch (err) {
+        showToast(`删除失败：${err.message}`, true);
+      } finally {
+        hideLoading();
+      }
+    }
+
+    // === AI 扩展 ===
+    $("#btnAiExpand").addEventListener("click", openAiDialog);
+    $("#aiClose").addEventListener("click", closeAiDialog);
+    $("#aiCancel").addEventListener("click", closeAiDialog);
+    $("#aiConfirm").addEventListener("click", doAiExpand);
+
+    function openAiDialog() {
+      const config = DB_CONFIG[STATE.currentDb];
+      const form = $("#aiForm");
+      const optionsHtml = config.aiOptions.map((field) => renderField(field, null)).join("");
+      form.innerHTML = `
+        <div>
+          <label class="block text-sm font-semibold mb-1">生成数量（1-50）</label>
+          <input type="number" id="aiCount" value="10" min="1" max="50" class="doodle-input w-full" />
+        </div>
+        ${optionsHtml}
+      `;
+      $("#aiModal").classList.remove("hidden");
+      $("#aiModal").classList.add("flex");
+    }
+
+    function closeAiDialog() {
+      $("#aiModal").classList.add("hidden");
+      $("#aiModal").classList.remove("flex");
+    }
+
+    async function doAiExpand() {
+      const count = parseInt($("#aiCount").value, 10) || 10;
+      const config = DB_CONFIG[STATE.currentDb];
+      const options = {};
+      for (const field of config.aiOptions) {
+        const v = $(`[name="${field.key}"]`).value;
+        if (field.key === "category" || field.key === "difficulty") {
+          if (v !== "随机") options[field.key] = v;
+        } else if (field.dynamic === "packs") {
+          options[field.key] = packLabelToId(v);
+        }
+      }
+      try {
+        showLoading("AI 生成中，请稍候（可能需要 10-30 秒）...");
+        closeAiDialog();
+        const data = await api("POST", `/api/${STATE.currentDb}/ai-expand`, { count, options });
+        showToast(`✓ 新增 ${data.added} 题（共 ${data.total} 题）`);
+        await loadItems();
+      } catch (err) {
+        showToast(`AI 扩展失败：${err.message}`, true);
+      } finally {
+        hideLoading();
+      }
+    }
+
+    // === 搜索 ===
+    $("#searchBox").addEventListener("input", (e) => {
+      STATE.searchQuery = e.target.value;
+      renderList();
+    });
+
+    // === 初始化 ===
+    switchDb("draw-words");
+  </script>
+</body>
+</html>

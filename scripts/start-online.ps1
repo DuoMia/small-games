@@ -25,6 +25,8 @@ if (Test-Path $PagesConfigPath) {
 
 $script:backendPid = 0
 $script:tunnelPid = 0
+$script:adminPid = 0
+$script:AdminPort = 8788
 $script:tunnelUrl = ""
 $script:tunnelLogFile = Join-Path $env:TEMP "cloudflared-tunnel.log"
 $script:tunnelStartTime = $null
@@ -56,6 +58,7 @@ function Update-Status {
         if (-not $form.IsHandleCreated) { return }
         $beRunning = Is-ProcessRunning $script:backendPid
         $tnRunning = Is-ProcessRunning $script:tunnelPid
+        $adminRunning = Is-ProcessRunning $script:adminPid
 
         $form.Invoke([Action]{
             $btnStartBE.Enabled = -not $beRunning
@@ -68,8 +71,13 @@ function Update-Status {
             $lblTNStatus.Text = if ($tnRunning) { "运行中" } else { "已停止" }
             $lblTNStatus.ForeColor = if ($tnRunning) { [System.Drawing.Color]::LightGreen } else { [System.Drawing.Color]::Salmon }
 
+            $btnStartAdmin.Enabled = -not $adminRunning
+            $btnStopAdmin.Enabled = $adminRunning
+            $lblAdminStatus.Text = if ($adminRunning) { "运行中" } else { "已停止" }
+            $lblAdminStatus.ForeColor = if ($adminRunning) { [System.Drawing.Color]::LightGreen } else { [System.Drawing.Color]::Salmon }
+
             $btnStartAll.Enabled = -not ($beRunning -and $tnRunning)
-            $btnStopAll.Enabled = $beRunning -or $tnRunning
+            $btnStopAll.Enabled = $beRunning -or $tnRunning -or $adminRunning
         })
     } catch {}
 }
@@ -208,6 +216,77 @@ function Stop-Tunnel {
     Update-Status
 }
 
+# ---------- 启动/停止管理后台 ----------
+# 管理后台是独立 Express 服务（端口 8788），只监听 127.0.0.1，不暴露公网
+# 用于管理 4 个题库（画图猜词/默契考验/表情包/海龟汤）的题目，并支持 AI 扩展
+function Start-Admin {
+    if (Is-ProcessRunning $script:adminPid) {
+        Write-Log "管理后台已在运行中"
+        # 即使已在运行，也帮用户打开浏览器
+        Start-Process "http://127.0.0.1:$($script:AdminPort)"
+        return
+    }
+
+    # 检查依赖
+    $NodeModules = Join-Path $ProjectRoot "node_modules"
+    if (-not (Test-Path $NodeModules)) {
+        Write-Log "首次运行，安装依赖中（约 1 分钟）..."
+        Push-Location $ProjectRoot
+        npm install --silent
+        Pop-Location
+    }
+
+    # 加载 scripts/.env 中的 GLM_API_KEY（AI 扩展功能依赖此 key）
+    # 复用后端的加载逻辑：强制 UTF-8 读取，用 SetEnvironmentVariable 设到进程级
+    $EnvFile = Join-Path $PSScriptRoot ".env"
+    if (Test-Path $EnvFile) {
+        try {
+            $lines = [System.IO.File]::ReadAllLines($EnvFile, [System.Text.Encoding]::UTF8)
+            foreach ($line in $lines) {
+                $t = $line.Trim()
+                if ($t -and -not $t.StartsWith("#")) {
+                    $idx = $t.IndexOf("=")
+                    if ($idx -gt 0) {
+                        $k = $t.Substring(0, $idx).Trim()
+                        $v = $t.Substring($idx + 1).Trim()
+                        [System.Environment]::SetEnvironmentVariable($k, $v, "Process")
+                    }
+                }
+            }
+        } catch {
+            Write-Log "读取 scripts/.env 失败: $_"
+        }
+    }
+
+    Write-Log "正在启动管理后台..."
+    # 用 cmd /c 包装启动 npx tsx，与后端启动方式一致
+    $p = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "npx tsx api/admin/server.ts" -WorkingDirectory $ProjectRoot -WindowStyle Hidden -PassThru
+    $script:adminPid = $p.Id
+    Write-Log "管理后台已启动：http://127.0.0.1:$($script:AdminPort) (PID: $($p.Id))"
+    Write-Log "提示: 管理后台只监听 127.0.0.1，不暴露公网，Cloudflare Tunnel 不转发"
+
+    # 等待 2 秒让服务启动，然后打开浏览器
+    Start-Sleep -Seconds 2
+    Start-Process "http://127.0.0.1:$($script:AdminPort)"
+    Update-Status
+}
+
+function Stop-Admin {
+    if (-not (Is-ProcessRunning $script:adminPid)) {
+        Write-Log "管理后台未在运行"
+        return
+    }
+    Write-Log "正在停止管理后台..."
+    try {
+        Start-Process -FilePath "taskkill" -ArgumentList "/T /F /PID $($script:adminPid)" -NoNewWindow -Wait -ErrorAction SilentlyContinue | Out-Null
+        $script:adminPid = 0
+        Write-Log "管理后台已停止"
+    } catch {
+        Write-Log "停止管理后台失败: $_"
+    }
+    Update-Status
+}
+
 # ---------- 保存 Pages 域名 ----------
 function Save-PagesDomain {
     $input = $txtPagesDomain.Text.Trim()
@@ -229,7 +308,7 @@ function Save-PagesDomain {
 # ---------- 构建 GUI ----------
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "画词记忆 · 服务管理器"
-$form.Size = New-Object System.Drawing.Size(580, 600)
+$form.Size = New-Object System.Drawing.Size(580, 680)
 $form.StartPosition = "CenterScreen"
 $form.FormBorderStyle = "FixedSingle"
 $form.MaximizeBox = $false
@@ -407,11 +486,63 @@ $lblTNDesc.Location = New-Object System.Drawing.Point(10, 48)
 $lblTNDesc.AutoSize = $true
 $panelTN.Controls.Add($lblTNDesc)
 
+# 管理后台面板（独立服务，端口 8788，只监听 127.0.0.1）
+$panelAdmin = New-Object System.Windows.Forms.Panel
+$panelAdmin.Size = New-Object System.Drawing.Size(520, 70)
+$panelAdmin.Location = New-Object System.Drawing.Point(20, 285)
+$panelAdmin.BackColor = [System.Drawing.Color]::FromArgb(45, 45, 65)
+$form.Controls.Add($panelAdmin)
+
+$lblAdmin = New-Object System.Windows.Forms.Label
+$lblAdmin.Text = "🛠 题库管理后台"
+$lblAdmin.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 10, [System.Drawing.FontStyle]::Bold)
+$lblAdmin.ForeColor = [System.Drawing.Color]::White
+$lblAdmin.Location = New-Object System.Drawing.Point(10, 5)
+$lblAdmin.AutoSize = $true
+$panelAdmin.Controls.Add($lblAdmin)
+
+$lblAdminStatus = New-Object System.Windows.Forms.Label
+$lblAdminStatus.Text = "已停止"
+$lblAdminStatus.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 9)
+$lblAdminStatus.ForeColor = [System.Drawing.Color]::Salmon
+$lblAdminStatus.Location = New-Object System.Drawing.Point(140, 7)
+$lblAdminStatus.AutoSize = $true
+$panelAdmin.Controls.Add($lblAdminStatus)
+
+$btnStartAdmin = New-Object System.Windows.Forms.Button
+$btnStartAdmin.Text = "启动"
+$btnStartAdmin.Size = New-Object System.Drawing.Size(70, 28)
+$btnStartAdmin.Location = New-Object System.Drawing.Point(360, 5)
+$btnStartAdmin.BackColor = [System.Drawing.Color]::FromArgb(76, 175, 80)
+$btnStartAdmin.ForeColor = [System.Drawing.Color]::White
+$btnStartAdmin.FlatStyle = "Flat"
+$btnStartAdmin.Add_Click({ Start-Admin })
+$panelAdmin.Controls.Add($btnStartAdmin)
+
+$btnStopAdmin = New-Object System.Windows.Forms.Button
+$btnStopAdmin.Text = "停止"
+$btnStopAdmin.Size = New-Object System.Drawing.Size(70, 28)
+$btnStopAdmin.Location = New-Object System.Drawing.Point(435, 5)
+$btnStopAdmin.BackColor = [System.Drawing.Color]::FromArgb(244, 67, 54)
+$btnStopAdmin.ForeColor = [System.Drawing.Color]::White
+$btnStopAdmin.FlatStyle = "Flat"
+$btnStopAdmin.Enabled = $false
+$btnStopAdmin.Add_Click({ Stop-Admin })
+$panelAdmin.Controls.Add($btnStopAdmin)
+
+$lblAdminDesc = New-Object System.Windows.Forms.Label
+$lblAdminDesc.Text = "管理4个题库（画图/默契/表情/海龟汤）· 端口 $script:AdminPort · 仅本机访问"
+$lblAdminDesc.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 7)
+$lblAdminDesc.ForeColor = [System.Drawing.Color]::Gray
+$lblAdminDesc.Location = New-Object System.Drawing.Point(10, 48)
+$lblAdminDesc.AutoSize = $true
+$panelAdmin.Controls.Add($lblAdminDesc)
+
 # 全局按钮
 $btnStartAll = New-Object System.Windows.Forms.Button
 $btnStartAll.Text = "全部启动"
 $btnStartAll.Size = New-Object System.Drawing.Size(110, 32)
-$btnStartAll.Location = New-Object System.Drawing.Point(20, 285)
+$btnStartAll.Location = New-Object System.Drawing.Point(20, 365)
 $btnStartAll.BackColor = [System.Drawing.Color]::FromArgb(33, 150, 243)
 $btnStartAll.ForeColor = [System.Drawing.Color]::White
 $btnStartAll.FlatStyle = "Flat"
@@ -422,19 +553,19 @@ $form.Controls.Add($btnStartAll)
 $btnStopAll = New-Object System.Windows.Forms.Button
 $btnStopAll.Text = "全部停止"
 $btnStopAll.Size = New-Object System.Drawing.Size(110, 32)
-$btnStopAll.Location = New-Object System.Drawing.Point(140, 285)
+$btnStopAll.Location = New-Object System.Drawing.Point(140, 365)
 $btnStopAll.BackColor = [System.Drawing.Color]::FromArgb(244, 67, 54)
 $btnStopAll.ForeColor = [System.Drawing.Color]::White
 $btnStopAll.FlatStyle = "Flat"
 $btnStopAll.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 9, [System.Drawing.FontStyle]::Bold)
 $btnStopAll.Enabled = $false
-$btnStopAll.Add_Click({ Stop-Tunnel; Stop-Backend })
+$btnStopAll.Add_Click({ Stop-Tunnel; Stop-Backend; Stop-Admin })
 $form.Controls.Add($btnStopAll)
 
 $btnRestart = New-Object System.Windows.Forms.Button
 $btnRestart.Text = "重启服务"
 $btnRestart.Size = New-Object System.Drawing.Size(110, 32)
-$btnRestart.Location = New-Object System.Drawing.Point(260, 285)
+$btnRestart.Location = New-Object System.Drawing.Point(260, 365)
 $btnRestart.BackColor = [System.Drawing.Color]::FromArgb(255, 152, 0)
 $btnRestart.ForeColor = [System.Drawing.Color]::White
 $btnRestart.FlatStyle = "Flat"
@@ -445,7 +576,7 @@ $form.Controls.Add($btnRestart)
 $btnOpenCF = New-Object System.Windows.Forms.Button
 $btnOpenCF.Text = "CF 控制台"
 $btnOpenCF.Size = New-Object System.Drawing.Size(110, 32)
-$btnOpenCF.Location = New-Object System.Drawing.Point(380, 285)
+$btnOpenCF.Location = New-Object System.Drawing.Point(380, 365)
 $btnOpenCF.BackColor = [System.Drawing.Color]::FromArgb(255, 193, 7)
 $btnOpenCF.ForeColor = [System.Drawing.Color]::Black
 $btnOpenCF.FlatStyle = "Flat"
@@ -459,7 +590,7 @@ $form.Controls.Add($btnOpenCF)
 # URL 显示区
 $panelUrl = New-Object System.Windows.Forms.Panel
 $panelUrl.Size = New-Object System.Drawing.Size(520, 110)
-$panelUrl.Location = New-Object System.Drawing.Point(20, 330)
+$panelUrl.Location = New-Object System.Drawing.Point(20, 410)
 $panelUrl.BackColor = [System.Drawing.Color]::FromArgb(45, 45, 65)
 $form.Controls.Add($panelUrl)
 
@@ -537,7 +668,7 @@ $lblLogTitle = New-Object System.Windows.Forms.Label
 $lblLogTitle.Text = "运行日志"
 $lblLogTitle.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 9, [System.Drawing.FontStyle]::Bold)
 $lblLogTitle.ForeColor = [System.Drawing.Color]::White
-$lblLogTitle.Location = New-Object System.Drawing.Point(20, 450)
+$lblLogTitle.Location = New-Object System.Drawing.Point(20, 530)
 $lblLogTitle.AutoSize = $true
 $form.Controls.Add($lblLogTitle)
 
@@ -548,7 +679,7 @@ $txtBox.Font = New-Object System.Drawing.Font("Consolas", 8)
 $txtBox.BackColor = [System.Drawing.Color]::FromArgb(20, 20, 35)
 $txtBox.ForeColor = [System.Drawing.Color]::FromArgb(180, 180, 200)
 $txtBox.BorderStyle = "None"
-$txtBox.Location = New-Object System.Drawing.Point(20, 475)
+$txtBox.Location = New-Object System.Drawing.Point(20, 555)
 $txtBox.Size = New-Object System.Drawing.Size(520, 80)
 $txtBox.ReadOnly = $true
 $form.Controls.Add($txtBox)
@@ -661,6 +792,7 @@ $form.Add_Closing({
     $monitorTimer.Stop()
     Stop-Tunnel
     Stop-Backend
+    Stop-Admin
 })
 
 [void]$form.ShowDialog()

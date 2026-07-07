@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "check": "tsc --noEmit",
     "server:dev": "nodemon",
-    "dev": "concurrently \"npm run client:dev\" \"npm run server:dev\""
+    "dev": "concurrently \"npm run client:dev\" \"npm run server:dev\"",
+    "admin": "tsx api/admin/server.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",
