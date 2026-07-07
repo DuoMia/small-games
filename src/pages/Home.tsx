@@ -5,6 +5,7 @@ import { useRoomActions } from "@/hooks/useSocket";
 import { useGameStore } from "@/store/gameStore";
 import { useAudioStore } from "@/store/audioStore";
 import { sfx } from "@/audio/engine";
+import AudioSettings from "@/components/AudioSettings";
 import type { GameType, RoomView } from "@/lib/types";
 
 // 单人模式可选的游戏列表
@@ -153,6 +154,8 @@ export default function Home() {
 
   return (
     <div className="paper-bg h-[100dvh] overflow-y-auto flex flex-col items-center px-5 py-8 relative">
+      {/* 音频设置（仅首页显示，避免遮挡游戏元素） */}
+      <AudioSettings />
       {/* 背景装饰 */}
       <div className="absolute top-10 left-5 text-6xl animate-float opacity-20" style={{ animationDelay: "0s" }}>
         🎨

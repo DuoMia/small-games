@@ -15,6 +15,7 @@ import express, {
 } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import { judgeQuestion } from "./ai/judge.js";
 
 dotenv.config();
 
@@ -71,6 +72,27 @@ app.use("/api/health", (_req: Request, res: Response): void => {
     uptime: process.uptime(),
     timestamp: Date.now(),
   });
+});
+
+/**
+ * 海龟汤 AI 判断接口（单人模式用 HTTP 调用，双人模式走 Socket.io）
+ * POST /api/turtle-judge
+ * body: { question, truth, keywords }
+ * 返回: { success, answer: "是"|"否"|"无关" }
+ */
+app.post("/api/turtle-judge", async (req: Request, res: Response): Promise<void> => {
+  const { question, truth, keywords } = req.body;
+  if (!question || !truth || !Array.isArray(keywords)) {
+    res.status(400).json({ success: false, error: "参数缺失" });
+    return;
+  }
+  try {
+    const answer = await judgeQuestion(question, truth, keywords);
+    res.json({ success: true, answer });
+  } catch (err) {
+    console.error("[/api/turtle-judge] AI判断异常:", err);
+    res.status(500).json({ success: false, error: "AI判断失败" });
+  }
 });
 
 /**

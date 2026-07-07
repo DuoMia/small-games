@@ -3,7 +3,6 @@ import Home from "@/pages/Home";
 import Lobby from "@/pages/Lobby";
 import Game from "@/pages/Game";
 import SoloMode from "@/pages/SoloMode";
-import AudioSettings from "@/components/AudioSettings";
 import { useSocketConnection } from "@/hooks/useSocket";
 import { useAudio } from "@/hooks/useAudio";
 
@@ -15,12 +14,10 @@ export default function App() {
 
   return (
     <Router>
-      <AudioSettings />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/lobby/:roomId" element={<Lobby />} />
         <Route path="/game/:roomId" element={<Game />} />
-        <Route path="/solo" element={<SoloMode />} />
         <Route path="/solo/:gameType" element={<SoloMode />} />
       </Routes>
     </Router>
