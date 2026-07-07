@@ -1,11 +1,20 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Pencil, LogIn, Sparkles, Palette, User, Heart, HelpCircle, Smile, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
+import { Pencil, LogIn, Sparkles, Palette, User, Heart, HelpCircle, Smile, RefreshCw, ChevronDown, ChevronUp, X } from "lucide-react";
 import { useRoomActions } from "@/hooks/useSocket";
 import { useGameStore } from "@/store/gameStore";
 import { useAudioStore } from "@/store/audioStore";
 import { sfx } from "@/audio/engine";
 import type { GameType, RoomView } from "@/lib/types";
+
+// 单人模式可选的游戏列表
+const SOLO_GAME_OPTIONS: { gameType: GameType; emoji: string; name: string; desc: string }[] = [
+  { gameType: "draw-memory", emoji: "🎨", name: "画词记忆", desc: "看词画图答题" },
+  { gameType: "telepathy", emoji: "💕", name: "默契考验", desc: "模拟朋友答案" },
+  { gameType: "turtle-soup", emoji: "🐢", name: "海龟汤", desc: "本地提问猜真相" },
+  { gameType: "co-op-drawing", emoji: "✏️", name: "合作画画", desc: "命题作画自评" },
+  { gameType: "emoji-guessing", emoji: "😎", name: "表情包猜词", desc: "看 emoji 猜词" },
+];
 
 // 20 个形容词 + 20 个名词，用于随机昵称生成
 const ADJECTIVES = [
@@ -72,6 +81,8 @@ export default function Home() {
   const [mode, setMode] = useState<"home" | "lobby">("home");
   // 是否展开手动输入房间码
   const [showCodeInput, setShowCodeInput] = useState(false);
+  // 是否显示单人游戏选择弹窗
+  const [soloPickerOpen, setSoloPickerOpen] = useState(false);
   const [gameType, setGameType] = useState<GameType>("draw-memory");
   const pendingActionRef = useRef(false);
 
@@ -292,11 +303,14 @@ export default function Home() {
                 加入房间
               </button>
               <button
-                onClick={() => navigate("/solo")}
+                onClick={() => {
+                  setSoloPickerOpen(true);
+                  playSfx(sfx.click);
+                }}
                 className="btn-press w-full py-3 mt-3 bg-mint text-ink font-display text-lg rounded-doodle border-2 border-ink shadow-pop flex items-center justify-center gap-2"
               >
                 <User size={20} />
-                画词记忆 · 单人练习
+                单人游玩
               </button>
             </>
           ) : (
@@ -434,6 +448,60 @@ export default function Home() {
           </p>
         </div>
       </div>
+
+      {/* 单人游戏选择弹窗 */}
+      {soloPickerOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-ink/40 flex items-center justify-center px-6"
+          onClick={() => {
+            setSoloPickerOpen(false);
+            playSfx(sfx.click);
+          }}
+        >
+          <div
+            className="bg-cream rounded-blob border-3 border-ink shadow-card p-5 w-full max-w-sm animate-bounce-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <User size={18} className="text-mint" />
+                <h3 className="font-display text-ink text-lg">单人游玩</h3>
+              </div>
+              <button
+                onClick={() => {
+                  setSoloPickerOpen(false);
+                  playSfx(sfx.click);
+                }}
+                className="btn-press p-1.5 rounded-doodle border-2 border-ink bg-white text-ink"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <p className="text-xs text-ink-muted mb-3">
+              选择一个游戏开始单人体验（无需联网）
+            </p>
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+              {SOLO_GAME_OPTIONS.map((g) => (
+                <button
+                  key={g.gameType}
+                  onClick={() => {
+                    playSfx(sfx.click);
+                    setSoloPickerOpen(false);
+                    navigate(`/solo/${g.gameType}`);
+                  }}
+                  className="btn-press w-full flex items-center gap-3 p-3 bg-white rounded-doodle border-2 border-ink/30 hover:border-ink hover:bg-mint/10 transition-colors text-left"
+                >
+                  <div className="text-2xl flex-shrink-0">{g.emoji}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-display text-ink text-sm">{g.name}</div>
+                    <div className="text-xs text-ink-muted">{g.desc}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

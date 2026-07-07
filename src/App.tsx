@@ -21,6 +21,7 @@ export default function App() {
         <Route path="/lobby/:roomId" element={<Lobby />} />
         <Route path="/game/:roomId" element={<Game />} />
         <Route path="/solo" element={<SoloMode />} />
+        <Route path="/solo/:gameType" element={<SoloMode />} />
       </Routes>
     </Router>
   );

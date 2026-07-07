@@ -200,7 +200,7 @@ export default function QuizPhase({ roomId }: { roomId: string }) {
               <div className="flex items-center justify-center gap-2 py-3 text-ink-muted bg-cream-dark rounded-doodle border-2 border-ink/20">
                 <Loader2 size={20} className="animate-spin" />
                 <span className="font-body text-sm">
-                  等待 {opponent?.nickname || "其余玩家"} 答题...
+                  等待 {opponent?.nickname || "对手"} 进入下一题...
                 </span>
               </div>
             ) : (
