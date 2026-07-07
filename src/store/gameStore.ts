@@ -18,8 +18,9 @@ import type {
   TurtleJudgingData,
   CoOpStroke,
   CoOpPromptData,
-  CoOpTurnData,
+  CoOpTimeData,
   CoOpResultData,
+  CoOpOrientation,
   EmojiQuestionData,
   EmojiRevealData,
 } from "@/lib/types";
@@ -32,6 +33,7 @@ interface GameState {
   // 房间
   room: RoomView | null;
   error: string | null;
+  publicRooms: RoomView[]; // 大厅公开房间列表
 
   // 游戏数据
   phase: GamePhase;
@@ -59,13 +61,14 @@ interface GameState {
   turtleReveal: TurtleRevealData | null;
   turtleJudging: TurtleJudgingData | null;
 
-  // 合作画画
+  // 合作画画（同时画 + AI 评分）
   coOpPrompt: CoOpPromptData | null;
-  coOpTurn: CoOpTurnData | null;
+  coOpTimeLeft: number; // 剩余时间（秒）
+  coOpOrientation: CoOpOrientation; // 画布方向
   coOpIncomingStroke: CoOpStroke | null; // 对方正在画的笔画
   coOpStrokes: CoOpStroke[]; // 已完成的所有笔画
   coOpResult: CoOpResultData | null;
-  coOpMyRated: boolean; // 自己是否已评分
+  coOpAIJudging: boolean; // AI 评分中
 
   // 表情包猜词
   emojiQuestion: EmojiQuestionData | null;
@@ -81,6 +84,7 @@ interface GameState {
   setMyId: (id: string) => void;
   setRoom: (room: RoomView | null) => void;
   setError: (msg: string | null) => void;
+  setPublicRooms: (rooms: RoomView[]) => void;
   setPhase: (phase: GamePhase, round?: number) => void;
   setWords: (words: string[]) => void;
   setDrawings: (drawings: string[]) => void;
@@ -100,12 +104,13 @@ interface GameState {
   setTurtleJudging: (j: TurtleJudgingData | null) => void;
   // 合作画画
   setCoOpPrompt: (p: CoOpPromptData | null) => void;
-  setCoOpTurn: (t: CoOpTurnData | null) => void;
+  setCoOpTimeLeft: (n: number) => void;
+  setCoOpOrientation: (o: CoOpOrientation) => void;
   setCoOpIncomingStroke: (s: CoOpStroke | null) => void;
   appendCoOpStroke: (s: CoOpStroke) => void;
   setCoOpStrokes: (s: CoOpStroke[]) => void;
   setCoOpResult: (r: CoOpResultData | null) => void;
-  setCoOpMyRated: (v: boolean) => void;
+  setCoOpAIJudging: (v: boolean) => void;
   // 表情包猜词
   setEmojiQuestion: (q: EmojiQuestionData | null) => void;
   setEmojiOpponentAnswered: () => void;
@@ -120,6 +125,7 @@ export const useGameStore = create<GameState>((set) => ({
   myId: null,
   room: null,
   error: null,
+  publicRooms: [],
   phase: "WAITING",
   currentRound: 0,
   words: [],
@@ -140,11 +146,12 @@ export const useGameStore = create<GameState>((set) => ({
   turtleJudging: null,
   // 合作画画
   coOpPrompt: null,
-  coOpTurn: null,
+  coOpTimeLeft: 90,
+  coOpOrientation: "landscape",
   coOpIncomingStroke: null,
   coOpStrokes: [],
   coOpResult: null,
-  coOpMyRated: false,
+  coOpAIJudging: false,
   // 表情包猜词
   emojiQuestion: null,
   emojiOpponentAnswered: false,
@@ -156,6 +163,7 @@ export const useGameStore = create<GameState>((set) => ({
   setMyId: (id) => set({ myId: id }),
   setRoom: (room) => set({ room, error: null }),
   setError: (msg) => set({ error: msg }),
+  setPublicRooms: (rooms) => set({ publicRooms: rooms }),
   setPhase: (phase, round) =>
     set((s) => ({
       phase,
@@ -208,19 +216,21 @@ export const useGameStore = create<GameState>((set) => ({
   setCoOpPrompt: (p) =>
     set({
       coOpPrompt: p,
-      coOpTurn: null,
+      coOpTimeLeft: 90,
+      coOpOrientation: p?.orientation ?? "landscape",
       coOpIncomingStroke: null,
       coOpStrokes: [],
       coOpResult: null,
-      coOpMyRated: false,
+      coOpAIJudging: false,
     }),
-  setCoOpTurn: (t) => set({ coOpTurn: t, coOpIncomingStroke: null }),
+  setCoOpTimeLeft: (n) => set({ coOpTimeLeft: n }),
+  setCoOpOrientation: (o) => set({ coOpOrientation: o }),
   setCoOpIncomingStroke: (s) => set({ coOpIncomingStroke: s }),
   appendCoOpStroke: (s) =>
     set((st) => ({ coOpStrokes: [...st.coOpStrokes, s], coOpIncomingStroke: null })),
   setCoOpStrokes: (s) => set({ coOpStrokes: s }),
   setCoOpResult: (r) => set({ coOpResult: r }),
-  setCoOpMyRated: (v) => set({ coOpMyRated: v }),
+  setCoOpAIJudging: (v) => set({ coOpAIJudging: v }),
   // 表情包猜词
   setEmojiQuestion: (q) =>
     set({
@@ -255,11 +265,12 @@ export const useGameStore = create<GameState>((set) => ({
       turtleReveal: null,
       turtleJudging: null,
       coOpPrompt: null,
-      coOpTurn: null,
+      coOpTimeLeft: 90,
+      coOpOrientation: "landscape",
       coOpIncomingStroke: null,
       coOpStrokes: [],
       coOpResult: null,
-      coOpMyRated: false,
+      coOpAIJudging: false,
       emojiQuestion: null,
       emojiOpponentAnswered: false,
       emojiReveal: null,

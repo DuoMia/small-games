@@ -29,6 +29,16 @@ export function useSpeech() {
   const [transcript, setTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 清理超时兜底计时器
+  const clearTimeoutFallback = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []);
+
   // 检测浏览器是否支持（Vite SPA，可直接在初始化时检测）
   const [supported, setSupported] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -76,9 +86,12 @@ export function useSpeech() {
       // 取最后一句话
       const result = event.results?.[event.results.length - 1]?.[0]?.transcript || "";
       setTranscript(result);
+      // 已拿到结果，清除超时兜底
+      clearTimeoutFallback();
     };
 
     rec.onerror = (event: any) => {
+      clearTimeoutFallback();
       const errType = event?.error || "";
       let msg = "语音识别失败";
       if (errType === "not-allowed" || errType === "service-not-allowed") {
@@ -95,30 +108,55 @@ export function useSpeech() {
     };
 
     rec.onend = () => {
+      clearTimeoutFallback();
       setListening(false);
     };
 
     recognitionRef.current = rec;
     try {
       rec.start();
+      // 超时兜底：8 秒内若未触发 onend/onresult 则强制停止，防止 listening 卡死
+      clearTimeoutFallback();
+      timeoutRef.current = setTimeout(() => {
+        if (recognitionRef.current) {
+          try {
+            recognitionRef.current.abort();
+          } catch {}
+          recognitionRef.current = null;
+        }
+        setListening(false);
+      }, 8000);
     } catch (err) {
       setError("无法启动语音识别，请用文字输入");
       setListening(false);
     }
-  }, []);
+  }, [clearTimeoutFallback]);
 
   const stop = useCallback(() => {
+    clearTimeoutFallback();
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
       } catch {}
       setListening(false);
     }
-  }, []);
+  }, [clearTimeoutFallback]);
+
+  const abort = useCallback(() => {
+    clearTimeoutFallback();
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch {}
+      recognitionRef.current = null;
+    }
+    setListening(false);
+  }, [clearTimeoutFallback]);
 
   // 组件卸载时清理
   useEffect(() => {
     return () => {
+      clearTimeoutFallback();
       if (recognitionRef.current) {
         try {
           recognitionRef.current.abort();
@@ -126,13 +164,14 @@ export function useSpeech() {
         recognitionRef.current = null;
       }
     };
-  }, []);
+  }, [clearTimeoutFallback]);
 
   return {
     listening,
     transcript,
     start,
     stop,
+    abort,
     supported,
     error,
   };

@@ -384,14 +384,14 @@ export default function SoloMode() {
 
         <div className="w-full max-w-md flex flex-col items-center relative z-10">
           <div className="mt-8 mb-2 text-center animate-bounce-in">
-            <h1 className="font-display text-5xl text-ink leading-tight">单人测试</h1>
+            <h1 className="font-display text-5xl text-ink leading-tight">画词记忆 · 单人练习</h1>
             <div className="mt-1 flex items-center justify-center gap-2">
               <div className="h-1 w-16 bg-mint rounded-full" />
               <User size={20} className="text-mint" />
               <div className="h-1 w-16 bg-mint rounded-full" />
             </div>
             <p className="font-body text-ink-muted text-sm mt-3">
-              不需要联网 · 独立测试游玩
+              单人练习：画词记忆 · 不需要联网 · 独立测试游玩
             </p>
           </div>
 
@@ -502,7 +502,7 @@ export default function SoloMode() {
         {/* 顶栏 */}
         <div className="flex-shrink-0 px-4 py-2.5 flex items-center justify-between border-b-2 border-ink-muted/20 bg-white/50">
           <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="font-display text-ink text-sm">单人测试</span>
+            <span className="font-display text-ink text-sm">画词记忆 · 单人练习</span>
             <span className="text-ink-muted text-xs">
               · {isView ? "看词" : isDraw ? "画图" : "完成"}
             </span>
@@ -709,7 +709,7 @@ export default function SoloMode() {
       <div className="paper-bg h-[100dvh] flex flex-col overflow-hidden">
         {/* 顶栏 */}
         <div className="flex-shrink-0 px-4 py-2.5 flex items-center justify-between border-b-2 border-ink-muted/20 bg-white/50">
-          <span className="font-display text-ink text-sm">单人测试 · 答题</span>
+          <span className="font-display text-ink text-sm">画词记忆 · 单人练习 · 答题</span>
           <div className="flex items-center gap-2">
             <span className="font-display text-ink text-sm bg-sun px-3 py-1 rounded-full border-2 border-ink">
               第 {quizIndex + 1} / {quizCount} 题

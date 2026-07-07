@@ -20,9 +20,9 @@ interface TelepathyPack {
 
 export default function Lobby() {
   const { roomId } = useParams<{ roomId: string }>();
-  const { toggleReady, startGame, leaveRoom, setWordsCount, setDifficulty, setTelepathyPack, setTurtleDifficulty } =
+  const { toggleReady, startGame, leaveRoom, setWordsCount, setDifficulty, setTelepathyPack, setTurtleDifficulty, setCoOpOrientation } =
     useRoomActions();
-  const { room, myId, phase } = useGameStore();
+  const { room, myId, phase, coOpOrientation } = useGameStore();
   const { sfxEnabled } = useAudioStore();
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
@@ -232,12 +232,56 @@ export default function Lobby() {
             </p>
           </div>
         ) : isCoOp ? (
-          // 合作画画：无需配置，显示玩法提示
-          <div className="w-full bg-white rounded-doodle border-2 border-ink p-4 mb-6 shadow-soft text-center">
-            <div className="text-4xl mb-2">✏️</div>
-            <p className="font-display text-ink text-sm mb-1">接龙共创</p>
-            <p className="text-xs text-ink-muted">
-              系统随机出题 · 双方轮流画一笔 · 共 20 笔
+          // 合作画画：横屏/竖屏选择
+          <div className="w-full bg-white rounded-doodle border-2 border-ink p-4 mb-6 shadow-soft">
+            <p className="font-display text-ink text-sm mb-2 flex items-center justify-between">
+              <span>画布方向</span>
+              {!isHost && <span className="text-xs text-ink-muted">房主设置</span>}
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                disabled={!isHost}
+                onClick={() => {
+                  if (roomId && isHost) {
+                    setCoOpOrientation(roomId, "landscape");
+                    playSfx(sfx.uiTick);
+                  }
+                }}
+                className={`py-3 rounded-doodle border-2 font-display text-sm transition-all flex flex-col items-center gap-1 ${
+                  coOpOrientation === "landscape"
+                    ? "bg-coral text-white border-ink shadow-soft"
+                    : "bg-white text-ink border-ink/30"
+                } ${!isHost ? "cursor-not-allowed opacity-70" : "btn-press"}`}
+              >
+                <span className="text-2xl">📱</span>
+                <span>横屏画</span>
+                <span className={`text-[10px] ${coOpOrientation === "landscape" ? "text-white/80" : "text-ink-muted"}`}>
+                  4:3 建议横放
+                </span>
+              </button>
+              <button
+                disabled={!isHost}
+                onClick={() => {
+                  if (roomId && isHost) {
+                    setCoOpOrientation(roomId, "portrait");
+                    playSfx(sfx.uiTick);
+                  }
+                }}
+                className={`py-3 rounded-doodle border-2 font-display text-sm transition-all flex flex-col items-center gap-1 ${
+                  coOpOrientation === "portrait"
+                    ? "bg-coral text-white border-ink shadow-soft"
+                    : "bg-white text-ink border-ink/30"
+                } ${!isHost ? "cursor-not-allowed opacity-70" : "btn-press"}`}
+              >
+                <span className="text-2xl">📲</span>
+                <span>竖屏画</span>
+                <span className={`text-[10px] ${coOpOrientation === "portrait" ? "text-white/80" : "text-ink-muted"}`}>
+                  3:4 建议竖放
+                </span>
+              </button>
+            </div>
+            <p className="text-center text-xs text-ink-muted mt-2">
+              系统随机出题 · 双方同时画 90 秒 · AI 评分
             </p>
           </div>
         ) : isEmoji ? (
@@ -389,10 +433,10 @@ export default function Lobby() {
           ) : isCoOp ? (
             <ul className="text-xs text-ink-muted space-y-1">
               <li>· 系统给一个画图命题（动物/食物/场景等）</li>
-              <li>· 双方轮流画一笔，每人共 10 笔（总 20 笔）</li>
-              <li>· 每笔限时 15 秒，超时自动跳过</li>
-              <li>· 实时同步：对方画的同时你能看到</li>
-              <li>· 完成后双方各给 1-5 星评分</li>
+              <li>· 双方在同一画布上同时画，限时 90 秒</li>
+              <li>· 两人的笔画实时同步到对方屏幕</li>
+              <li>· 可随时切换颜色、粗细、橡皮擦</li>
+              <li>· 时间到后 AI 对画作打分（0-10 分）并给评价</li>
               <li>· 可下载画作截图保存</li>
             </ul>
           ) : isEmoji ? (

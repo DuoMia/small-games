@@ -15,6 +15,7 @@ export function useSocketConnection() {
     setMyId,
     setRoom,
     setError,
+    setPublicRooms,
     setPhase,
     setWords,
     setGameConfig,
@@ -32,7 +33,9 @@ export function useSocketConnection() {
     setTurtleReveal,
     setTurtleJudging,
     setCoOpPrompt,
-    setCoOpTurn,
+    setCoOpTimeLeft,
+    setCoOpOrientation,
+    setCoOpAIJudging,
     setCoOpIncomingStroke,
     appendCoOpStroke,
     setCoOpResult,
@@ -79,6 +82,8 @@ export function useSocketConnection() {
       prevPlayerCount = room.players.length;
     };
     const onRoomError = ({ message }) => setError(message);
+    // 房间列表：大厅展示用
+    const onRoomList = ({ rooms }) => setPublicRooms(rooms);
 
     const onGameState = ({ phase, currentRound }) => {
       setPhase(phase, currentRound);
@@ -159,15 +164,24 @@ export function useSocketConnection() {
       playSfx(r.won ? sfx.win : sfx.lose);
     };
 
-    // ---- 合作画画事件 ----
+    // ---- 合作画画事件（同时画 + AI 评分）----
     const onCoOpPrompt = (p) => setCoOpPrompt(p);
-    const onCoOpTurn = (t) => {
-      setCoOpTurn(t);
-      // 轮到自己画时播放提示音
-      const myId = useGameStore.getState().myId;
-      if (t.currentPlayer === myId) {
-        playSfx(sfx.click);
+    const onCoOpOrientationChanged = (o) => setCoOpOrientation(o.orientation);
+    let lastCoOpSec = 90;
+    const onCoOpTimeUpdate = (t) => {
+      setCoOpTimeLeft(t.timeLeft);
+      // 最后 3 秒滴答音效
+      const sec = Math.ceil(t.timeLeft);
+      if (sec !== lastCoOpSec) {
+        if (sec <= 3 && sec > 0) {
+          playSfx(sfx.tickUrgent);
+        }
+        lastCoOpSec = sec;
       }
+    };
+    const onCoOpAIJudging = () => {
+      setCoOpAIJudging(true);
+      playSfx(sfx.click);
     };
     const onCoOpStrokeStart = (data) => {
       // 对方开始一笔
@@ -192,6 +206,7 @@ export function useSocketConnection() {
     };
     const onCoOpResult = (r) => {
       setCoOpResult(r);
+      setCoOpAIJudging(false);
       // 结果揭晓音效
       playSfx(sfx.roundEnd);
     };
@@ -238,6 +253,7 @@ export function useSocketConnection() {
     socket.on("room:joined", onRoomJoined);
     socket.on("room:updated", onRoomUpdated);
     socket.on("room:error", onRoomError);
+    socket.on("room:list", onRoomList);
     socket.on("game:state", onGameState);
     socket.on("game:words", onGameWords);
     socket.on("game:config", onGameConfig);
@@ -254,7 +270,9 @@ export function useSocketConnection() {
     socket.on("turtle:guess-result", onTurtleGuessResult);
     socket.on("turtle:reveal", onTurtleReveal);
     socket.on("coop:prompt", onCoOpPrompt);
-    socket.on("coop:turn", onCoOpTurn);
+    socket.on("coop:orientation-changed", onCoOpOrientationChanged);
+    socket.on("coop:time-update", onCoOpTimeUpdate);
+    socket.on("coop:ai-judging", onCoOpAIJudging);
     socket.on("coop:stroke-start", onCoOpStrokeStart);
     socket.on("coop:stroke-point", onCoOpStrokePoint);
     socket.on("coop:stroke-end", onCoOpStrokeEnd);
@@ -274,6 +292,7 @@ export function useSocketConnection() {
       socket.off("room:joined", onRoomJoined);
       socket.off("room:updated", onRoomUpdated);
       socket.off("room:error", onRoomError);
+      socket.off("room:list", onRoomList);
       socket.off("game:state", onGameState);
       socket.off("game:words", onGameWords);
       socket.off("game:config", onGameConfig);
@@ -290,7 +309,9 @@ export function useSocketConnection() {
       socket.off("turtle:guess-result", onTurtleGuessResult);
       socket.off("turtle:reveal", onTurtleReveal);
       socket.off("coop:prompt", onCoOpPrompt);
-      socket.off("coop:turn", onCoOpTurn);
+      socket.off("coop:orientation-changed", onCoOpOrientationChanged);
+      socket.off("coop:time-update", onCoOpTimeUpdate);
+      socket.off("coop:ai-judging", onCoOpAIJudging);
       socket.off("coop:stroke-start", onCoOpStrokeStart);
       socket.off("coop:stroke-point", onCoOpStrokePoint);
       socket.off("coop:stroke-end", onCoOpStrokeEnd);
@@ -318,6 +339,8 @@ export function useRoomActions() {
       socket.emit("room:create", { nickname, gameType }),
     joinRoom: (roomId: string, nickname: string) =>
       socket.emit("room:join", { roomId, nickname }),
+    // 拉取大厅公开房间列表
+    listRooms: () => socket.emit("room:list"),
     toggleReady: (roomId: string) => socket.emit("room:ready", { roomId }),
     setWordsCount: (roomId: string, count: number) =>
       socket.emit("room:set-words-count", { roomId, count }),
@@ -348,14 +371,17 @@ export function useRoomActions() {
     turtleGuess: (roomId: string, guess: string) =>
       socket.emit("turtle:guess", { roomId, guess }),
     turtleRestart: (roomId: string) => socket.emit("turtle:restart", { roomId }),
-    // 合作画画
+    // 合作画画（同时画 + AI 评分）
     coOpStrokeStart: (roomId: string, stroke: { color: string; size: number; isEraser: boolean; points: { x: number; y: number }[] }) =>
       socket.emit("coop:stroke-start", { roomId, stroke }),
     coOpStrokePoint: (roomId: string, point: { x: number; y: number }) =>
       socket.emit("coop:stroke-point", { roomId, point }),
-    coOpStrokeEnd: (roomId: string) => socket.emit("coop:stroke-end", { roomId }),
-    coOpRate: (roomId: string, rating: number) =>
-      socket.emit("coop:rate", { roomId, rating }),
+    coOpStrokeEnd: (roomId: string, stroke: { color: string; size: number; isEraser: boolean; points: { x: number; y: number }[]; author: string }) =>
+      socket.emit("coop:stroke-end", { roomId, stroke }),
+    setCoOpOrientation: (roomId: string, orientation: "landscape" | "portrait") =>
+      socket.emit("coop:set-orientation", { roomId, orientation }),
+    coOpSubmitDrawing: (roomId: string, image: string) =>
+      socket.emit("coop:submit-drawing", { roomId, image }),
     coOpRestart: (roomId: string) => socket.emit("coop:restart", { roomId }),
     // 表情包猜词
     emojiSubmit: (roomId: string, questionIndex: number, guess: string) =>

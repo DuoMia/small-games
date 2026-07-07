@@ -25,15 +25,17 @@ export default function QuizPhase({ roomId }: { roomId: string }) {
 
   const [answer, setAnswer] = useState("");
   const [inputShake, setInputShake] = useState(false);
+  const [nextWaiting, setNextWaiting] = useState(false);
 
   const q = currentQuestion;
   const wordIndex = q?.wordIndex ?? 0;
   const myDrawing = drawings[wordIndex] || "";
   const opponent = room?.players.find((p) => p.id !== myId);
 
-  // 切题时重置输入
+  // 切题时重置输入和等待状态
   useEffect(() => {
     setAnswer("");
+    setNextWaiting(false);
   }, [q?.questionIndex]);
 
   if (!q) {
@@ -54,6 +56,8 @@ export default function QuizPhase({ roomId }: { roomId: string }) {
   };
 
   const handleNext = () => {
+    if (nextWaiting) return;
+    setNextWaiting(true);
     nextQuestion(roomId);
     playSfx(sfx.click);
   };
@@ -191,14 +195,23 @@ export default function QuizPhase({ roomId }: { roomId: string }) {
                 <X size={18} className="text-coral" />
               )}
             </div>
-            {/* 下一题按钮 */}
-            <button
-              onClick={handleNext}
-              className="btn-press w-full py-3 bg-ink text-cream font-display text-lg rounded-doodle border-2 border-ink shadow-soft flex items-center justify-center gap-2"
-            >
-              {q.questionIndex + 1 >= q.totalQuestions ? "查看本轮结果" : "下一题"}
-              <ArrowRight size={20} />
-            </button>
+            {/* 下一题按钮 / 等待提示 */}
+            {nextWaiting ? (
+              <div className="flex items-center justify-center gap-2 py-3 text-ink-muted bg-cream-dark rounded-doodle border-2 border-ink/20">
+                <Loader2 size={20} className="animate-spin" />
+                <span className="font-body text-sm">
+                  等待 {opponent?.nickname || "其余玩家"} 答题...
+                </span>
+              </div>
+            ) : (
+              <button
+                onClick={handleNext}
+                className="btn-press w-full py-3 bg-ink text-cream font-display text-lg rounded-doodle border-2 border-ink shadow-soft flex items-center justify-center gap-2"
+              >
+                {q.questionIndex + 1 >= q.totalQuestions ? "查看本轮结果" : "下一题"}
+                <ArrowRight size={20} />
+              </button>
+            )}
           </div>
         ) : null}
 

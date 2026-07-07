@@ -33,6 +33,7 @@ export interface RoomView {
   gameType: GameType;
   telepathyPackId?: string;
   turtleDifficulty?: string;
+  createdAt: number; // 房间创建时间戳，用于大厅显示相对时间
 }
 
 export interface GameConfig {
@@ -150,7 +151,7 @@ export interface TurtleJudgingData {
   type: "question" | "guess";
 }
 
-// ===== 合作画画（接龙画）=====
+// ===== 合作画画（同时画 + AI 评分）=====
 
 // 合作画画笔画（含作者）
 export interface CoOpStroke {
@@ -161,24 +162,25 @@ export interface CoOpStroke {
   author: string; // 画该笔的玩家 playerId
 }
 
+// 画布方向
+export type CoOpOrientation = "landscape" | "portrait";
+
 // 命题数据
 export interface CoOpPromptData {
   prompt: string;
-  totalStrokes: number;
+  orientation: CoOpOrientation;
 }
 
-// 轮次数据
-export interface CoOpTurnData {
-  currentPlayer: string;
-  strokesLeft: number;
-  playerStrokes: Record<string, number>;
+// 倒计时数据
+export interface CoOpTimeData {
+  timeLeft: number;
 }
 
-// 结果数据
+// 结果数据（AI 评分）
 export interface CoOpResultData {
   finalImage: string;
-  ratings: Record<string, number>;
-  avgRating: number;
+  aiScore: number;
+  aiComment: string;
 }
 
 // ===== 表情包猜词 =====

@@ -21,7 +21,7 @@ export interface DifficultyConfig {
 
 // 所有难度统一的时间参数（难度只影响词语难度，不影响时间）
 export const VIEW_TIME = 3; // 看词3秒
-export const DRAW_TIME = 8; // 画图8秒
+export const DRAW_TIME = 12; // 画图12秒
 export const WORD_DURATION = 5; // 双人模式每词展示5秒
 
 export const DIFFICULTY_CONFIGS: Record<Difficulty, DifficultyConfig> = {

@@ -31,6 +31,12 @@ export function registerSocketHandlers(io: Io) {
       io.to(room.roomId).emit("room:updated", { room: view });
     });
 
+    // 房间列表：返回所有公开等待中的房间，用于大厅展示
+    socket.on("room:list", () => {
+      const rooms = RoomManager.listPublicRooms();
+      socket.emit("room:list", { rooms });
+    });
+
     socket.on("room:ready", ({ roomId }) => {
       const room = RoomManager.toggleReady(roomId, socket.id);
       if (room) {
@@ -122,19 +128,17 @@ export function registerSocketHandlers(io: Io) {
       }
 
       if (room.gameType === "co-op-drawing") {
-        // 合作画画：下发命题 + 轮次信息，进入 DRAWING
+        // 合作画画：下发命题 + 方向，进入 DRAWING（双方同时画）
         io.to(roomId).emit("game:state", {
           phase: room.state.phase,
           currentRound: room.state.currentRound,
         });
         io.to(roomId).emit("coop:prompt", {
           prompt: room.state.coOpPrompt || "",
-          totalStrokes: 20,
+          orientation: RoomManager.getCoOpOrientation(room),
         });
-        const turnData = RoomManager.getCoOpTurnData(room);
-        if (turnData) {
-          io.to(roomId).emit("coop:turn", turnData);
-        }
+        // 启动 90 秒倒计时
+        startCoOpTimer(io, roomId);
         return;
       }
 
@@ -336,19 +340,18 @@ export function registerSocketHandlers(io: Io) {
       }
 
       if (room.gameType === "co-op-drawing") {
-        // 合作画画重玩（换命题）
+        // 合作画画重玩（换命题，重新计时）
+        stopCoOpTimer(roomId);
         io.to(roomId).emit("game:state", {
           phase: room.state.phase,
           currentRound: room.state.currentRound,
         });
         io.to(roomId).emit("coop:prompt", {
           prompt: room.state.coOpPrompt || "",
-          totalStrokes: 20,
+          orientation: RoomManager.getCoOpOrientation(room),
         });
-        const turnData = RoomManager.getCoOpTurnData(room);
-        if (turnData) {
-          io.to(roomId).emit("coop:turn", turnData);
-        }
+        // 重新启动 90 秒倒计时
+        startCoOpTimer(io, roomId);
         return;
       }
 
@@ -534,12 +537,23 @@ export function registerSocketHandlers(io: Io) {
       }
     });
 
-    // ---------- 合作画画（接龙画）----------
+    // ---------- 合作画画（同时画 + AI 评分）----------
+
+    socket.on("coop:set-orientation", ({ roomId, orientation }) => {
+      const room = RoomManager.setCoOpOrientation(roomId, socket.id, orientation);
+      if (room) {
+        io.to(roomId).emit("coop:orientation-changed", {
+          orientation: RoomManager.getCoOpOrientation(room),
+        });
+      } else {
+        socket.emit("room:error", { message: "无法修改画布方向" });
+      }
+    });
 
     socket.on("coop:stroke-start", ({ roomId, stroke }) => {
       const result = RoomManager.coOpStrokeStart(roomId, socket.id, stroke);
       if (!result) return;
-      // 广播给除发送者外的玩家
+      // 实时广播给除发送者外的玩家
       socket.to(roomId).emit("coop:stroke-start", { stroke: result.fullStroke });
     });
 
@@ -549,63 +563,49 @@ export function registerSocketHandlers(io: Io) {
       socket.to(roomId).emit("coop:stroke-point", { point });
     });
 
-    socket.on("coop:stroke-end", ({ roomId }) => {
-      const result = RoomManager.coOpStrokeEnd(roomId, socket.id);
+    socket.on("coop:stroke-end", ({ roomId, stroke }) => {
+      const result = RoomManager.coOpStrokeEnd(roomId, socket.id, stroke);
       if (!result) return;
-      const { room, isLast, turnData } = result;
-      // 广播给除发送者外的玩家：笔画结束
+      // 通知对方一笔完成（对方据此把 incoming 追加到已完成列表）
       socket.to(roomId).emit("coop:stroke-end", {});
-      if (isLast) {
-        // 最后一笔：进入 ROUND_RESULT 评分阶段
-        io.to(roomId).emit("game:state", {
-          phase: room.state.phase,
-          currentRound: room.state.currentRound,
-        });
-        const resultData = RoomManager.getCoOpResultData(room);
-        io.to(roomId).emit("coop:result", resultData || {
-          finalImage: "",
-          ratings: {},
-          avgRating: 0,
-        });
-      } else if (turnData) {
-        // 切换轮次
-        io.to(roomId).emit("coop:turn", turnData);
-      }
     });
 
-    socket.on("coop:rate", ({ roomId, rating }) => {
-      const result = RoomManager.rateCoOp(roomId, socket.id, rating);
+    socket.on("coop:submit-drawing", async ({ roomId, image }) => {
+      // 房主提交渲染好的画作图片，触发 AI 评分
+      const room = RoomManager.getRoom(roomId);
+      if (!room) return;
+      // 仅房主提交，避免重复
+      if (room.hostId !== socket.id) return;
+      const result = await RoomManager.judgeCoOpDrawing(roomId, socket.id, image);
       if (!result) return;
-      const { room, allRated, ratings, avgRating } = result;
-      if (allRated) {
-        // 双方都评完：进入 GAME_OVER
-        io.to(roomId).emit("game:state", {
-          phase: room.state.phase,
-          currentRound: room.state.currentRound,
-        });
-        io.to(roomId).emit("coop:result", {
-          finalImage: "",
-          ratings,
-          avgRating,
-        });
-      }
+      const { room: r, aiScore, aiComment } = result;
+      // AI 评分完成，清除兜底计时器
+      stopCoOpFallback(roomId);
+      io.to(roomId).emit("game:state", {
+        phase: r.state.phase,
+        currentRound: r.state.currentRound,
+      });
+      io.to(roomId).emit("coop:result", {
+        finalImage: "",
+        aiScore,
+        aiComment,
+      });
     });
 
     socket.on("coop:restart", ({ roomId }) => {
       const room = RoomManager.restartCoOp(roomId, socket.id);
       if (!room) return;
+      stopCoOpTimer(roomId);
       io.to(roomId).emit("game:state", {
         phase: room.state.phase,
         currentRound: room.state.currentRound,
       });
       io.to(roomId).emit("coop:prompt", {
         prompt: room.state.coOpPrompt || "",
-        totalStrokes: 20,
+        orientation: RoomManager.getCoOpOrientation(room),
       });
-      const turnData = RoomManager.getCoOpTurnData(room);
-      if (turnData) {
-        io.to(roomId).emit("coop:turn", turnData);
-      }
+      // 重新启动 90 秒倒计时
+      startCoOpTimer(io, roomId);
     });
 
     // ---------- 表情包猜词 ----------
@@ -699,8 +699,94 @@ export function registerSocketHandlers(io: Io) {
 function handleLeave(io: Io, socket: Sock, roomId: string) {
   const { room, shouldDelete } = RoomManager.leaveRoom(roomId, socket.id);
   socket.leave(roomId);
-  if (!shouldDelete && room) {
+  if (shouldDelete) {
+    // 房间已删除，清理合作画画计时器
+    stopCoOpTimer(roomId);
+  } else if (room) {
     io.to(roomId).emit("room:updated", { room: RoomManager.toRoomView(room) });
     io.to(roomId).emit("player:left", { playerId: socket.id });
   }
+}
+
+// ============ 合作画画计时器管理 ============
+// 每秒广播剩余时间的 interval
+const coOpTimers = new Map<string, ReturnType<typeof setInterval>>();
+// AI 评分兜底超时（房主未提交图片时使用默认评分）
+const coOpFallbackTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+/** 停止合作画画倒计时与兜底计时器 */
+function stopCoOpTimer(roomId: string) {
+  const t = coOpTimers.get(roomId);
+  if (t) {
+    clearInterval(t);
+    coOpTimers.delete(roomId);
+  }
+  stopCoOpFallback(roomId);
+}
+
+/** 仅停止 AI 评分兜底计时器 */
+function stopCoOpFallback(roomId: string) {
+  const f = coOpFallbackTimers.get(roomId);
+  if (f) {
+    clearTimeout(f);
+    coOpFallbackTimers.delete(roomId);
+  }
+}
+
+/**
+ * 启动合作画画 90 秒倒计时
+ * 每秒广播 coop:time-update；时间到后进入 AI 评分阶段并广播 coop:ai-judging
+ * 15 秒内房主未提交画作图则使用默认评分兜底
+ */
+function startCoOpTimer(io: Io, roomId: string) {
+  stopCoOpTimer(roomId);
+  const room = RoomManager.getRoom(roomId);
+  if (!room) return;
+  const timeLimit = RoomManager.getCoOpTimeLimit();
+  // 立即下发一次剩余时间
+  io.to(roomId).emit("coop:time-update", { timeLeft: timeLimit });
+
+  const interval = setInterval(() => {
+    const r = RoomManager.getRoom(roomId);
+    if (!r || r.state.phase !== "DRAWING") {
+      stopCoOpTimer(roomId);
+      return;
+    }
+    const timeLeft = RoomManager.getCoOpTimeLeft(r);
+    io.to(roomId).emit("coop:time-update", { timeLeft });
+    if (timeLeft <= 0) {
+      // 时间到：进入 AI 评分阶段
+      stopCoOpTimer(roomId);
+      const timeUpRoom = RoomManager.coOpTimeUp(roomId);
+      if (timeUpRoom) {
+        io.to(roomId).emit("game:state", {
+          phase: timeUpRoom.state.phase,
+          currentRound: timeUpRoom.state.currentRound,
+        });
+        io.to(roomId).emit("coop:ai-judging");
+        // 兜底：15 秒内未收到房主提交的图片，使用默认评分
+        const fallback = setTimeout(async () => {
+          coOpFallbackTimers.delete(roomId);
+          const fr = RoomManager.getRoom(roomId);
+          if (fr && fr.state.phase === "ROUND_RESULT") {
+            // 仍未评分，用空图触发兜底（judgeDrawing 会返回默认 5 分）
+            const res = await RoomManager.judgeCoOpDrawing(roomId, "", "");
+            if (res) {
+              io.to(roomId).emit("game:state", {
+                phase: res.room.state.phase,
+                currentRound: res.room.state.currentRound,
+              });
+              io.to(roomId).emit("coop:result", {
+                finalImage: "",
+                aiScore: res.aiScore,
+                aiComment: res.aiComment,
+              });
+            }
+          }
+        }, 15000);
+        coOpFallbackTimers.set(roomId, fallback);
+      }
+    }
+  }, 1000);
+  coOpTimers.set(roomId, interval);
 }

@@ -91,14 +91,14 @@ export interface GameState {
   turtleGuesses?: { guess: string; guesser: string; correct: boolean; close: boolean; feedback: string }[];
   turtleQuestionsLeft?: number; // 剩余提问次数，初始20
   turtleResolved?: boolean; // 是否已猜中
-  // 合作画画专用字段
+  // 合作画画专用字段（同时画 + AI 评分玩法）
   coOpPrompt?: string; // 当前命题
   coOpStrokes?: CoOpStroke[]; // 所有已完成笔画
-  coOpCurrentStroke?: CoOpStroke | null; // 当前进行中的笔画（未完成）
-  coOpCurrentPlayer?: string; // 当前轮到谁画，playerId
-  coOpStrokesLeft?: number; // 剩余总笔画数，初始20
-  coOpPlayerStrokes?: Record<string, number>; // 每人已画笔画
-  coOpRatings?: Record<string, number>; // 双方评分
+  coOpCurrentStroke?: CoOpStroke | null; // 当前进行中的笔画（未完成，仅作追踪用）
+  coOpOrientation?: "landscape" | "portrait"; // 画布方向：横屏 / 竖屏
+  coOpAIScore?: number; // AI 评分（0-10）
+  coOpAIComment?: string; // AI 评语
+  coOpStartTime?: number; // 画图阶段开始时间戳（用于计时）
   // 表情包猜词专用字段
   emojiPuzzles?: EmojiPuzzle[]; // 选中的10题
   currentEmojiIndex?: number; // 当前题目索引
@@ -145,12 +145,14 @@ export interface RoomView {
   gameType: GameType;
   telepathyPackId?: string;
   turtleDifficulty?: string;
+  createdAt: number; // 房间创建时间戳，用于大厅显示相对时间
 }
 
 // Socket 事件类型
 export interface ClientToServerEvents {
   "room:create": (data: { nickname: string; gameType?: GameType }) => void;
   "room:join": (data: { roomId: string; nickname: string }) => void;
+  "room:list": () => void;
   "room:ready": (data: { roomId: string }) => void;
   "room:set-words-count": (data: { roomId: string; count: number }) => void;
   "room:set-difficulty": (data: { roomId: string; difficulty: Difficulty }) => void;
@@ -171,11 +173,12 @@ export interface ClientToServerEvents {
   "turtle:ask": (data: { roomId: string; question: string }) => void;
   "turtle:guess": (data: { roomId: string; guess: string }) => void;
   "turtle:restart": (data: { roomId: string }) => void;
-  // 合作画画
+  // 合作画画（同时画 + AI 评分）
   "coop:stroke-start": (data: { roomId: string; stroke: Omit<CoOpStroke, "author"> }) => void;
   "coop:stroke-point": (data: { roomId: string; point: { x: number; y: number } }) => void;
-  "coop:stroke-end": (data: { roomId: string }) => void;
-  "coop:rate": (data: { roomId: string; rating: number }) => void;
+  "coop:stroke-end": (data: { roomId: string; stroke: CoOpStroke }) => void;
+  "coop:set-orientation": (data: { roomId: string; orientation: "landscape" | "portrait" }) => void;
+  "coop:submit-drawing": (data: { roomId: string; image: string }) => void;
   "coop:restart": (data: { roomId: string }) => void;
   // 表情包猜词
   "emoji:submit": (data: { roomId: string; questionIndex: number; guess: string }) => void;
@@ -187,6 +190,7 @@ export interface ServerToClientEvents {
   "room:created": (data: { roomId: string }) => void;
   "room:joined": (data: { room: RoomView }) => void;
   "room:updated": (data: { room: RoomView }) => void;
+  "room:list": (data: { rooms: RoomView[] }) => void;
   "room:error": (data: { message: string }) => void;
   "game:state": (data: { phase: GamePhase; currentRound: number }) => void;
   "game:words": (data: { words: string[] }) => void;
@@ -209,13 +213,15 @@ export interface ServerToClientEvents {
   "turtle:guess-result": (data: { guessIndex: number; guess: string; guesser: string; correct: boolean; close: boolean; feedback: string }) => void;
   "turtle:reveal": (data: { truth: string; won: boolean }) => void;
   "turtle:judging": (data: { type: "question" | "guess" }) => void;
-  // 合作画画
-  "coop:prompt": (data: { prompt: string; totalStrokes: number }) => void;
-  "coop:turn": (data: { currentPlayer: string; strokesLeft: number; playerStrokes: Record<string, number> }) => void;
+  // 合作画画（同时画 + AI 评分）
+  "coop:prompt": (data: { prompt: string; orientation: "landscape" | "portrait" }) => void;
+  "coop:orientation-changed": (data: { orientation: "landscape" | "portrait" }) => void;
+  "coop:time-update": (data: { timeLeft: number }) => void;
+  "coop:ai-judging": () => void;
   "coop:stroke-start": (data: { stroke: CoOpStroke }) => void;
   "coop:stroke-point": (data: { point: { x: number; y: number } }) => void;
   "coop:stroke-end": (data: {}) => void;
-  "coop:result": (data: { finalImage: string; ratings: Record<string, number>; avgRating: number }) => void;
+  "coop:result": (data: { finalImage: string; aiScore: number; aiComment: string }) => void;
   // 表情包猜词
   "emoji:question": (data: { questionIndex: number; emoji: string; category: string; totalQuestions: number; timeLimit: number }) => void;
   "emoji:opponent-answered": (data: { questionIndex: number }) => void;

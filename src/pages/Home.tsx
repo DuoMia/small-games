@@ -1,21 +1,77 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Pencil, LogIn, Sparkles, Palette, Brain, User, Heart, HelpCircle, Smile } from "lucide-react";
+import { Pencil, LogIn, Sparkles, Palette, User, Heart, HelpCircle, Smile, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
 import { useRoomActions } from "@/hooks/useSocket";
 import { useGameStore } from "@/store/gameStore";
 import { useAudioStore } from "@/store/audioStore";
 import { sfx } from "@/audio/engine";
-import type { GameType } from "@/lib/types";
+import type { GameType, RoomView } from "@/lib/types";
+
+// 20 个形容词 + 20 个名词，用于随机昵称生成
+const ADJECTIVES = [
+  "快乐", "机智", "慵懒", "勇敢", "调皮",
+  "温柔", "活泼", "安静", "神秘", "可爱",
+  "聪明", "呆萌", "霸气", "悠闲", "灵巧",
+  "害羞", "洒脱", "傲娇", "迷糊", "憨厚",
+];
+const NOUNS = [
+  "猫咪", "海豚", "树懒", "小熊", "兔子",
+  "狐狸", "企鹅", "熊猫", "柴犬", "鹦鹉",
+  "仓鼠", "考拉", "刺猬", "海龟", "猫头鹰",
+  "松鼠", "水獭", "章鱼", "恐龙", "独角兽",
+];
+
+// 生成随机昵称：形容词 + 名词
+function genRandomNickname(): string {
+  const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
+  const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
+  return adj + noun;
+}
+
+// 游戏类型 → 名称 + emoji
+const GAME_TYPE_INFO: Record<GameType, { name: string; emoji: string }> = {
+  "draw-memory": { name: "画词记忆", emoji: "🎨" },
+  "telepathy": { name: "默契考验", emoji: "💕" },
+  "turtle-soup": { name: "海龟汤", emoji: "🐢" },
+  "co-op-drawing": { name: "合作画画", emoji: "✏️" },
+  "emoji-guessing": { name: "表情包猜词", emoji: "😎" },
+};
+
+// 5 个游戏的玩法简介（用于玩法说明区域）
+const GAME_OVERVIEW: { emoji: string; name: string; desc: string; color: string }[] = [
+  { emoji: "🎨", name: "画词记忆", desc: "看词画画猜词 · 3 轮对战", color: "bg-coral-light" },
+  { emoji: "💕", name: "默契考验", desc: "同题同选 · 测默契度", color: "bg-coral-light" },
+  { emoji: "🐢", name: "海龟汤", desc: "AI 主持 · 20 问还原真相", color: "bg-mint" },
+  { emoji: "✏️", name: "合作画画", desc: "接龙共创 · 双人合作", color: "bg-sun" },
+  { emoji: "😎", name: "表情包猜词", desc: "看 emoji 猜词 · 10 题 PK", color: "bg-coral-light" },
+];
+
+// 相对时间格式化：刚刚 / X 分钟前 / X 小时前 / X 天前
+function formatRelativeTime(timestamp: number): string {
+  const diff = Date.now() - timestamp;
+  const seconds = Math.floor(diff / 1000);
+  if (seconds < 60) return "刚刚";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} 分钟前`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} 小时前`;
+  const days = Math.floor(hours / 24);
+  return `${days} 天前`;
+}
 
 export default function Home() {
-  const { createRoom, joinRoom } = useRoomActions();
-  const { connected, error, room, setError, reset } = useGameStore();
+  const { createRoom, joinRoom, listRooms } = useRoomActions();
+  const { connected, error, room, setError, reset, publicRooms } = useGameStore();
   const { sfxEnabled } = useAudioStore();
   const navigate = useNavigate();
 
-  const [nickname, setNickname] = useState("");
+  // 进入页面时自动生成一个随机昵称（用户可修改覆盖）
+  const [nickname, setNickname] = useState(() => genRandomNickname());
   const [roomCode, setRoomCode] = useState("");
-  const [mode, setMode] = useState<"home" | "join">("home");
+  // home: 主菜单；lobby: 房间列表面板
+  const [mode, setMode] = useState<"home" | "lobby">("home");
+  // 是否展开手动输入房间码
+  const [showCodeInput, setShowCodeInput] = useState(false);
   const [gameType, setGameType] = useState<GameType>("draw-memory");
   const pendingActionRef = useRef(false);
 
@@ -36,16 +92,36 @@ export default function Home() {
     }
   }, [room, navigate]);
 
+  // 进入大厅模式时拉取一次房间列表
+  useEffect(() => {
+    if (mode === "lobby" && connected) {
+      listRooms();
+    }
+  }, [mode, connected, listRooms]);
+
   const handleCreate = () => {
     if (!nickname.trim()) {
       setError("请输入昵称");
       return;
     }
     pendingActionRef.current = true;
+    playSfx(sfx.click);
     createRoom(nickname.trim(), gameType);
   };
 
-  const handleJoin = () => {
+  // 从房间列表点击直接加入
+  const handleJoinFromList = (targetRoom: RoomView) => {
+    if (!nickname.trim()) {
+      setError("请输入昵称");
+      return;
+    }
+    pendingActionRef.current = true;
+    playSfx(sfx.click);
+    joinRoom(targetRoom.roomId, nickname.trim());
+  };
+
+  // 手动输入房间码加入
+  const handleJoinByCode = () => {
     if (!nickname.trim()) {
       setError("请输入昵称");
       return;
@@ -57,6 +133,11 @@ export default function Home() {
     pendingActionRef.current = true;
     playSfx(sfx.click);
     joinRoom(roomCode.trim().toUpperCase(), nickname.trim());
+  };
+
+  const handleRefreshRooms = () => {
+    playSfx(sfx.uiTick);
+    listRooms();
   };
 
   return (
@@ -72,14 +153,14 @@ export default function Home() {
         🧠
       </div>
       <div className="absolute bottom-32 right-10 text-4xl animate-float opacity-20" style={{ animationDelay: "0.5s" }}>
-        ⏰
+        🐢
       </div>
 
       <div className="w-full max-w-md flex flex-col items-center relative z-10">
         {/* 标题 */}
         <div className="mt-8 mb-2 text-center animate-bounce-in">
           <h1 className="font-display text-6xl text-ink leading-tight">
-            画词记忆
+            派对小游戏
           </h1>
           <div className="mt-1 flex items-center justify-center gap-2">
             <div className="h-1 w-16 bg-coral rounded-full" />
@@ -87,7 +168,7 @@ export default function Home() {
             <div className="h-1 w-16 bg-coral rounded-full" />
           </div>
           <p className="font-body text-ink-muted text-sm mt-3">
-            看词 · 画画 · 猜词 · 双人对战
+            5 款游戏 · 双人联机 · 手机即可玩
           </p>
         </div>
 
@@ -116,7 +197,7 @@ export default function Home() {
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
               maxLength={10}
-              placeholder="输入昵称"
+              placeholder="输入昵称（可修改）"
               className="w-full px-4 py-3 rounded-doodle border-2 border-ink bg-cream font-body text-ink focus:border-coral focus:bg-white transition-colors"
             />
           </div>
@@ -172,16 +253,18 @@ export default function Home() {
                   playSfx(sfx.uiTick);
                 }}
               />
+              {/* 第 5 个卡片跨两列，横向布局保持视觉平衡 */}
               <GameCard
                 icon={<Smile size={18} />}
                 emoji="😎"
                 title="表情包猜词"
-                desc="看emoji猜词"
+                desc="看 emoji 猜词"
                 selected={gameType === "emoji-guessing"}
                 onClick={() => {
                   setGameType("emoji-guessing");
                   playSfx(sfx.uiTick);
                 }}
+                wide
               />
             </div>
           </div>
@@ -198,10 +281,12 @@ export default function Home() {
               </button>
               <button
                 onClick={() => {
-                  setMode("join");
+                  setMode("lobby");
                   setError(null);
+                  playSfx(sfx.click);
                 }}
-                className="btn-press w-full py-3 mt-3 bg-white text-ink font-display text-lg rounded-doodle border-2 border-ink shadow-pop flex items-center justify-center gap-2"
+                disabled={!connected}
+                className="btn-press w-full py-3 mt-3 bg-white text-ink font-display text-lg rounded-doodle border-2 border-ink shadow-pop flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 <LogIn size={20} />
                 加入房间
@@ -211,37 +296,100 @@ export default function Home() {
                 className="btn-press w-full py-3 mt-3 bg-mint text-ink font-display text-lg rounded-doodle border-2 border-ink shadow-pop flex items-center justify-center gap-2"
               >
                 <User size={20} />
-                单人测试
+                画词记忆 · 单人练习
               </button>
             </>
           ) : (
             <>
-              <div className="mb-4">
-                <label className="font-display text-ink text-sm flex items-center gap-1.5 mb-2">
+              {/* 房间列表大厅 */}
+              <div className="mb-3 flex items-center justify-between">
+                <span className="font-display text-ink text-sm flex items-center gap-1.5">
                   <LogIn size={16} />
-                  房间码
-                </label>
-                <input
-                  type="text"
-                  value={roomCode}
-                  onChange={(e) =>
-                    setRoomCode(e.target.value.toUpperCase().slice(0, 4))
-                  }
-                  placeholder="ABCD"
-                  className="w-full px-4 py-3 rounded-doodle border-2 border-ink bg-cream font-display text-ink text-2xl text-center tracking-widest focus:border-coral focus:bg-white transition-colors"
-                />
+                  公开房间
+                </span>
+                <button
+                  onClick={handleRefreshRooms}
+                  className="btn-press flex items-center gap-1 text-ink-muted font-body text-xs px-2 py-1 rounded-doodle border border-ink/20"
+                >
+                  <RefreshCw size={12} />
+                  刷新
+                </button>
               </div>
+
+              <div className="mb-3 max-h-64 overflow-y-auto space-y-2 pr-1">
+                {publicRooms.length === 0 ? (
+                  <div className="text-center py-6 text-ink-muted font-body text-sm bg-cream rounded-doodle border-2 border-dashed border-ink/20">
+                    <div className="text-3xl mb-1">🎲</div>
+                    暂无公开房间，去创建一个吧
+                  </div>
+                ) : (
+                  publicRooms.map((r) => {
+                    const info = GAME_TYPE_INFO[r.gameType];
+                    return (
+                      <button
+                        key={r.roomId}
+                        onClick={() => handleJoinFromList(r)}
+                        disabled={!connected}
+                        className="btn-press w-full flex items-center gap-3 p-3 bg-cream rounded-doodle border-2 border-ink/30 hover:border-ink hover:bg-white transition-colors disabled:opacity-50"
+                      >
+                        <div className="text-2xl flex-shrink-0">{info.emoji}</div>
+                        <div className="flex-1 text-left min-w-0">
+                          <div className="font-display text-ink text-sm flex items-center gap-1.5">
+                            <span>{info.name}</span>
+                            <span className="text-ink-muted text-xs">· {r.roomId}</span>
+                          </div>
+                          <div className="text-xs text-ink-muted">
+                            {formatRelativeTime(r.createdAt)}
+                          </div>
+                        </div>
+                        <div className="flex-shrink-0 flex items-center gap-1 bg-white px-2 py-1 rounded-full border border-ink/30">
+                          <span className="text-xs font-display text-ink">
+                            {r.players.length}/2
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* 折叠的手动输入房间码选项 */}
               <button
-                onClick={handleJoin}
-                disabled={!connected}
-                className="btn-press w-full py-4 bg-mint text-ink font-display text-xl rounded-doodle shadow-pop border-2 border-ink disabled:opacity-50 flex items-center justify-center gap-2"
+                onClick={() => {
+                  setShowCodeInput((v) => !v);
+                  playSfx(sfx.uiTick);
+                }}
+                className="btn-press w-full flex items-center justify-center gap-1 py-2 text-ink-muted font-body text-xs"
               >
-                <LogIn size={22} />
-                加入
+                {showCodeInput ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                输入房间码加入
               </button>
+              {showCodeInput && (
+                <div className="mt-2 animate-slide-up">
+                  <input
+                    type="text"
+                    value={roomCode}
+                    onChange={(e) =>
+                      setRoomCode(e.target.value.toUpperCase().slice(0, 4))
+                    }
+                    placeholder="ABCD"
+                    className="w-full px-4 py-3 rounded-doodle border-2 border-ink bg-cream font-display text-ink text-2xl text-center tracking-widest focus:border-coral focus:bg-white transition-colors"
+                  />
+                  <button
+                    onClick={handleJoinByCode}
+                    disabled={!connected}
+                    className="btn-press w-full py-3 mt-2 bg-mint text-ink font-display text-lg rounded-doodle shadow-pop border-2 border-ink disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <LogIn size={20} />
+                    加入
+                  </button>
+                </div>
+              )}
+
               <button
                 onClick={() => {
                   setMode("home");
+                  setShowCodeInput(false);
                   setError(null);
                 }}
                 className="btn-press w-full py-2 mt-3 text-ink-muted font-body text-sm"
@@ -258,69 +406,33 @@ export default function Home() {
           )}
         </div>
 
-        {/* 玩法说明 */}
+        {/* 玩法说明：5 个游戏总览 */}
         <div className="w-full mt-6 mb-8">
           <h2 className="font-display text-ink text-lg text-center mb-3">
-            怎么玩？
+            5 款游戏怎么玩？
           </h2>
-          <div className="space-y-3">
-            <PlayStep
-              icon={<Brain size={20} />}
-              num="1"
-              title="记忆词语"
-              desc="看词3秒画图8秒，依次记忆30个词语"
-              color="bg-coral-light"
-            />
-            <PlayStep
-              icon={<Palette size={20} />}
-              num="2"
-              title="画出词语"
-              desc="凭记忆为每个词作画，不能写文字！"
-              color="bg-sun"
-            />
-            <PlayStep
-              icon={<Sparkles size={20} />}
-              num="3"
-              title="看画猜词"
-              desc="系统出题，看自己的画反推词语"
-              color="bg-mint"
-            />
+          <div className="space-y-2">
+            {GAME_OVERVIEW.map((g) => (
+              <div
+                key={g.name}
+                className="flex items-center gap-3 bg-white rounded-doodle p-3 border-2 border-ink shadow-soft"
+              >
+                <div
+                  className={`flex items-center justify-center w-10 h-10 rounded-full ${g.color} border-2 border-ink text-xl`}
+                >
+                  {g.emoji}
+                </div>
+                <div className="flex-1">
+                  <div className="font-display text-ink">{g.name}</div>
+                  <div className="text-xs text-ink-muted">{g.desc}</div>
+                </div>
+              </div>
+            ))}
           </div>
           <p className="text-center text-xs text-ink-muted mt-4">
-            共3轮 · 每轮10题 · 总分高者胜
+            创建房间 · 好友加入 · 双人对战
           </p>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function PlayStep({
-  icon,
-  num,
-  title,
-  desc,
-  color,
-}: {
-  icon: React.ReactNode;
-  num: string;
-  title: string;
-  desc: string;
-  color: string;
-}) {
-  return (
-    <div className="flex items-center gap-3 bg-white rounded-doodle p-3 border-2 border-ink shadow-soft">
-      <div
-        className={`flex items-center justify-center w-10 h-10 rounded-full ${color} border-2 border-ink font-display text-ink`}
-      >
-        {num}
-      </div>
-      <div className="flex-1">
-        <div className="font-display text-ink flex items-center gap-1.5">
-          {icon}
-          {title}
-        </div>
-        <div className="text-xs text-ink-muted">{desc}</div>
       </div>
     </div>
   );
@@ -333,6 +445,7 @@ function GameCard({
   desc,
   selected,
   disabled,
+  wide,
   onClick,
 }: {
   icon: React.ReactNode;
@@ -341,13 +454,16 @@ function GameCard({
   desc: string;
   selected?: boolean;
   disabled?: boolean;
+  wide?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`relative py-3 px-1 rounded-doodle border-2 font-display transition-all flex flex-col items-center gap-0.5 ${
+      className={`relative rounded-doodle border-2 font-display transition-all ${
+        wide ? "col-span-2 flex items-center gap-3 py-2.5 px-3" : "flex flex-col items-center gap-0.5 py-3 px-1"
+      } ${
         disabled
           ? "bg-cream-dark text-ink-muted border-ink/20 cursor-not-allowed opacity-70"
           : selected
@@ -355,14 +471,28 @@ function GameCard({
           : "bg-white text-ink border-ink/30 btn-press"
       }`}
     >
-      <div className="text-2xl leading-none">{emoji}</div>
-      <div className="text-xs flex items-center gap-0.5 mt-0.5">
-        {!disabled && icon}
-        {title}
-      </div>
-      <div className={`text-[10px] ${selected ? "text-white/80" : "text-ink-muted"}`}>
-        {desc}
-      </div>
+      <div className="text-2xl leading-none flex-shrink-0">{emoji}</div>
+      {wide ? (
+        <div className="flex-1 text-left min-w-0">
+          <div className="font-display text-sm flex items-center gap-1">
+            {!disabled && icon}
+            {title}
+          </div>
+          <div className={`text-xs ${selected ? "text-white/80" : "text-ink-muted"}`}>
+            {desc}
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="text-xs flex items-center gap-0.5 mt-0.5">
+            {!disabled && icon}
+            {title}
+          </div>
+          <div className={`text-[10px] ${selected ? "text-white/80" : "text-ink-muted"}`}>
+            {desc}
+          </div>
+        </>
+      )}
       {disabled && (
         <div className="absolute -top-1.5 -right-1.5 bg-ink text-cream text-[9px] px-1.5 py-0.5 rounded-full border border-ink">
           即将推出

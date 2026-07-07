@@ -14,7 +14,7 @@ export interface DifficultyConfig {
 
 // 所有难度统一的时间参数
 export const VIEW_TIME = 3;
-export const DRAW_TIME = 8;
+export const DRAW_TIME = 12;
 export const WORD_DURATION = 5;
 
 export const DIFFICULTY_CONFIGS: Record<Difficulty, DifficultyConfig> = {

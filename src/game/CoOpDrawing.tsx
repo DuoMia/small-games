@@ -6,8 +6,8 @@ import {
   LogOut,
   Pencil,
   Eraser,
-  Check,
   Loader2,
+  Sparkles,
 } from "lucide-react";
 import { useGameStore } from "@/store/gameStore";
 import { useRoomActions } from "@/hooks/useSocket";
@@ -19,11 +19,9 @@ import {
 } from "@/components/DrawingCanvas";
 import type { CoOpStroke } from "@/lib/types";
 
-// 每笔限时（秒）
-const STROKE_TIME_LIMIT = 15;
 // 笔画点同步节流间隔（毫秒）
 const POINT_THROTTLE_MS = 50;
-// 画布逻辑尺寸（与 DrawingCanvas 内部一致）
+// 画布逻辑尺寸（与 DrawingCanvas 内部一致，始终保持 4:3 坐标系）
 const CANVAS_W = 600;
 const CANVAS_H = 450;
 // 截图导出尺寸
@@ -44,8 +42,12 @@ const BRUSH_SIZES = [
   { name: "粗", value: 12 },
 ];
 
-/** 将笔画列表渲染到临时 canvas 并返回 DataURL（用于展示和下载） */
-function strokesToDataURL(strokes: CoOpStroke[]): string {
+/** 将笔画列表渲染到临时 canvas 并返回 DataURL（用于展示、下载和 AI 评分） */
+function strokesToDataURL(
+  strokes: CoOpStroke[],
+  type: string = "image/png",
+  quality?: number
+): string {
   const canvas = document.createElement("canvas");
   canvas.width = EXPORT_W;
   canvas.height = EXPORT_H;
@@ -88,42 +90,26 @@ function strokesToDataURL(strokes: CoOpStroke[]): string {
     }
     ctx.restore();
   });
-  return canvas.toDataURL("image/png");
-}
-
-/** 星级展示组件 */
-function Stars({ rating, size = "text-2xl" }: { rating: number; size?: string }) {
-  return (
-    <div className={`flex items-center gap-0.5 ${size}`}>
-      {[1, 2, 3, 4, 5].map((n) => (
-        <span
-          key={n}
-          className={n <= rating ? "text-sun" : "text-ink-muted/30"}
-        >
-          ★
-        </span>
-      ))}
-    </div>
-  );
+  return canvas.toDataURL(type, quality);
 }
 
 export default function CoOpDrawing({ roomId }: { roomId: string }) {
   const { phase } = useGameStore();
   // 根据阶段分发
   if (phase === "GAME_OVER") return <CoOpResult roomId={roomId} />;
-  if (phase === "ROUND_RESULT") return <CoOpRating roomId={roomId} />;
+  if (phase === "ROUND_RESULT") return <CoOpAIJudging roomId={roomId} />;
   return <CoOpPlaying roomId={roomId} />;
 }
 
-// ============ 画画阶段（DRAWING） ============
+// ============ 画画阶段（DRAWING）：双方同时画 ============
 function CoOpPlaying({ roomId }: { roomId: string }) {
   const {
     coOpPrompt,
-    coOpTurn,
+    coOpTimeLeft,
+    coOpOrientation,
     coOpIncomingStroke,
     coOpStrokes,
     myId,
-    room,
   } = useGameStore();
   const { coOpStrokeStart, coOpStrokePoint, coOpStrokeEnd } = useRoomActions();
   const { sfxEnabled } = useAudioStore();
@@ -138,23 +124,11 @@ function CoOpPlaying({ roomId }: { roomId: string }) {
   const [color, setColor] = useState(COLORS[0].value);
   const [brushSize, setBrushSize] = useState(BRUSH_SIZES[1].value);
   const [tool, setTool] = useState<"pen" | "eraser">("pen");
-  const [timeLeft, setTimeLeft] = useState(STROKE_TIME_LIMIT);
 
   // 我正在画的笔画引用（DrawingCanvas 内部会 push points 到同一对象）
   const myCurrentStrokeRef = useRef<Stroke | null>(null);
   // 上次发送 point 的时间戳（节流）
   const lastPointEmitRef = useRef<number>(0);
-  // 上一次整秒（用于触发滴答音效）
-  const lastSecRef = useRef<number>(STROKE_TIME_LIMIT);
-  // 是否正在画（用于超时判断）
-  const drawingRef = useRef<boolean>(false);
-  // 本轮是否已超时自动结束（防止重复发送）
-  const autoEndedRef = useRef<boolean>(false);
-
-  const isMyTurn = !!coOpTurn && coOpTurn.currentPlayer === myId;
-  const strokesLeft =
-    coOpTurn?.strokesLeft ?? coOpPrompt?.totalStrokes ?? 20;
-  const opponent = room?.players.find((p) => p.id !== myId);
 
   // 拼装展示用笔画：已完成 + 对方正在画的（若有）
   const displayStrokes: Stroke[] = useMemo(() => {
@@ -175,58 +149,9 @@ function CoOpPlaying({ roomId }: { roomId: string }) {
     return base;
   }, [coOpStrokes, coOpIncomingStroke]);
 
-  // 倒计时：轮次切换时重置为 15 秒
-  useEffect(() => {
-    setTimeLeft(STROKE_TIME_LIMIT);
-    lastSecRef.current = STROKE_TIME_LIMIT;
-    autoEndedRef.current = false;
-    const start = Date.now();
-    const interval = setInterval(() => {
-      const elapsed = (Date.now() - start) / 1000;
-      const left = Math.max(0, STROKE_TIME_LIMIT - elapsed);
-      setTimeLeft(left);
-      // 滴答音效
-      const sec = Math.ceil(left);
-      if (sec !== lastSecRef.current && sec > 0) {
-        lastSecRef.current = sec;
-        if (left <= 3) playSfx(sfx.tickUrgent);
-        else playSfx(sfx.tick);
-      }
-      // 超时：轮到我时自动结束当前笔画（或空过这一笔）
-      if (left <= 0 && isMyTurn && !autoEndedRef.current) {
-        autoEndedRef.current = true;
-        if (drawingRef.current) {
-          drawingRef.current = false;
-          // 本地追加未完成的笔画
-          if (
-            myCurrentStrokeRef.current &&
-            myCurrentStrokeRef.current.points.length > 0
-          ) {
-            useGameStore.getState().appendCoOpStroke({
-              ...myCurrentStrokeRef.current,
-              author: myId ?? "",
-            });
-          }
-          myCurrentStrokeRef.current = null;
-        }
-        coOpStrokeEnd(roomId);
-      }
-    }, 100);
-    return () => clearInterval(interval);
-  }, [
-    coOpTurn?.currentPlayer,
-    coOpTurn?.strokesLeft,
-    isMyTurn,
-    roomId,
-    coOpStrokeEnd,
-    playSfx,
-    myId,
-  ]);
-
   // 笔画开始：记录引用并通知服务器
   const handleStrokeStart = useCallback(
     (stroke: Stroke) => {
-      drawingRef.current = true;
       myCurrentStrokeRef.current = stroke;
       coOpStrokeStart(roomId, {
         color: stroke.color,
@@ -250,87 +175,91 @@ function CoOpPlaying({ roomId }: { roomId: string }) {
     [roomId, coOpStrokePoint]
   );
 
-  // 笔画结束：本地追加 + 通知服务器
+  // 笔画结束：本地追加 + 通知服务器（携带完整笔画）
   const handleStrokeEnd = useCallback(() => {
-    drawingRef.current = false;
     if (
       myCurrentStrokeRef.current &&
       myCurrentStrokeRef.current.points.length > 0
     ) {
-      useGameStore.getState().appendCoOpStroke({
+      const completedStroke: CoOpStroke = {
         ...myCurrentStrokeRef.current,
         author: myId ?? "",
-      });
+      };
+      useGameStore.getState().appendCoOpStroke(completedStroke);
+      coOpStrokeEnd(roomId, completedStroke);
     }
     myCurrentStrokeRef.current = null;
-    coOpStrokeEnd(roomId);
   }, [roomId, coOpStrokeEnd, myId]);
 
-  const toolbarDisabled = !isMyTurn;
+  // 画布容器宽高比：横屏 4:3，竖屏 3:4
+  const aspectClass = coOpOrientation === "portrait" ? "aspect-[3/4]" : "aspect-[4/3]";
+  // 竖屏时画布最大高度受限，横屏时最大宽度受限
+  const containerClass =
+    coOpOrientation === "portrait"
+      ? "w-full max-w-[280px]"
+      : "w-full max-w-md";
 
   return (
     <div className="paper-bg h-[100dvh] flex flex-col overflow-hidden">
-      {/* 顶栏：命题 + 轮次 + 倒计时 */}
+      {/* 顶栏：命题 + 倒计时 */}
       <div className="flex-shrink-0 px-4 py-2.5 border-b-2 border-ink-muted/20 bg-white/50">
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-xs text-ink-muted">命题</span>
-          <span className="text-xs text-ink-muted">剩余 {strokesLeft} 笔</span>
+          <span className="text-xs text-ink-muted">
+            {coOpOrientation === "portrait" ? "竖屏画" : "横屏画"} · 同时画
+          </span>
         </div>
         <div className="flex items-center justify-between gap-2">
           <span className="bg-sun text-ink font-display text-base px-3 py-1 rounded-full border-2 border-ink truncate">
             {coOpPrompt?.prompt || "加载中..."}
           </span>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <span
-              className={`font-display text-sm ${
-                isMyTurn ? "text-coral" : "text-ink-muted"
-              }`}
-            >
-              {isMyTurn ? "轮到你" : `${opponent?.nickname ?? "对方"}画`}
-            </span>
+            <span className="font-display text-sm text-coral">两人同画</span>
             <span
               className={`font-display text-xl ${
-                timeLeft <= 3 ? "text-coral animate-pulse" : "text-ink"
+                coOpTimeLeft <= 10 ? "text-coral animate-pulse" : "text-ink"
               }`}
             >
-              {Math.ceil(timeLeft)}s
+              {coOpTimeLeft}s
             </span>
           </div>
         </div>
       </div>
 
-      {/* 主区域：画布 */}
+      {/* 主区域：画布（双方同时可画） */}
       <div className="flex-1 flex flex-col px-3 py-2 min-h-0">
         <div className="flex-1 min-h-0 flex items-center justify-center">
-          <div className="w-full max-w-md aspect-[4/3] bg-white rounded-doodle border-3 border-ink shadow-card overflow-hidden relative">
+          <div
+            className={`${containerClass} ${aspectClass} bg-white rounded-doodle border-3 border-ink shadow-card overflow-hidden relative`}
+          >
             <DrawingCanvas
               strokes={displayStrokes}
               onStrokesChange={() => {}}
               color={color}
               brushSize={brushSize}
               tool={tool}
-              disabled={!isMyTurn}
+              disabled={false}
               onStrokeStart={handleStrokeStart}
               onStrokePoint={handleStrokePoint}
               onStrokeEnd={handleStrokeEnd}
             />
-            {!isMyTurn && (
-              <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-ink/70 text-white text-xs px-3 py-1 rounded-full whitespace-nowrap">
-                {opponent?.nickname ?? "对方"}正在画...
-              </div>
-            )}
           </div>
         </div>
+        {/* 横屏模式下提示手机横放 */}
+        {coOpOrientation === "landscape" && (
+          <p className="text-center text-[10px] text-ink-muted mt-1">
+            💡 横屏画作建议横放手机
+          </p>
+        )}
       </div>
 
-      {/* 工具栏（仅自己回合可用） */}
+      {/* 工具栏（两人都能用） */}
       <div className="flex-shrink-0 bg-white border-t-2 border-ink px-3 py-2 space-y-1.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {COLORS.map((c) => (
               <button
                 key={c.name}
-                disabled={toolbarDisabled}
                 onClick={() => {
                   setColor(c.value);
                   setTool("pen");
@@ -340,13 +269,12 @@ function CoOpPlaying({ roomId }: { roomId: string }) {
                   color === c.value && tool === "pen"
                     ? "border-ink scale-125 ring-2 ring-sun"
                     : "border-ink/30"
-                } ${toolbarDisabled ? "opacity-40" : ""}`}
+                }`}
                 style={{ backgroundColor: c.value }}
               />
             ))}
           </div>
           <button
-            disabled={toolbarDisabled}
             onClick={() => {
               setTool(tool === "pen" ? "eraser" : "pen");
               playSfx(sfx.uiTick);
@@ -355,7 +283,7 @@ function CoOpPlaying({ roomId }: { roomId: string }) {
               tool === "eraser"
                 ? "bg-warn text-white border-ink"
                 : "bg-white text-ink border-ink"
-            } ${toolbarDisabled ? "opacity-40 cursor-not-allowed" : ""}`}
+            }`}
           >
             {tool === "eraser" ? <Eraser size={18} /> : <Pencil size={18} />}
           </button>
@@ -365,7 +293,6 @@ function CoOpPlaying({ roomId }: { roomId: string }) {
           {BRUSH_SIZES.map((b) => (
             <button
               key={b.value}
-              disabled={toolbarDisabled}
               onClick={() => {
                 setBrushSize(b.value);
                 playSfx(sfx.uiTick);
@@ -374,7 +301,7 @@ function CoOpPlaying({ roomId }: { roomId: string }) {
                 brushSize === b.value
                   ? "bg-ink text-cream border-ink"
                   : "bg-white text-ink border-ink/30"
-              } ${toolbarDisabled ? "opacity-40 cursor-not-allowed" : ""}`}
+              }`}
             >
               {b.name}
             </button>
@@ -385,108 +312,44 @@ function CoOpPlaying({ roomId }: { roomId: string }) {
   );
 }
 
-// ============ 评分阶段（ROUND_RESULT） ============
-function CoOpRating({ roomId }: { roomId: string }) {
-  const { coOpStrokes, coOpResult, coOpMyRated, myId, room } = useGameStore();
-  const { coOpRate } = useRoomActions();
-  const { sfxEnabled } = useAudioStore();
+// ============ AI 评分阶段（ROUND_RESULT） ============
+function CoOpAIJudging({ roomId }: { roomId: string }) {
+  const { coOpStrokes, coOpIncomingStroke, coOpPrompt, myId, room } = useGameStore();
+  const { coOpSubmitDrawing } = useRoomActions();
+  const submittedRef = useRef(false);
 
-  const playSfx = (fn: () => void) => {
-    if (sfxEnabled) fn();
-  };
-  const [selectedRating, setSelectedRating] = useState<number>(0);
-
-  // 渲染最终画作为图片
-  const finalImage = useMemo(() => strokesToDataURL(coOpStrokes), [coOpStrokes]);
-
-  const handleSubmit = () => {
-    if (selectedRating < 1 || selectedRating > 5 || coOpMyRated) return;
-    playSfx(sfx.click);
-    coOpRate(roomId, selectedRating);
-    useGameStore.getState().setCoOpMyRated(true);
-  };
+  // 房主负责渲染画作并提交给后端 AI 评分
+  useEffect(() => {
+    if (submittedRef.current) return;
+    const isHost = room?.hostId === myId;
+    if (!isHost) return;
+    submittedRef.current = true;
+    // 合并已完成笔画和对方进行中的笔画（若有）
+    const allStrokes: CoOpStroke[] = [...coOpStrokes];
+    if (coOpIncomingStroke && coOpIncomingStroke.points.length > 0) {
+      allStrokes.push(coOpIncomingStroke);
+    }
+    // 渲染为 JPEG data URL 提交给 AI
+    const imageDataURL = strokesToDataURL(allStrokes, "image/jpeg", 0.7);
+    if (imageDataURL && roomId) {
+      coOpSubmitDrawing(roomId, imageDataURL);
+    }
+  }, [coOpStrokes, coOpIncomingStroke, myId, room, roomId, coOpSubmitDrawing]);
 
   return (
-    <div className="paper-bg h-[100dvh] overflow-y-auto flex flex-col items-center px-5 py-6">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-4 animate-bounce-in">
-          <div className="text-4xl mb-1">🎨</div>
-          <h1 className="font-display text-2xl text-ink">画作完成！</h1>
-          <p className="text-ink-muted text-sm mt-1">
-            给这幅合作画作打个分吧
-          </p>
+    <div className="paper-bg h-[100dvh] flex flex-col items-center justify-center px-5">
+      <div className="text-center animate-bounce-in">
+        <div className="text-5xl mb-4 animate-float">🤖</div>
+        <Loader2 size={40} className="animate-spin text-coral mx-auto mb-4" />
+        <h1 className="font-display text-2xl text-ink mb-2">AI 正在评分...</h1>
+        <p className="text-ink-muted text-sm">
+          正在欣赏你们合作的「{coOpPrompt?.prompt ?? ""}」
+        </p>
+        <div className="flex items-center justify-center gap-1 mt-4">
+          <Sparkles size={16} className="text-sun" />
+          <span className="text-xs text-ink-muted">请稍候</span>
+          <Sparkles size={16} className="text-sun" />
         </div>
-
-        {/* 画作展示 */}
-        <div className="bg-white rounded-doodle border-3 border-ink shadow-card p-2 mb-4">
-          {finalImage ? (
-            <img
-              src={finalImage}
-              alt="合作画作"
-              className="w-full rounded-doodle bg-white"
-              style={{ aspectRatio: "4 / 3" }}
-            />
-          ) : (
-            <div className="w-full aspect-[4/3] bg-white rounded-doodle flex items-center justify-center">
-              <Loader2 size={28} className="animate-spin text-ink-muted" />
-            </div>
-          )}
-        </div>
-
-        {/* 已有评分展示（对方先评的话会显示） */}
-        {coOpResult && Object.keys(coOpResult.ratings).length > 0 && (
-          <div className="flex items-center justify-center gap-3 mb-3 text-sm text-ink-muted">
-            {Object.entries(coOpResult.ratings).map(([pid, rating]) => {
-              const p = room?.players.find((pl) => pl.id === pid);
-              return (
-                <span key={pid}>
-                  {pid === myId ? "你" : p?.nickname ?? "对方"}：{rating}★
-                </span>
-              );
-            })}
-          </div>
-        )}
-
-        {/* 评分按钮 */}
-        {!coOpMyRated ? (
-          <>
-            <div className="flex items-center justify-center gap-2 mb-4">
-              {[1, 2, 3, 4, 5].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => {
-                    setSelectedRating(n);
-                    playSfx(sfx.uiTick);
-                  }}
-                  className={`btn-press p-1 transition-all ${
-                    selectedRating >= n ? "scale-110" : "opacity-40"
-                  }`}
-                >
-                  <span
-                    className={`text-4xl ${
-                      selectedRating >= n ? "text-sun" : "text-ink-muted/30"
-                    }`}
-                  >
-                    ★
-                  </span>
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={handleSubmit}
-              disabled={selectedRating === 0}
-              className="btn-press w-full py-3 bg-coral text-white font-display text-lg rounded-doodle border-2 border-ink shadow-soft disabled:opacity-40 flex items-center justify-center gap-2"
-            >
-              <Check size={20} />
-              提交评分
-            </button>
-          </>
-        ) : (
-          <div className="text-center py-4">
-            <Loader2 size={28} className="animate-spin text-coral mx-auto mb-2" />
-            <p className="text-ink-muted text-sm">已评分，等待对方...</p>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -494,7 +357,8 @@ function CoOpRating({ roomId }: { roomId: string }) {
 
 // ============ 结果页（GAME_OVER） ============
 function CoOpResult({ roomId }: { roomId: string }) {
-  const { coOpStrokes, coOpResult, coOpPrompt, myId, room } = useGameStore();
+  const { coOpStrokes, coOpIncomingStroke, coOpResult, coOpPrompt, myId, room } =
+    useGameStore();
   const { coOpRestart, leaveRoom } = useRoomActions();
   const { sfxEnabled } = useAudioStore();
   const navigate = useNavigate();
@@ -504,15 +368,32 @@ function CoOpResult({ roomId }: { roomId: string }) {
   };
   const isHost = room?.hostId === myId;
 
-  // 渲染最终画作为图片
-  const finalImage = useMemo(() => strokesToDataURL(coOpStrokes), [coOpStrokes]);
+  // 渲染最终画作为图片（合并对方进行中的笔画）
+  const finalImage = useMemo(() => {
+    try {
+      const allStrokes: CoOpStroke[] = [...coOpStrokes];
+      if (coOpIncomingStroke && coOpIncomingStroke.points.length > 0) {
+        allStrokes.push(coOpIncomingStroke);
+      }
+      return strokesToDataURL(allStrokes);
+    } catch {
+      return "";
+    }
+  }, [coOpStrokes, coOpIncomingStroke]);
+
+  if (!coOpResult) {
+    return (
+      <div className="paper-bg h-[100dvh] flex items-center justify-center">
+        <Loader2 size={40} className="animate-spin text-coral" />
+      </div>
+    );
+  }
 
   const handleDownload = () => {
     playSfx(sfx.click);
-    const dataURL = strokesToDataURL(coOpStrokes);
-    if (!dataURL) return;
+    if (!finalImage) return;
     const a = document.createElement("a");
-    a.href = dataURL;
+    a.href = finalImage;
     a.download = `合作画画_${coOpPrompt?.prompt ?? "作品"}.png`;
     document.body.appendChild(a);
     a.click();
@@ -530,14 +411,20 @@ function CoOpResult({ roomId }: { roomId: string }) {
     navigate("/");
   };
 
-  const avgRating = coOpResult?.avgRating ?? 0;
-  const ratings = coOpResult?.ratings ?? {};
+  const aiScore = coOpResult?.aiScore ?? 0;
+  const aiComment = coOpResult?.aiComment ?? "";
+
+  // 根据分数选色与文案
+  const scoreColor =
+    aiScore >= 8 ? "text-mint" : aiScore >= 5 ? "text-sun" : "text-coral";
+  const scoreLabel =
+    aiScore >= 8 ? "神作！" : aiScore >= 6 ? "不错！" : aiScore >= 4 ? "还行" : "加油";
 
   return (
     <div className="paper-bg h-[100dvh] overflow-y-auto flex flex-col items-center px-5 py-6">
       <div className="w-full max-w-md">
         <div className="text-center mb-4 animate-bounce-in">
-          <div className="text-5xl mb-2 animate-float">🏆</div>
+          <div className="text-5xl mb-2 animate-float">🎨</div>
           <h1 className="font-display text-3xl text-ink">大作诞生！</h1>
           <p className="text-ink-muted text-sm mt-1">
             命题：{coOpPrompt?.prompt ?? ""}
@@ -560,21 +447,22 @@ function CoOpResult({ roomId }: { roomId: string }) {
           )}
         </div>
 
-        {/* 评分展示 */}
+        {/* AI 评分展示 */}
         <div className="bg-white rounded-blob border-2 border-ink shadow-soft p-4 mb-4 text-center">
-          <p className="text-xs text-ink-muted mb-1">平均评分</p>
-          <div className="flex items-center justify-center mb-1">
-            <Stars rating={Math.round(avgRating)} />
+          <p className="text-xs text-ink-muted mb-1 flex items-center justify-center gap-1">
+            <Sparkles size={14} className="text-sun" />
+            AI 评分
+          </p>
+          <div className="flex items-baseline justify-center mb-1">
+            <span className={`font-display text-6xl ${scoreColor}`}>
+              {aiScore}
+            </span>
+            <span className="font-display text-2xl text-ink-muted">/10</span>
           </div>
-          <p className="font-display text-2xl text-ink">{avgRating} / 5</p>
-          {/* 双方评分明细 */}
-          <div className="flex items-center justify-center gap-3 mt-3 text-xs text-ink-muted">
-            {room?.players.map((p) => (
-              <span key={p.id}>
-                {p.id === myId ? "你" : p.nickname}：{ratings[p.id] ?? "-"}★
-              </span>
-            ))}
-          </div>
+          <p className={`font-display text-lg ${scoreColor} mb-2`}>
+            {scoreLabel}
+          </p>
+          <p className="text-sm text-ink-muted italic">"{aiComment}"</p>
         </div>
 
         {/* 操作按钮 */}

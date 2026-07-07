@@ -226,7 +226,7 @@ function TurtlePlaying({ roomId }: { roomId: string }) {
           {supported && !revealed && (
             <button
               onClick={handleMicToggle}
-              disabled={!canInteract && !listening}
+              disabled={listening ? false : !canInteract}
               className={`btn-press flex-shrink-0 w-11 h-11 rounded-doodle border-2 border-ink flex items-center justify-center transition-colors ${
                 listening
                   ? "bg-coral text-white animate-pulse"
@@ -240,7 +240,7 @@ function TurtlePlaying({ roomId }: { roomId: string }) {
           {/* 提交按钮 */}
           <button
             onClick={handleAsk}
-            disabled={!canInteract || !inputText.trim()}
+            disabled={!canInteract || !inputText.trim() || listening}
             className="btn-press flex-shrink-0 w-11 h-11 rounded-doodle border-2 border-ink bg-coral text-white flex items-center justify-center disabled:opacity-40"
             title="发送提问"
           >
@@ -250,7 +250,7 @@ function TurtlePlaying({ roomId }: { roomId: string }) {
         {/* 揭晓按钮 */}
         <button
           onClick={handleOpenGuess}
-          disabled={revealed || Boolean(turtleJudging)}
+          disabled={revealed || Boolean(turtleJudging) || listening}
           className="btn-press w-full mt-2 py-2.5 bg-ink text-cream font-display text-sm rounded-doodle border-2 border-ink shadow-soft flex items-center justify-center gap-1.5 disabled:opacity-40"
         >
           <Sparkles size={16} />

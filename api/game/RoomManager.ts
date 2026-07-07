@@ -27,7 +27,7 @@ import turtleSoups from "../data/turtle-soup.json";
 import drawingPrompts from "../data/drawing-prompts.json";
 // 表情包猜词题库
 import emojiPuzzlesData from "../data/emoji-puzzles.json";
-import { judgeQuestion, judgeGuess } from "../ai/judge.js";
+import { judgeQuestion, judgeGuess, judgeDrawing } from "../ai/judge.js";
 
 const TOTAL_ROUNDS = 3;
 const MAX_PLAYERS = 2;
@@ -41,8 +41,8 @@ const DEFAULT_TELEPATHY_PACK = "life";
 const TURTLE_MAX_QUESTIONS = 20;
 // 海龟汤默认难度
 const DEFAULT_TURTLE_DIFFICULTY = "any";
-// 合作画画总笔画数（每人10笔）
-const CO_OP_TOTAL_STROKES = 20;
+// 合作画画总时长（秒），双方同时画
+const CO_OP_TIME_LIMIT = 90;
 // 表情包猜词总题数
 const EMOJI_TOTAL_QUESTIONS = 10;
 // 表情包猜词每题限时（秒）
@@ -1042,7 +1042,8 @@ class RoomManagerClass {
 
   /**
    * 内部启动合作画画（开始或重玩都走这里）
-   * 随机抽命题，初始化 GameState，currentPlayer 设为房主
+   * 随机抽命题，初始化 GameState，双方同时画（不再轮流）
+   * 保留已设置的横竖屏方向，默认横屏
    */
   private startCoOpDrawingInternal(room: Room) {
     const prompt = this.pickCoOpPrompt();
@@ -1055,10 +1056,8 @@ class RoomManagerClass {
       p.answers = [];
     });
 
-    const playerStrokes: Record<string, number> = {};
-    room.players.forEach((p) => {
-      playerStrokes[p.id] = 0;
-    });
+    // 保留已设置的横竖屏方向，默认横屏
+    const orientation = room.state.coOpOrientation || "landscape";
 
     room.state = {
       phase: "DRAWING",
@@ -1073,14 +1072,14 @@ class RoomManagerClass {
       answerResults: {},
       questionNextReady: {},
       revealed: false,
-      // 合作画画字段
+      // 合作画画字段（同时画 + AI 评分）
       coOpPrompt: prompt,
       coOpStrokes: [],
       coOpCurrentStroke: null,
-      coOpCurrentPlayer: room.hostId,
-      coOpStrokesLeft: CO_OP_TOTAL_STROKES,
-      coOpPlayerStrokes: playerStrokes,
-      coOpRatings: {},
+      coOpOrientation: orientation,
+      coOpAIScore: undefined,
+      coOpAIComment: undefined,
+      coOpStartTime: Date.now(),
     };
   }
 
@@ -1097,24 +1096,49 @@ class RoomManagerClass {
   }
 
   /**
-   * 获取合作画画当前轮次数据
+   * 设置合作画画画布方向（仅房主、仅 WAITING 阶段）
    */
-  getCoOpTurnData(room: Room): {
-    currentPlayer: string;
-    strokesLeft: number;
-    playerStrokes: Record<string, number>;
-  } | null {
-    if (!room.state.coOpPrompt) return null;
-    return {
-      currentPlayer: room.state.coOpCurrentPlayer || "",
-      strokesLeft: room.state.coOpStrokesLeft ?? CO_OP_TOTAL_STROKES,
-      playerStrokes: room.state.coOpPlayerStrokes || {},
-    };
+  setCoOpOrientation(
+    roomId: string,
+    socketId: string,
+    orientation: "landscape" | "portrait"
+  ): Room | null {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+    if (room.hostId !== socketId) return null;
+    if (room.state.phase !== "WAITING") return null;
+    if (room.gameType !== "co-op-drawing") return null;
+    if (room.state.coOpOrientation === orientation) return room;
+    room.state.coOpOrientation = orientation;
+    return room;
   }
 
   /**
-   * 开始一笔：验证轮到该玩家，记录笔画开始
-   * 返回完整笔画（含 author）用于广播
+   * 获取合作画画当前方向
+   */
+  getCoOpOrientation(room: Room): "landscape" | "portrait" {
+    return room.state.coOpOrientation || "landscape";
+  }
+
+  /**
+   * 获取合作画画剩余时间（秒）
+   */
+  getCoOpTimeLeft(room: Room): number {
+    if (!room.state.coOpStartTime) return CO_OP_TIME_LIMIT;
+    const elapsed = (Date.now() - room.state.coOpStartTime) / 1000;
+    return Math.max(0, Math.ceil(CO_OP_TIME_LIMIT - elapsed));
+  }
+
+  /**
+   * 合作画画总时长（秒），供外部计时器使用
+   */
+  getCoOpTimeLimit(): number {
+    return CO_OP_TIME_LIMIT;
+  }
+
+  /**
+   * 开始一笔：同时画模式下不检查 currentPlayer，任何玩家都可画
+   * 返回完整笔画（含 author）用于广播给对方
    */
   coOpStrokeStart(
     roomId: string,
@@ -1125,20 +1149,18 @@ class RoomManagerClass {
     if (!room) return null;
     if (room.gameType !== "co-op-drawing") return null;
     if (room.state.phase !== "DRAWING") return null;
-    if (room.state.coOpCurrentPlayer !== socketId) return null;
-    // 已有进行中的笔画，忽略
-    if (room.state.coOpCurrentStroke) return null;
 
     const fullStroke: CoOpStroke = {
       ...stroke,
       author: socketId,
     };
+    // 追踪当前笔画（同时画时为 last writer wins，仅作记录用）
     room.state.coOpCurrentStroke = fullStroke;
     return { room, fullStroke };
   }
 
   /**
-   * 笔画进行中：转发点（仅当前作画者可发）
+   * 笔画进行中：转发点（同时画，任意玩家可发）
    */
   coOpStrokePoint(
     roomId: string,
@@ -1147,108 +1169,77 @@ class RoomManagerClass {
   ): { room: Room } | null {
     const room = this.rooms.get(roomId);
     if (!room) return null;
-    if (room.state.coOpCurrentPlayer !== socketId) return null;
+    if (room.gameType !== "co-op-drawing") return null;
+    if (room.state.phase !== "DRAWING") return null;
+    // 追踪用：仅追加到属于该作者的当前笔画
     const cur = room.state.coOpCurrentStroke;
-    if (!cur) return null;
-    cur.points.push(point);
+    if (cur && cur.author === socketId) {
+      cur.points.push(point);
+    }
     return { room };
   }
 
   /**
-   * 结束一笔：追加到 coOpStrokes，切换 currentPlayer，更新 strokesLeft/playerStrokes
-   * 笔画用完则进入 ROUND_RESULT 阶段
-   * 返回 isLast 标识是否最后一笔
+   * 结束一笔：把完整笔画追加到 coOpStrokes（同时画，任意玩家可结束自己的笔画）
+   * stroke 由前端提交完整笔画数据
    */
   coOpStrokeEnd(
     roomId: string,
-    socketId: string
-  ): { room: Room; isLast: boolean; turnData: { currentPlayer: string; strokesLeft: number; playerStrokes: Record<string, number> } | null } | null {
+    socketId: string,
+    stroke: CoOpStroke
+  ): { room: Room } | null {
     const room = this.rooms.get(roomId);
     if (!room) return null;
     if (room.gameType !== "co-op-drawing") return null;
     if (room.state.phase !== "DRAWING") return null;
-    // 只有当前作画者可以结束笔画
-    if (room.state.coOpCurrentPlayer !== socketId) return null;
 
-    // 把进行中的笔画（若有）追加到已完成列表
+    // 把完成的笔画追加到已完成列表
+    const strokes = room.state.coOpStrokes || [];
+    strokes.push(stroke);
+    room.state.coOpStrokes = strokes;
+    // 清除追踪（若属于同一作者）
     const cur = room.state.coOpCurrentStroke;
-    if (cur && cur.points.length > 0) {
-      const strokes = room.state.coOpStrokes || [];
-      strokes.push(cur);
-      room.state.coOpStrokes = strokes;
-      // 累加该玩家笔画数
-      const ps = room.state.coOpPlayerStrokes || {};
-      ps[socketId] = (ps[socketId] || 0) + 1;
-      room.state.coOpPlayerStrokes = ps;
+    if (cur && cur.author === socketId) {
+      room.state.coOpCurrentStroke = null;
     }
-    room.state.coOpCurrentStroke = null;
-
-    // 剩余笔画数 -1
-    const left = (room.state.coOpStrokesLeft ?? CO_OP_TOTAL_STROKES) - 1;
-    room.state.coOpStrokesLeft = left;
-
-    // 是否最后一笔
-    const isLast = left <= 0;
-    if (isLast) {
-      room.state.phase = "ROUND_RESULT";
-      room.state.coOpRatings = {};
-      return { room, isLast: true, turnData: null };
-    }
-
-    // 切换 currentPlayer 给另一个玩家
-    const opponent = room.players.find((p) => p.id !== socketId);
-    if (opponent) {
-      room.state.coOpCurrentPlayer = opponent.id;
-    }
-    const turnData = {
-      currentPlayer: room.state.coOpCurrentPlayer || "",
-      strokesLeft: room.state.coOpStrokesLeft ?? 0,
-      playerStrokes: room.state.coOpPlayerStrokes || {},
-    };
-    return { room, isLast: false, turnData };
+    return { room };
   }
 
   /**
-   * 提交评分：记录评分，双方都评完则进入 GAME_OVER 并计算平均分
-   * 返回 allRated 标识是否双方都评完
+   * 时间到：进入 AI 评分阶段（ROUND_RESULT）
    */
-  rateCoOp(
+  coOpTimeUp(roomId: string): Room | null {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+    if (room.gameType !== "co-op-drawing") return null;
+    if (room.state.phase !== "DRAWING") return null;
+    room.state.phase = "ROUND_RESULT";
+    return room;
+  }
+
+  /**
+   * 接收前端提交的画作图片，调用 AI 评分
+   * 仅在 ROUND_RESULT 阶段接受，且只接受一次
+   * 评分完成后进入 GAME_OVER
+   */
+  async judgeCoOpDrawing(
     roomId: string,
     socketId: string,
-    rating: number
-  ): {
-    room: Room;
-    allRated: boolean;
-    ratings: Record<string, number>;
-    avgRating: number;
-  } | null {
+    image: string
+  ): Promise<{ room: Room; aiScore: number; aiComment: string } | null> {
     const room = this.rooms.get(roomId);
     if (!room) return null;
     if (room.gameType !== "co-op-drawing") return null;
     if (room.state.phase !== "ROUND_RESULT") return null;
-    const player = room.players.find((p) => p.id === socketId);
-    if (!player) return null;
-    // 已评过的不重复
-    const ratings = room.state.coOpRatings || {};
-    if (ratings[socketId] !== undefined) return null;
-    // 评分限制 1-5
-    const safeRating = Math.max(1, Math.min(5, Math.round(rating)));
-    ratings[socketId] = safeRating;
-    room.state.coOpRatings = ratings;
+    // 只接受一次评分
+    if (room.state.coOpAIScore !== undefined) return null;
 
-    const allRated = room.players.every(
-      (p) => room.state.coOpRatings![p.id] !== undefined
-    );
-
-    if (allRated) {
-      // 计算平均分
-      const vals = room.players.map((p) => room.state.coOpRatings![p.id]);
-      const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
-      room.state.phase = "GAME_OVER";
-      return { room, allRated: true, ratings, avgRating: Math.round(avg * 10) / 10 };
-    }
-
-    return { room, allRated: false, ratings, avgRating: 0 };
+    const prompt = room.state.coOpPrompt || "";
+    const result = await judgeDrawing(image, prompt);
+    room.state.coOpAIScore = result.score;
+    room.state.coOpAIComment = result.comment;
+    room.state.phase = "GAME_OVER";
+    return { room, aiScore: result.score, aiComment: result.comment };
   }
 
   /**
@@ -1264,24 +1255,19 @@ class RoomManagerClass {
   }
 
   /**
-   * 获取合作画画结果数据（用于 ROUND_RESULT / GAME_OVER）
-   * 注意：finalImage 由前端根据 coOpStrokes 渲染（后端无 canvas 环境）
+   * 获取合作画画结果数据（用于 GAME_OVER 展示）
+   * finalImage 由前端根据 coOpStrokes 渲染（后端无 canvas 环境）
    */
   getCoOpResultData(room: Room): {
     finalImage: string;
-    ratings: Record<string, number>;
-    avgRating: number;
+    aiScore: number;
+    aiComment: string;
   } | null {
     if (!room.state.coOpPrompt) return null;
-    const ratings = room.state.coOpRatings || {};
-    const vals = room.players.map((p) => ratings[p.id]).filter((v) => v !== undefined);
-    const avg = vals.length > 0
-      ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10
-      : 0;
     return {
       finalImage: "", // 前端根据 strokes 渲染
-      ratings,
-      avgRating: avg,
+      aiScore: room.state.coOpAIScore ?? 0,
+      aiComment: room.state.coOpAIComment ?? "",
     };
   }
 
@@ -1620,6 +1606,22 @@ class RoomManagerClass {
   }
 
   /**
+   * 列出所有公开等待中的房间（phase=WAITING 且人数未满）
+   * 用于大厅房间列表展示
+   */
+  listPublicRooms(): RoomView[] {
+    const result: RoomView[] = [];
+    for (const room of this.rooms.values()) {
+      if (room.state.phase === "WAITING" && room.players.length < MAX_PLAYERS) {
+        result.push(this.toRoomView(room));
+      }
+    }
+    // 按创建时间倒序：新房间排前面
+    result.sort((a, b) => b.createdAt - a.createdAt);
+    return result;
+  }
+
+  /**
    * 转换为客户端视图（不含敏感数据）
    */
   toRoomView(room: Room): RoomView {
@@ -1634,6 +1636,7 @@ class RoomManagerClass {
       gameType: room.gameType,
       telepathyPackId: room.telepathyPackId,
       turtleDifficulty: room.turtleDifficulty,
+      createdAt: room.createdAt,
     };
   }
 
