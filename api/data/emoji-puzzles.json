@@ -2,15 +2,15 @@
   {
     "id": 1,
     "category": "成语",
-    "emoji": "🐍✏️🦶",
-    "answer": "画蛇添足",
+    "emoji": "🌳🐰👴⏳",
+    "answer": "守株待兔",
     "alternatives": []
   },
   {
     "id": 2,
     "category": "成语",
-    "emoji": "🌳🐰⏳",
-    "answer": "守株待兔",
+    "emoji": "🐍✏️🦶",
+    "answer": "画蛇添足",
     "alternatives": []
   },
   {
@@ -37,7 +37,7 @@
   {
     "id": 6,
     "category": "成语",
-    "emoji": "🦊🐯👑",
+    "emoji": "🦊🐯😱",
     "answer": "狐假虎威",
     "alternatives": []
   },
@@ -58,505 +58,749 @@
   {
     "id": 9,
     "category": "成语",
-    "emoji": "🍃🐉",
+    "emoji": "👴🐉",
     "answer": "叶公好龙",
     "alternatives": []
   },
   {
     "id": 10,
     "category": "成语",
-    "emoji": "👴⛰️⛏️",
-    "answer": "愚公移山",
+    "emoji": "🤭🔔🏃",
+    "answer": "掩耳盗铃",
     "alternatives": []
   },
   {
     "id": 11,
     "category": "成语",
-    "emoji": "⛵🗡️📍",
-    "answer": "刻舟求剑",
+    "emoji": "🐢🐰🏁",
+    "answer": "龟兔赛跑",
     "alternatives": []
   },
   {
     "id": 12,
     "category": "成语",
-    "emoji": "🎺🎺🔇",
-    "answer": "滥竽充数",
+    "emoji": "🐓🗡️🌅",
+    "answer": "闻鸡起舞",
     "alternatives": []
   },
   {
     "id": 13,
     "category": "成语",
-    "emoji": "🐓🌅💃",
-    "answer": "闻鸡起舞",
-    "alternatives": []
+    "emoji": "🐔🔪🐒",
+    "answer": "杀鸡儆猴",
+    "alternatives": [
+      "杀鸡吓猴"
+    ]
   },
   {
     "id": 14,
     "category": "成语",
-    "emoji": "📄⚔️🗣️",
-    "answer": "纸上谈兵",
+    "emoji": "🐱📷🐯",
+    "answer": "照猫画虎",
     "alternatives": []
   },
   {
     "id": 15,
+    "category": "成语",
+    "emoji": "🦌👉🐎",
+    "answer": "指鹿为马",
+    "alternatives": []
+  },
+  {
+    "id": 16,
+    "category": "成语",
+    "emoji": "⛵🔪💧",
+    "answer": "刻舟求剑",
+    "alternatives": []
+  },
+  {
+    "id": 17,
+    "category": "成语",
+    "emoji": "🐦🏹😨",
+    "answer": "惊弓之鸟",
+    "alternatives": []
+  },
+  {
+    "id": 18,
+    "category": "成语",
+    "emoji": "🌰🔥🤲",
+    "answer": "火中取栗",
+    "alternatives": []
+  },
+  {
+    "id": 19,
+    "category": "成语",
+    "emoji": "🐔🔪🥚",
+    "answer": "杀鸡取卵",
+    "alternatives": []
+  },
+  {
+    "id": 20,
+    "category": "成语",
+    "emoji": "🍲🔥🪵",
+    "answer": "釜底抽薪",
+    "alternatives": []
+  },
+  {
+    "id": 21,
+    "category": "成语",
+    "emoji": "🌊🤲🐟",
+    "answer": "浑水摸鱼",
+    "alternatives": []
+  },
+  {
+    "id": 22,
+    "category": "成语",
+    "emoji": "👴⛰️⛏️",
+    "answer": "愚公移山",
+    "alternatives": []
+  },
+  {
+    "id": 23,
     "category": "成语",
     "emoji": "🛡️⚔️🤜",
     "answer": "自相矛盾",
     "alternatives": []
   },
   {
-    "id": 16,
-    "category": "成语",
-    "emoji": "👂🤫🔔",
-    "answer": "掩耳盗铃",
-    "alternatives": []
-  },
-  {
-    "id": 17,
+    "id": 24,
     "category": "成语",
     "emoji": "🌱👆📏",
     "answer": "拔苗助长",
-    "alternatives": []
-  },
-  {
-    "id": 18,
-    "category": "成语",
-    "emoji": "😟🌍☁️",
-    "answer": "杞人忧天",
-    "alternatives": []
-  },
-  {
-    "id": 19,
-    "category": "成语",
-    "emoji": "🐔🐔🦩",
-    "answer": "鹤立鸡群",
-    "alternatives": []
-  },
-  {
-    "id": 20,
-    "category": "成语",
-    "emoji": "🐯🐍",
-    "answer": "虎头蛇尾",
-    "alternatives": []
-  },
-  {
-    "id": 21,
-    "category": "成语",
-    "emoji": "🐎✅🏆",
-    "answer": "马到成功",
-    "alternatives": []
-  },
-  {
-    "id": 22,
-    "category": "成语",
-    "emoji": "🐑🐯👄",
-    "answer": "羊入虎口",
-    "alternatives": []
-  },
-  {
-    "id": 23,
-    "category": "成语",
-    "emoji": "🐺🐯🍚",
-    "answer": "狼吞虎咽",
-    "alternatives": []
-  },
-  {
-    "id": 24,
-    "category": "成语",
-    "emoji": "🐔🐶💨",
-    "answer": "鸡飞狗跳",
-    "alternatives": []
+    "alternatives": [
+      "揠苗助长"
+    ]
   },
   {
     "id": 25,
     "category": "成语",
-    "emoji": "🔪🐔🐵",
-    "answer": "杀鸡儆猴",
+    "emoji": "🦩🐔🐔",
+    "answer": "鹤立鸡群",
     "alternatives": []
   },
   {
     "id": 26,
-    "category": "成语",
-    "emoji": "🦅✈️🌊",
-    "answer": "鹏程万里",
-    "alternatives": []
-  },
-  {
-    "id": 27,
-    "category": "成语",
-    "emoji": "🐇3️⃣🕳️",
-    "answer": "狡兔三窟",
-    "alternatives": []
-  },
-  {
-    "id": 28,
     "category": "成语",
     "emoji": "🤲🐑🚶",
     "answer": "顺手牵羊",
     "alternatives": []
   },
   {
-    "id": 29,
+    "id": 27,
     "category": "成语",
     "emoji": "🐯⛰️🚶",
     "answer": "调虎离山",
     "alternatives": []
   },
   {
+    "id": 28,
+    "category": "成语",
+    "emoji": "🍐👀🤤",
+    "answer": "望梅止渴",
+    "alternatives": []
+  },
+  {
+    "id": 29,
+    "category": "成语",
+    "emoji": "🌳⚔️😱",
+    "answer": "草木皆兵",
+    "alternatives": []
+  },
+  {
     "id": 30,
     "category": "成语",
-    "emoji": "🐉🌊☁️",
-    "answer": "龙腾虎跃",
+    "emoji": "⚒️🍲🚢⚓",
+    "answer": "破釜沉舟",
     "alternatives": []
   },
   {
     "id": 31,
     "category": "成语",
-    "emoji": "🦊🦊🦊🦊",
-    "answer": "狐群狗党",
+    "emoji": "📄⚔️🗣️",
+    "answer": "纸上谈兵",
     "alternatives": []
   },
   {
     "id": 32,
     "category": "成语",
-    "emoji": "🐟🐟🐟🐟",
-    "answer": "鱼贯而入",
+    "emoji": "🎺🎺🔇",
+    "answer": "滥竽充数",
     "alternatives": []
   },
   {
     "id": 33,
     "category": "成语",
-    "emoji": "🦅🦅🐯🐯",
-    "answer": "龙争虎斗",
+    "emoji": "😟🌍☁️",
+    "answer": "杞人忧天",
     "alternatives": []
   },
   {
     "id": 34,
     "category": "成语",
-    "emoji": "💧🪨⏬",
-    "answer": "水落石出",
+    "emoji": "🤲🪵🔥",
+    "answer": "抱薪救火",
     "alternatives": []
   },
   {
     "id": 35,
     "category": "成语",
-    "emoji": "🔥🛢️🌊",
-    "answer": "火上浇油",
+    "emoji": "🌊🚢🤫",
+    "answer": "瞒天过海",
     "alternatives": []
   },
   {
     "id": 36,
     "category": "成语",
-    "emoji": "❄️🔥🤲",
-    "answer": "冰天雪地",
+    "emoji": "🥤🐍💊",
+    "answer": "饮鸩止渴",
     "alternatives": []
   },
   {
     "id": 37,
     "category": "成语",
-    "emoji": "🌙🐶🤏",
-    "answer": "偷鸡摸狗",
+    "emoji": "🔥🏃💰",
+    "answer": "趁火打劫",
     "alternatives": []
   },
   {
     "id": 38,
     "category": "成语",
-    "emoji": "🐔🥚🦴",
-    "answer": "杀鸡取卵",
+    "emoji": "🫓✏️🤤",
+    "answer": "画饼充饥",
     "alternatives": []
   },
   {
     "id": 39,
     "category": "成语",
-    "emoji": "🐎🐎🐅🐅",
-    "answer": "千军万马",
+    "emoji": "🏭💰🔙💎",
+    "answer": "买椟还珠",
     "alternatives": []
   },
   {
     "id": 40,
     "category": "成语",
-    "emoji": "🦗🦗🦗🦗",
-    "answer": "螳臂当车",
+    "emoji": "🧗🐟",
+    "answer": "缘木求鱼",
     "alternatives": []
   },
   {
     "id": 41,
-    "category": "影视",
-    "emoji": "🐒🍑⚔️",
-    "answer": "西游记",
-    "alternatives": ["大话西游", "西游记"]
+    "category": "成语",
+    "emoji": "👄🍯🗡️",
+    "answer": "口蜜腹剑",
+    "alternatives": []
   },
   {
     "id": 42,
-    "category": "影视",
-    "emoji": "📖💔🌸",
-    "answer": "红楼梦",
+    "category": "成语",
+    "emoji": "😊🔪",
+    "answer": "笑里藏刀",
     "alternatives": []
   },
   {
     "id": 43,
-    "category": "影视",
-    "emoji": "🐴⚔️👑",
-    "answer": "三国演义",
-    "alternatives": ["三国"]
+    "category": "成语",
+    "emoji": "⚔️💧🔙",
+    "answer": "背水一战",
+    "alternatives": []
   },
   {
     "id": 44,
-    "category": "影视",
-    "emoji": "🗡️⛰️🌊",
-    "answer": "水浒传",
-    "alternatives": ["水浒"]
+    "category": "成语",
+    "emoji": "❤️🎋",
+    "answer": "胸有成竹",
+    "alternatives": []
   },
   {
     "id": 45,
-    "category": "影视",
-    "emoji": "🚢💔🧊",
-    "answer": "泰坦尼克号",
-    "alternatives": ["泰坦尼克", "Titanic"]
+    "category": "成语",
+    "emoji": "🔪🥩😌",
+    "answer": "游刃有余",
+    "alternatives": []
   },
   {
     "id": 46,
-    "category": "影视",
-    "emoji": "🥋💥👊",
-    "answer": "功夫",
-    "alternatives": ["功夫熊猫", "KungFu"]
+    "category": "成语",
+    "emoji": "🐴🧭❌",
+    "answer": "南辕北辙",
+    "alternatives": []
   },
   {
     "id": 47,
-    "category": "影视",
-    "emoji": "🌍🚀☀️",
-    "answer": "流浪地球",
+    "category": "成语",
+    "emoji": "🌊🚢👉",
+    "answer": "顺水推舟",
     "alternatives": []
   },
   {
     "id": 48,
-    "category": "影视",
-    "emoji": "🐺⚔️🇨🇳",
-    "answer": "战狼",
+    "category": "成语",
+    "emoji": "🏰🔇🤫",
+    "answer": "空城计",
     "alternatives": []
   },
   {
     "id": 49,
-    "category": "影视",
-    "emoji": "👦🔥🎯",
-    "answer": "哪吒",
-    "alternatives": ["哪吒之魔童降世", "哪吒降世"]
+    "category": "成语",
+    "emoji": "💃💔",
+    "answer": "美人计",
+    "alternatives": []
   },
   {
     "id": 50,
-    "category": "影视",
-    "emoji": "⚡🧙👓",
-    "answer": "哈利波特",
-    "alternatives": ["Harry Potter", "哈利·波特"]
+    "category": "成语",
+    "emoji": "🐔🐶💨",
+    "answer": "鸡飞狗跳",
+    "alternatives": []
   },
   {
     "id": 51,
     "category": "影视",
-    "emoji": "🦸‍♂️🦸‍♀️🤝",
-    "answer": "复仇者联盟",
-    "alternatives": ["Avengers", "妇联"]
+    "emoji": "🐒🐷🐴👨‍🦲",
+    "answer": "西游记",
+    "alternatives": [
+      "大话西游",
+      "Journey to the West"
+    ]
   },
   {
     "id": 52,
     "category": "影视",
-    "emoji": "🤖🚗💥",
-    "answer": "变形金刚",
-    "alternatives": ["Transformers"]
+    "emoji": "👑👑👑🌸🤝",
+    "answer": "三国演义",
+    "alternatives": [
+      "三国"
+    ]
   },
   {
     "id": 53,
     "category": "影视",
-    "emoji": "🏎️💨🔥",
-    "answer": "速度与激情",
-    "alternatives": ["Fast & Furious", "速激"]
+    "emoji": "💧⛰️👥",
+    "answer": "水浒传",
+    "alternatives": [
+      "水浒"
+    ]
   },
   {
     "id": 54,
     "category": "影视",
-    "emoji": "💙👽🌊",
-    "answer": "阿凡达",
-    "alternatives": ["Avatar"]
+    "emoji": "💎🏰😔",
+    "answer": "红楼梦",
+    "alternatives": []
   },
   {
     "id": 55,
     "category": "影视",
-    "emoji": "❄️👑🧊",
-    "answer": "冰雪奇缘",
-    "alternatives": ["Frozen", "Let It Go"]
+    "emoji": "🌍🚀☀️💥",
+    "answer": "流浪地球",
+    "alternatives": []
   },
   {
     "id": 56,
     "category": "影视",
-    "emoji": "🦊🐰👮",
-    "answer": "疯狂动物城",
-    "alternatives": ["Zootopia", "动物方城市"]
+    "emoji": "🐺🔫🇨🇳",
+    "answer": "战狼2",
+    "alternatives": [
+      "战狼",
+      "Wolf Warrior"
+    ]
   },
   {
     "id": 57,
     "category": "影视",
-    "emoji": "🧜‍♀️🐟🌊",
-    "answer": "美人鱼",
-    "alternatives": ["海的女儿", "小美人鱼"]
+    "emoji": "❄️🏔️🔫",
+    "answer": "长津湖",
+    "alternatives": []
   },
   {
     "id": 58,
     "category": "影视",
-    "emoji": "🐒👑🔥",
-    "answer": "大圣归来",
-    "alternatives": ["西游记之大圣归来", "大圣"]
+    "emoji": "👶🔥🌊⚔️",
+    "answer": "哪吒之魔童降世",
+    "alternatives": [
+      "哪吒",
+      "哪吒降世"
+    ]
   },
   {
     "id": 59,
     "category": "影视",
-    "emoji": "🐍💗👻",
-    "answer": "白蛇缘起",
-    "alternatives": ["白蛇传", "白蛇"]
+    "emoji": "🚢💔🧊",
+    "answer": "泰坦尼克号",
+    "alternatives": [
+      "泰坦尼克",
+      "Titanic"
+    ]
   },
   {
     "id": 60,
     "category": "影视",
-    "emoji": "🕷️🕸️🏙️",
-    "answer": "蜘蛛侠",
-    "alternatives": ["Spider-Man", "蜘蛛人"]
+    "emoji": "🧙‍♂️⚡📚",
+    "answer": "哈利波特",
+    "alternatives": [
+      "Harry Potter",
+      "哈利·波特"
+    ]
   },
   {
     "id": 61,
     "category": "影视",
-    "emoji": "🦇🃏🌃",
-    "answer": "蝙蝠侠",
-    "alternatives": ["Batman"]
+    "emoji": "💍🌋👹",
+    "answer": "指环王",
+    "alternatives": [
+      "魔戒",
+      "Lord of the Rings"
+    ]
   },
   {
     "id": 62,
     "category": "影视",
-    "emoji": "🤠🚀⭐",
-    "answer": "玩具总动员",
-    "alternatives": ["Toy Story"]
+    "emoji": "🕷️👦",
+    "answer": "蜘蛛侠",
+    "alternatives": [
+      "Spider-Man"
+    ]
   },
   {
     "id": 63,
     "category": "影视",
-    "emoji": "🐠🔍🐟",
-    "answer": "海底总动员",
-    "alternatives": ["Finding Nemo", "寻找尼莫"]
+    "emoji": "🦇🦸",
+    "answer": "蝙蝠侠",
+    "alternatives": [
+      "Batman"
+    ]
   },
   {
     "id": 64,
     "category": "影视",
-    "emoji": "👹🧅👹",
-    "answer": "怪物史莱克",
-    "alternatives": ["Shrek", "史莱克"]
+    "emoji": "❄️👸",
+    "answer": "冰雪奇缘",
+    "alternatives": [
+      "Frozen"
+    ]
   },
   {
     "id": 65,
     "category": "影视",
-    "emoji": "🐼🥋🍜",
+    "emoji": "🐼🥋",
     "answer": "功夫熊猫",
-    "alternatives": ["Kung Fu Panda"]
+    "alternatives": [
+      "Kung Fu Panda"
+    ]
   },
   {
     "id": 66,
     "category": "影视",
-    "emoji": "👴🎣🐟",
-    "answer": "老人与海",
-    "alternatives": []
+    "emoji": "💙👽🌊",
+    "answer": "阿凡达",
+    "alternatives": [
+      "Avatar"
+    ]
   },
   {
     "id": 67,
     "category": "影视",
-    "emoji": "🦁👑🌅",
-    "answer": "狮子王",
-    "alternatives": ["Lion King"]
+    "emoji": "🦸‍♂️🦸‍♀️🤝",
+    "answer": "复仇者联盟",
+    "alternatives": [
+      "Avengers",
+      "妇联"
+    ]
   },
   {
     "id": 68,
     "category": "影视",
-    "emoji": "🐜🦸‍♂️💪",
-    "answer": "蚁人",
-    "alternatives": ["Ant-Man"]
+    "emoji": "🤖🚗💥",
+    "answer": "变形金刚",
+    "alternatives": [
+      "Transformers"
+    ]
   },
   {
     "id": 69,
-    "category": "成语",
-    "emoji": "9️⃣🐂1️⃣🦌",
-    "answer": "九牛一毛",
-    "alternatives": []
+    "category": "影视",
+    "emoji": "🏎️💨🔥",
+    "answer": "速度与激情",
+    "alternatives": [
+      "速激",
+      "Fast & Furious"
+    ]
   },
   {
     "id": 70,
-    "category": "成语",
-    "emoji": "7️⃣👆8️⃣⬇️",
-    "answer": "七上八下",
-    "alternatives": []
+    "category": "影视",
+    "emoji": "🦊🐰👮",
+    "answer": "疯狂动物城",
+    "alternatives": [
+      "Zootopia"
+    ]
   },
   {
     "id": 71,
-    "category": "成语",
-    "emoji": "1️⃣🐎1️⃣🚀",
-    "answer": "一马当先",
-    "alternatives": []
+    "category": "影视",
+    "emoji": "🧜‍♀️🐟🌊",
+    "answer": "美人鱼",
+    "alternatives": [
+      "海的女儿"
+    ]
   },
   {
     "id": 72,
-    "category": "成语",
-    "emoji": "3️⃣🏠4️⃣🚪",
-    "answer": "四海为家",
-    "alternatives": []
+    "category": "影视",
+    "emoji": "👩👧❤️⏰",
+    "answer": "你好李焕英",
+    "alternatives": [
+      "李焕英"
+    ]
   },
   {
     "id": 73,
-    "category": "成语",
-    "emoji": "5️⃣🌸8️⃣🚪",
-    "answer": "五花八门",
-    "alternatives": []
+    "category": "影视",
+    "emoji": "👑🐱",
+    "answer": "狮子王",
+    "alternatives": [
+      "Lion King"
+    ]
   },
   {
     "id": 74,
-    "category": "成语",
-    "emoji": "1️⃣🦶⛰️1️⃣🦶📖",
-    "answer": "一步一个脚印",
-    "alternatives": []
+    "category": "影视",
+    "emoji": "🌸🗡️🐎",
+    "answer": "花木兰",
+    "alternatives": [
+      "Mulan",
+      "木兰"
+    ]
   },
   {
     "id": 75,
-    "category": "成语",
-    "emoji": "🔟🔴🔟⚪",
-    "answer": "十全十美",
-    "alternatives": []
+    "category": "影视",
+    "emoji": "🎸💀👦",
+    "answer": "寻梦环游记",
+    "alternatives": [
+      "Coco"
+    ]
   },
   {
     "id": 76,
-    "category": "成语",
-    "emoji": "💯🏆💯",
-    "answer": "百发百中",
-    "alternatives": []
+    "category": "影视",
+    "emoji": "🏠🎈🧓",
+    "answer": "飞屋环游记",
+    "alternatives": [
+      "Up"
+    ]
   },
   {
     "id": 77,
-    "category": "成语",
-    "emoji": "1️⃣👀1️⃣👀",
-    "answer": "一目了然",
-    "alternatives": []
+    "category": "影视",
+    "emoji": "🧠😃😢",
+    "answer": "头脑特工队",
+    "alternatives": [
+      "Inside Out"
+    ]
   },
   {
     "id": 78,
-    "category": "成语",
-    "emoji": "5️⃣🌈6️⃣🌈",
-    "answer": "五颜六色",
-    "alternatives": []
+    "category": "影视",
+    "emoji": "⭐⚔️🚀",
+    "answer": "星球大战",
+    "alternatives": [
+      "Star Wars"
+    ]
   },
   {
     "id": 79,
-    "category": "成语",
-    "emoji": "🐔🐔🥚🥚",
-    "answer": "鸡飞蛋打",
-    "alternatives": []
+    "category": "影视",
+    "emoji": "🏴‍☠️⛵🏝️",
+    "answer": "加勒比海盗",
+    "alternatives": [
+      "Pirates of the Caribbean"
+    ]
   },
   {
     "id": 80,
-    "category": "成语",
-    "emoji": "💧🪵🚶",
-    "answer": "水到渠成",
+    "category": "影视",
+    "emoji": "💻🕶️🟢",
+    "answer": "黑客帝国",
+    "alternatives": [
+      "The Matrix",
+      "矩阵"
+    ]
+  },
+  {
+    "id": 81,
+    "category": "影视",
+    "emoji": "🐒👑🔥",
+    "answer": "大圣归来",
+    "alternatives": [
+      "西游记之大圣归来"
+    ]
+  },
+  {
+    "id": 82,
+    "category": "影视",
+    "emoji": "🗡️🩸📜",
+    "answer": "满江红",
+    "alternatives": []
+  },
+  {
+    "id": 83,
+    "category": "影视",
+    "emoji": "🏯✈️📜",
+    "answer": "长安三万里",
+    "alternatives": []
+  },
+  {
+    "id": 84,
+    "category": "影视",
+    "emoji": "🏮⚔️👑",
+    "answer": "封神第一部",
+    "alternatives": [
+      "封神"
+    ]
+  },
+  {
+    "id": 85,
+    "category": "影视",
+    "emoji": "🥊⛩️👦",
+    "answer": "八角笼中",
+    "alternatives": []
+  },
+  {
+    "id": 86,
+    "category": "影视",
+    "emoji": "👰❓🔍",
+    "answer": "消失的她",
+    "alternatives": []
+  },
+  {
+    "id": 87,
+    "category": "影视",
+    "emoji": "🤠🚀⭐",
+    "answer": "玩具总动员",
+    "alternatives": [
+      "Toy Story"
+    ]
+  },
+  {
+    "id": 88,
+    "category": "影视",
+    "emoji": "🐠🔍🐟",
+    "answer": "海底总动员",
+    "alternatives": [
+      "Finding Nemo",
+      "寻找尼莫"
+    ]
+  },
+  {
+    "id": 89,
+    "category": "影视",
+    "emoji": "🤖🌱❤️",
+    "answer": "机器人总动员",
+    "alternatives": [
+      "WALL·E",
+      "瓦力"
+    ]
+  },
+  {
+    "id": 90,
+    "category": "影视",
+    "emoji": "🦸‍♂️🦸‍♀️💥",
+    "answer": "超人总动员",
+    "alternatives": [
+      "The Incredibles"
+    ]
+  },
+  {
+    "id": 91,
+    "category": "影视",
+    "emoji": "🥋💥👊",
+    "answer": "功夫",
+    "alternatives": [
+      "Kung Fu"
+    ]
+  },
+  {
+    "id": 92,
+    "category": "影视",
+    "emoji": "🏪🔍🕵️",
+    "answer": "唐人街探案",
+    "alternatives": [
+      "唐探"
+    ]
+  },
+  {
+    "id": 93,
+    "category": "影视",
+    "emoji": "💤🎓😂",
+    "answer": "夏洛特烦恼",
+    "alternatives": []
+  },
+  {
+    "id": 94,
+    "category": "影视",
+    "emoji": "🐻🌲🏃",
+    "answer": "熊出没",
+    "alternatives": []
+  },
+  {
+    "id": 95,
+    "category": "影视",
+    "emoji": "🐑🐺🪤",
+    "answer": "喜羊羊与灰太狼",
+    "alternatives": [
+      "喜羊羊"
+    ]
+  },
+  {
+    "id": 96,
+    "category": "影视",
+    "emoji": "🦖🦕🏞️",
+    "answer": "侏罗纪公园",
+    "alternatives": [
+      "Jurassic Park"
+    ]
+  },
+  {
+    "id": 97,
+    "category": "影视",
+    "emoji": "🔩🦸‍♂️💥",
+    "answer": "钢铁侠",
+    "alternatives": [
+      "Iron Man"
+    ]
+  },
+  {
+    "id": 98,
+    "category": "影视",
+    "emoji": "🐆👑",
+    "answer": "黑豹",
+    "alternatives": [
+      "Black Panther"
+    ]
+  },
+  {
+    "id": 99,
+    "category": "影视",
+    "emoji": "🟢👹👂",
+    "answer": "怪物史莱克",
+    "alternatives": [
+      "Shrek",
+      "史莱克"
+    ]
+  },
+  {
+    "id": 100,
+    "category": "影视",
+    "emoji": "🏮👹👶",
+    "answer": "捉妖记",
+    "alternatives": []
+  },
+  {
+    "id": 101,
+    "category": "影视",
+    "emoji": "💊🛒😭",
+    "answer": "我不是药神",
     "alternatives": []
   }
 ]
