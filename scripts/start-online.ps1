@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.0
-# 画词记忆 · 服务管理器（GUI 版）
+# 派对小游戏 · 服务管理器（GUI 版）
 # 双击「在线游玩.bat」即可启动
 #
 # 参考 stock-helper 项目设计：
@@ -307,7 +307,7 @@ function Save-PagesDomain {
 
 # ---------- 构建 GUI ----------
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "画词记忆 · 服务管理器"
+$form.Text = "派对小游戏 · 服务管理器"
 $form.Size = New-Object System.Drawing.Size(580, 680)
 $form.StartPosition = "CenterScreen"
 $form.FormBorderStyle = "FixedSingle"
@@ -316,7 +316,7 @@ $form.BackColor = [System.Drawing.Color]::FromArgb(30, 30, 46)
 
 # 标题
 $titleLbl = New-Object System.Windows.Forms.Label
-$titleLbl.Text = "画词记忆 · 服务管理器"
+$titleLbl.Text = "派对小游戏 · 服务管理器"
 $titleLbl.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 14, [System.Drawing.FontStyle]::Bold)
 $titleLbl.ForeColor = [System.Drawing.Color]::White
 $titleLbl.AutoSize = $true
@@ -494,7 +494,7 @@ $panelAdmin.BackColor = [System.Drawing.Color]::FromArgb(45, 45, 65)
 $form.Controls.Add($panelAdmin)
 
 $lblAdmin = New-Object System.Windows.Forms.Label
-$lblAdmin.Text = "🛠 题库管理后台"
+$lblAdmin.Text = "题库管理后台"
 $lblAdmin.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 10, [System.Drawing.FontStyle]::Bold)
 $lblAdmin.ForeColor = [System.Drawing.Color]::White
 $lblAdmin.Location = New-Object System.Drawing.Point(10, 5)

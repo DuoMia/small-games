@@ -1,21 +1,21 @@
 @echo off
-title Online Game Launcher
+title 派对小游戏 · 服务管理器
 
 cd /d "%~dp0"
 
 echo.
 echo ========================================
-echo   Online Game Launcher (Cloudflare Tunnel)
+echo   派对小游戏 · 服务管理器
 echo ========================================
 echo.
-echo Starting Cloudflare Tunnel...
-echo Public URL + QR code will open automatically.
+echo 正在启动服务管理器...
+echo 公网链接和二维码会自动弹出.
 echo.
 
 powershell -ExecutionPolicy Bypass -NoProfile -File "%~dp0scripts\start-online.ps1"
 
 echo.
 echo ----------------------------------------
-echo Script finished (exit code %errorlevel%)
+echo 脚本已结束 (退出码 %errorlevel%)
 echo ----------------------------------------
 pause
