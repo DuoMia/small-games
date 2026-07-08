@@ -2,89 +2,47 @@
   {
     "id": 1,
     "category": "成语",
-    "emoji": "🌳🐰👴⏳",
+    "emoji": "🌳🐰",
     "answer": "守株待兔",
     "alternatives": []
   },
   {
     "id": 2,
     "category": "成语",
-    "emoji": "🐍✏️🦶",
-    "answer": "画蛇添足",
+    "emoji": "🐂🎵",
+    "answer": "对牛弹琴",
     "alternatives": []
   },
   {
     "id": 3,
     "category": "成语",
-    "emoji": "🐑🔨🏠",
-    "answer": "亡羊补牢",
+    "emoji": "🐰🐢",
+    "answer": "龟兔赛跑",
     "alternatives": []
   },
   {
     "id": 4,
     "category": "成语",
-    "emoji": "🕳️🐸",
-    "answer": "井底之蛙",
+    "emoji": "🐍✏️",
+    "answer": "画蛇添足",
     "alternatives": []
   },
   {
     "id": 5,
     "category": "成语",
-    "emoji": "🐂🎸🎵",
-    "answer": "对牛弹琴",
+    "emoji": "🦊🐯",
+    "answer": "狐假虎威",
     "alternatives": []
   },
   {
     "id": 6,
     "category": "成语",
-    "emoji": "🦊🐯😱",
-    "answer": "狐假虎威",
+    "emoji": "🐘👁️👃👂✋",
+    "answer": "盲人摸象",
     "alternatives": []
   },
   {
     "id": 7,
-    "category": "成语",
-    "emoji": "🍷🏹🐍",
-    "answer": "杯弓蛇影",
-    "alternatives": []
-  },
-  {
-    "id": 8,
-    "category": "成语",
-    "emoji": "🐉✏️👁️",
-    "answer": "画龙点睛",
-    "alternatives": []
-  },
-  {
-    "id": 9,
-    "category": "成语",
-    "emoji": "👴🐉",
-    "answer": "叶公好龙",
-    "alternatives": []
-  },
-  {
-    "id": 10,
-    "category": "成语",
-    "emoji": "🤭🔔🏃",
-    "answer": "掩耳盗铃",
-    "alternatives": []
-  },
-  {
-    "id": 11,
-    "category": "成语",
-    "emoji": "🐢🐰🏁",
-    "answer": "龟兔赛跑",
-    "alternatives": []
-  },
-  {
-    "id": 12,
-    "category": "成语",
-    "emoji": "🐓🗡️🌅",
-    "answer": "闻鸡起舞",
-    "alternatives": []
-  },
-  {
-    "id": 13,
     "category": "成语",
     "emoji": "🐔🔪🐒",
     "answer": "杀鸡儆猴",
@@ -93,265 +51,316 @@
     ]
   },
   {
+    "id": 8,
+    "category": "成语",
+    "emoji": "🍑👀🤤",
+    "answer": "望梅止渴",
+    "alternatives": []
+  },
+  {
+    "id": 9,
+    "category": "成语",
+    "emoji": "🐎💨🌸",
+    "answer": "走马观花",
+    "alternatives": []
+  },
+  {
+    "id": 10,
+    "category": "成语",
+    "emoji": "🐦👨‍🦲🏹",
+    "answer": "惊弓之鸟",
+    "alternatives": []
+  },
+  {
+    "id": 11,
+    "category": "成语",
+    "emoji": "🐸🕳️",
+    "answer": "井底之蛙",
+    "alternatives": []
+  },
+  {
+    "id": 12,
+    "category": "成语",
+    "emoji": "🐑🔨🏠",
+    "answer": "亡羊补牢",
+    "alternatives": []
+  },
+  {
+    "id": 13,
+    "category": "成语",
+    "emoji": "🐴🗺️",
+    "answer": "老马识途",
+    "alternatives": []
+  },
+  {
     "id": 14,
     "category": "成语",
-    "emoji": "🐱📷🐯",
-    "answer": "照猫画虎",
+    "emoji": "🐕🧱",
+    "answer": "狗急跳墙",
     "alternatives": []
   },
   {
     "id": 15,
     "category": "成语",
-    "emoji": "🦌👉🐎",
-    "answer": "指鹿为马",
+    "emoji": "🌸💧",
+    "answer": "落花流水",
     "alternatives": []
   },
   {
     "id": 16,
     "category": "成语",
-    "emoji": "⛵🔪💧",
-    "answer": "刻舟求剑",
+    "emoji": "🐒👑⛰️",
+    "answer": "大闹天宫",
     "alternatives": []
   },
   {
     "id": 17,
     "category": "成语",
-    "emoji": "🐦🏹😨",
-    "answer": "惊弓之鸟",
-    "alternatives": []
+    "emoji": "🌊⛵",
+    "answer": "同舟共济",
+    "alternatives": [
+      "风雨同舟"
+    ]
   },
   {
     "id": 18,
     "category": "成语",
-    "emoji": "🌰🔥🤲",
-    "answer": "火中取栗",
+    "emoji": "🐓🌅⚔️",
+    "answer": "闻鸡起舞",
     "alternatives": []
   },
   {
     "id": 19,
     "category": "成语",
-    "emoji": "🐔🔪🥚",
-    "answer": "杀鸡取卵",
+    "emoji": "🔥💧",
+    "answer": "水火不容",
     "alternatives": []
   },
   {
     "id": 20,
     "category": "成语",
-    "emoji": "🍲🔥🪵",
-    "answer": "釜底抽薪",
+    "emoji": "🐔💨🐕",
+    "answer": "鸡飞狗跳",
     "alternatives": []
   },
   {
     "id": 21,
     "category": "成语",
-    "emoji": "🌊🤲🐟",
-    "answer": "浑水摸鱼",
+    "emoji": "🐯🐑",
+    "answer": "羊入虎口",
     "alternatives": []
   },
   {
     "id": 22,
     "category": "成语",
-    "emoji": "👴⛰️⛏️",
-    "answer": "愚公移山",
+    "emoji": "🐺🐑",
+    "answer": "狼狈为奸",
     "alternatives": []
   },
   {
     "id": 23,
     "category": "成语",
-    "emoji": "🛡️⚔️🤜",
-    "answer": "自相矛盾",
+    "emoji": "🌙👸🐰",
+    "answer": "嫦娥奔月",
     "alternatives": []
   },
   {
     "id": 24,
     "category": "成语",
-    "emoji": "🌱👆📏",
-    "answer": "拔苗助长",
+    "emoji": "🍂🌳",
+    "answer": "一叶知秋",
     "alternatives": [
-      "揠苗助长"
+      "落叶知秋"
     ]
   },
   {
     "id": 25,
     "category": "成语",
-    "emoji": "🦩🐔🐔",
-    "answer": "鹤立鸡群",
+    "emoji": "🐴🌌",
+    "answer": "天马行空",
     "alternatives": []
   },
   {
     "id": 26,
     "category": "成语",
-    "emoji": "🤲🐑🚶",
-    "answer": "顺手牵羊",
+    "emoji": "💧🌙",
+    "answer": "镜花水月",
     "alternatives": []
   },
   {
     "id": 27,
     "category": "成语",
-    "emoji": "🐯⛰️🚶",
-    "answer": "调虎离山",
+    "emoji": "🌳🌸🌸🌸",
+    "answer": "百花齐放",
     "alternatives": []
   },
   {
     "id": 28,
     "category": "成语",
-    "emoji": "🍐👀🤤",
-    "answer": "望梅止渴",
+    "emoji": "🐟🌊",
+    "answer": "如鱼得水",
     "alternatives": []
   },
   {
     "id": 29,
     "category": "成语",
-    "emoji": "🌳⚔️😱",
-    "answer": "草木皆兵",
+    "emoji": "🐺→🌕",
+    "answer": "狼来了",
     "alternatives": []
   },
   {
     "id": 30,
     "category": "成语",
-    "emoji": "⚒️🍲🚢⚓",
-    "answer": "破釜沉舟",
+    "emoji": "🐦🦪",
+    "answer": "鹬蚌相争",
     "alternatives": []
   },
   {
     "id": 31,
     "category": "成语",
-    "emoji": "📄⚔️🗣️",
-    "answer": "纸上谈兵",
-    "alternatives": []
+    "emoji": "🐕🐭",
+    "answer": "狗拿耗子",
+    "alternatives": [
+      "狗拿耗子多管闲事"
+    ]
   },
   {
     "id": 32,
     "category": "成语",
-    "emoji": "🎺🎺🔇",
-    "answer": "滥竽充数",
+    "emoji": "🌾💨",
+    "answer": "风吹草动",
     "alternatives": []
   },
   {
     "id": 33,
     "category": "成语",
-    "emoji": "😟🌍☁️",
-    "answer": "杞人忧天",
+    "emoji": "🐰🏠🏠🏠",
+    "answer": "狡兔三窟",
     "alternatives": []
   },
   {
     "id": 34,
     "category": "成语",
-    "emoji": "🤲🪵🔥",
-    "answer": "抱薪救火",
+    "emoji": "🦅☁️",
+    "answer": "大鹏展翅",
     "alternatives": []
   },
   {
     "id": 35,
     "category": "成语",
-    "emoji": "🌊🚢🤫",
-    "answer": "瞒天过海",
-    "alternatives": []
+    "emoji": "🐂👆",
+    "answer": "牛逼",
+    "alternatives": [
+      "牛B",
+      "牛掰"
+    ]
   },
   {
     "id": 36,
     "category": "成语",
-    "emoji": "🥤🐍💊",
-    "answer": "饮鸩止渴",
+    "emoji": "🌾⛵",
+    "answer": "草船借箭",
     "alternatives": []
   },
   {
     "id": 37,
     "category": "成语",
-    "emoji": "🔥🏃💰",
-    "answer": "趁火打劫",
+    "emoji": "🐎☀️",
+    "answer": "一日千里",
     "alternatives": []
   },
   {
     "id": 38,
     "category": "成语",
-    "emoji": "🫓✏️🤤",
-    "answer": "画饼充饥",
+    "emoji": "🌸🌙",
+    "answer": "花好月圆",
     "alternatives": []
   },
   {
     "id": 39,
     "category": "成语",
-    "emoji": "🏭💰🔙💎",
-    "answer": "买椟还珠",
+    "emoji": "🐍🌹",
+    "answer": "蛇蝎心肠",
     "alternatives": []
   },
   {
     "id": 40,
     "category": "成语",
-    "emoji": "🧗🐟",
-    "answer": "缘木求鱼",
+    "emoji": "🏮🏮🏮",
+    "answer": "张灯结彩",
     "alternatives": []
   },
   {
     "id": 41,
     "category": "成语",
-    "emoji": "👄🍯🗡️",
-    "answer": "口蜜腹剑",
+    "emoji": "🐂🌳",
+    "answer": "牛鬼蛇神",
     "alternatives": []
   },
   {
     "id": 42,
     "category": "成语",
-    "emoji": "😊🔪",
-    "answer": "笑里藏刀",
+    "emoji": "🐦🏹🎯",
+    "answer": "一箭双雕",
     "alternatives": []
   },
   {
     "id": 43,
     "category": "成语",
-    "emoji": "⚔️💧🔙",
-    "answer": "背水一战",
+    "emoji": "🐎🐎🐎",
+    "answer": "万马奔腾",
     "alternatives": []
   },
   {
     "id": 44,
     "category": "成语",
-    "emoji": "❤️🎋",
-    "answer": "胸有成竹",
+    "emoji": "🐦🌳🎵",
+    "answer": "鸟语花香",
     "alternatives": []
   },
   {
     "id": 45,
     "category": "成语",
-    "emoji": "🔪🥩😌",
-    "answer": "游刃有余",
+    "emoji": "🌊🏔️",
+    "answer": "海枯石烂",
     "alternatives": []
   },
   {
     "id": 46,
     "category": "成语",
-    "emoji": "🐴🧭❌",
-    "answer": "南辕北辙",
+    "emoji": "🦌🌲",
+    "answer": "林深时见鹿",
     "alternatives": []
   },
   {
     "id": 47,
     "category": "成语",
-    "emoji": "🌊🚢👉",
-    "answer": "顺水推舟",
+    "emoji": "🐦🏠",
+    "answer": "倦鸟归巢",
     "alternatives": []
   },
   {
     "id": 48,
     "category": "成语",
-    "emoji": "🏰🔇🤫",
-    "answer": "空城计",
+    "emoji": "🌹🌙",
+    "answer": "闭月羞花",
     "alternatives": []
   },
   {
     "id": 49,
     "category": "成语",
-    "emoji": "💃💔",
-    "answer": "美人计",
+    "emoji": "🐕🏃",
+    "answer": "走为上计",
     "alternatives": []
   },
   {
     "id": 50,
     "category": "成语",
-    "emoji": "🐔🐶💨",
-    "answer": "鸡飞狗跳",
-    "alternatives": []
+    "emoji": "💧🪨",
+    "answer": "滴水穿石",
+    "alternatives": [
+      "水滴石穿"
+    ]
   },
   {
     "id": 51,
@@ -384,7 +393,7 @@
   {
     "id": 54,
     "category": "影视",
-    "emoji": "💎🏰😔",
+    "emoji": "💎🏰😢",
     "answer": "红楼梦",
     "alternatives": []
   },
@@ -794,13 +803,6 @@
     "category": "影视",
     "emoji": "🏮👹👶",
     "answer": "捉妖记",
-    "alternatives": []
-  },
-  {
-    "id": 101,
-    "category": "影视",
-    "emoji": "💊🛒😭",
-    "answer": "我不是药神",
     "alternatives": []
   }
 ]
