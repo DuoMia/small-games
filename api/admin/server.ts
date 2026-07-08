@@ -571,6 +571,18 @@ async function aiExpandMystery(count: number, difficulty: string | undefined, ex
   const diffHint = difficulty && MYSTERY_DIFFICULTIES.includes(difficulty) ? `，难度偏向 ${difficulty}` : "";
   const prompt = `你是双人解密题库生成器，请生成 ${count} 道合作推理谜题。
 
+核心原则：
+1. cluesA 和 cluesB 必须互补——任何一方单独看无法解出，必须交流拼凑才能破案
+2. 线索绝对不能直接透露答案（错误示范：线索写"这是摩斯密码""解密后是HELLO"——等于把答案给了玩家）
+3. 每条线索只提供一个信息碎片，需要玩家自己推理出关联
+
+好题目示例：
+- 故事：富翁死在反锁书房，胸口有刺伤但找不到凶器，地毯上有水渍
+- A线索：伤口细长尖锐，像是锥形利器；水渍没有颜色和气味
+- B线索：案发时正值盛夏室温很高；通风管道格栅松动，人无法通过但能伸入手臂
+- 答案：凶手从通风管道伸入冰锥刺杀死者，冰锥融化成水，凶器消失
+- 关键词：冰锥、融化、通风管道、水渍
+
 题目要求：
 1. 谜题类型只能是：逻辑推理、密码解谜、找线索 三选一（不要经典谜语）
 2. 生成 ${count} 题${diffHint}，难度尽量分布均匀
@@ -578,10 +590,9 @@ async function aiExpandMystery(count: number, difficulty: string | undefined, ex
 4. title 是简短标题（2-6 字）
 5. story 是故事背景，50-150 字，制造悬念但不剧透答案
 6. cluesA 是给玩家A的线索数组（2-3 条），cluesB 是给玩家B的线索数组（2-3 条）
-7. 两人线索必须互补，单独一方无法解出，需要通过聊天交流拼凑信息才能得到答案
-8. answer 是完整答案，30-100 字，解释清楚推理过程
-9. keywords 是 3-5 个关键词，便于判断玩家回答是否命中关键信息
-10. difficulty 只能是 simple/medium/hard：simple 较直白，medium 需要一步推理，hard 需要多步推理
+7. answer 是完整答案，30-100 字，解释清楚推理过程
+8. keywords 是 3-5 个关键词，便于判断玩家回答是否命中关键信息
+9. difficulty 只能是 simple/medium/hard：simple 较直白，medium 需要一步推理，hard 需要多步推理
 ${avoidTitles ? `已有标题（避免重复或近似）：\n${avoidTitles}\n` : ""}请严格返回以下 JSON 格式（不要有任何其他文字）：
 {"cases":[{"title":"标题","story":"故事","cluesA":["线索1","线索2"],"cluesB":["线索1","线索2"],"answer":"答案","keywords":["关键词1","关键词2"],"difficulty":"simple|medium|hard","category":"逻辑推理|密码解谜|找线索"}]}`;
 
