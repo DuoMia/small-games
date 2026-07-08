@@ -71,8 +71,8 @@ export function registerSocketHandlers(io: Io) {
       }
     });
 
-    socket.on("room:set-turtle-difficulty", ({ roomId, difficulty }) => {
-      const room = RoomManager.setTurtleDifficulty(roomId, socket.id, difficulty);
+    socket.on("room:set-mystery-difficulty", ({ roomId, difficulty }) => {
+      const room = RoomManager.setMysteryDifficulty(roomId, socket.id, difficulty);
       if (room) {
         io.to(roomId).emit("room:updated", { room: RoomManager.toRoomView(room) });
       } else {
@@ -86,8 +86,8 @@ export function registerSocketHandlers(io: Io) {
 
     // ---------- 游戏流程 ----------
 
-    socket.on("game:start", ({ roomId }) => {
-      const result = RoomManager.startGame(roomId, socket.id);
+    socket.on("game:start", async ({ roomId }) => {
+      const result = await RoomManager.startGame(roomId, socket.id);
       if (!result) {
         socket.emit("room:error", { message: "无法开始游戏" });
         return;
@@ -114,16 +114,20 @@ export function registerSocketHandlers(io: Io) {
         return;
       }
 
-      if (room.gameType === "turtle-soup") {
-        // 海龟汤：下发汤面，进入 DRAWING（游戏中）
+      if (room.gameType === "mystery") {
+        // 双人解密：AI 出题完成，分别下发各玩家视角的谜题（线索不同）
         io.to(roomId).emit("game:state", {
           phase: room.state.phase,
           currentRound: room.state.currentRound,
         });
-        const surface = RoomManager.getCurrentTurtleSurface(room);
-        if (surface) {
-          io.to(roomId).emit("turtle:surface", surface);
-        }
+        room.players.forEach((p) => {
+          const view = RoomManager.getCurrentMysteryView(room, p.id);
+          if (view) {
+            io.to(p.id).emit("mystery:case", view);
+          }
+        });
+        // 启动 5 分钟倒计时
+        startMysteryTimer(io, roomId);
         return;
       }
 
@@ -302,8 +306,8 @@ export function registerSocketHandlers(io: Io) {
       }
     });
 
-    socket.on("game:restart", ({ roomId }) => {
-      const result = RoomManager.restartGame(roomId, socket.id);
+    socket.on("game:restart", async ({ roomId }) => {
+      const result = await RoomManager.restartGame(roomId, socket.id);
       if (!result) return;
       const room = result.room;
 
@@ -326,16 +330,21 @@ export function registerSocketHandlers(io: Io) {
         return;
       }
 
-      if (room.gameType === "turtle-soup") {
-        // 海龟汤重玩（换一个汤面）
+      if (room.gameType === "mystery") {
+        // 双人解密重玩（换一道题，AI 重新出题）
+        stopMysteryTimer(roomId);
         io.to(roomId).emit("game:state", {
           phase: room.state.phase,
           currentRound: room.state.currentRound,
         });
-        const surface = RoomManager.getCurrentTurtleSurface(room);
-        if (surface) {
-          io.to(roomId).emit("turtle:surface", surface);
-        }
+        room.players.forEach((p) => {
+          const view = RoomManager.getCurrentMysteryView(room, p.id);
+          if (view) {
+            io.to(p.id).emit("mystery:case", view);
+          }
+        });
+        // 重新启动 5 分钟倒计时
+        startMysteryTimer(io, roomId);
         return;
       }
 
@@ -460,81 +469,65 @@ export function registerSocketHandlers(io: Io) {
       });
     });
 
-    // ---------- 海龟汤 ----------
+    // ---------- 双人解密 ----------
 
-    socket.on("turtle:ask", async ({ roomId, question }) => {
-      // 先通知"AI 思考中"
-      io.to(roomId).emit("turtle:judging", { type: "question" });
-      const result = await RoomManager.askTurtleQuestion(roomId, socket.id, question);
-      if (result.ok === false) {
-        socket.emit("room:error", { message: result.error });
-        return;
-      }
-      io.to(roomId).emit("turtle:answered", {
-        questionIndex: result.questionIndex,
-        question: result.question,
-        asker: result.asker,
-        answer: result.answer,
-        questionsLeft: result.questionsLeft,
-      });
-      // 提问次数用完，揭晓真相（失败）
-      if (result.exhausted) {
-        const room = RoomManager.getRoom(roomId);
-        if (room) {
-          io.to(roomId).emit("game:state", {
-            phase: room.state.phase,
-            currentRound: room.state.currentRound,
-          });
-          io.to(roomId).emit("turtle:reveal", {
-            truth: RoomManager.getTurtleTruth(room),
-            won: false,
-          });
-        }
-      }
+    socket.on("mystery:chat", ({ roomId, text }) => {
+      const result = RoomManager.submitMysteryChat(roomId, socket.id, text);
+      if (!result) return;
+      // 广播聊天记录给房间所有人
+      io.to(roomId).emit("mystery:chat", result.record);
     });
 
-    socket.on("turtle:guess", async ({ roomId, guess }) => {
-      io.to(roomId).emit("turtle:judging", { type: "guess" });
-      const result = await RoomManager.guessTurtleAnswer(roomId, socket.id, guess);
+    socket.on("mystery:submit", async ({ roomId, answer }) => {
+      // 先通知"AI 判断中"
+      io.to(roomId).emit("mystery:judging");
+      const result = await RoomManager.submitMysteryAnswer(roomId, socket.id, answer);
       if (result.ok === false) {
         socket.emit("room:error", { message: result.error });
         return;
       }
-      io.to(roomId).emit("turtle:guess-result", {
+      // 广播提交结果给房间所有人
+      io.to(roomId).emit("mystery:submit-result", {
         guessIndex: result.guessIndex,
         guess: result.guess,
         guesser: result.guesser,
         correct: result.correct,
         close: result.close,
         feedback: result.feedback,
+        attemptsLeft: result.attemptsLeft,
       });
-      // 猜中：揭晓真相（胜利）
-      if (result.correct) {
-        const room = RoomManager.getRoom(roomId);
-        if (room) {
-          io.to(roomId).emit("game:state", {
-            phase: room.state.phase,
-            currentRound: room.state.currentRound,
-          });
-          io.to(roomId).emit("turtle:reveal", {
-            truth: RoomManager.getTurtleTruth(room),
-            won: true,
-          });
-        }
+      // 答对 或 次数用完：揭晓答案
+      if (result.correct || result.exhausted) {
+        const room = result.room;
+        stopMysteryTimer(roomId);
+        io.to(roomId).emit("game:state", {
+          phase: room.state.phase,
+          currentRound: room.state.currentRound,
+        });
+        io.to(roomId).emit("mystery:reveal", {
+          answer: RoomManager.getMysteryAnswer(room),
+          won: result.correct,
+        });
       }
     });
 
-    socket.on("turtle:restart", ({ roomId }) => {
-      const room = RoomManager.restartTurtle(roomId, socket.id);
-      if (!room) return;
+    socket.on("mystery:restart", async ({ roomId }) => {
+      stopMysteryTimer(roomId);
+      const result = await RoomManager.restartMystery(roomId, socket.id);
+      if (!result) return;
+      const room = result.room;
       io.to(roomId).emit("game:state", {
         phase: room.state.phase,
         currentRound: room.state.currentRound,
       });
-      const surface = RoomManager.getCurrentTurtleSurface(room);
-      if (surface) {
-        io.to(roomId).emit("turtle:surface", surface);
-      }
+      room.players.forEach((p) => {
+        const view = RoomManager.getCurrentMysteryView(room, p.id);
+        if (view) {
+          io.to(p.id).emit("mystery:case", view);
+        }
+      });
+      // 重新启动 5 分钟倒计时
+      startMysteryTimer(io, roomId);
     });
 
     // ---------- 合作画画（同时画 + AI 评分）----------
@@ -700,8 +693,9 @@ function handleLeave(io: Io, socket: Sock, roomId: string) {
   const { room, shouldDelete } = RoomManager.leaveRoom(roomId, socket.id);
   socket.leave(roomId);
   if (shouldDelete) {
-    // 房间已删除，清理合作画画计时器
+    // 房间已删除，清理合作画画与双人解密计时器
     stopCoOpTimer(roomId);
+    stopMysteryTimer(roomId);
   } else if (room) {
     io.to(roomId).emit("room:updated", { room: RoomManager.toRoomView(room) });
     io.to(roomId).emit("player:left", { playerId: socket.id });
@@ -789,4 +783,57 @@ function startCoOpTimer(io: Io, roomId: string) {
     }
   }, 1000);
   coOpTimers.set(roomId, interval);
+}
+
+// ============ 双人解密计时器管理 ============
+// 每秒广播剩余时间的 interval
+const mysteryTimers = new Map<string, ReturnType<typeof setInterval>>();
+
+/** 停止双人解密倒计时 */
+function stopMysteryTimer(roomId: string) {
+  const t = mysteryTimers.get(roomId);
+  if (t) {
+    clearInterval(t);
+    mysteryTimers.delete(roomId);
+  }
+}
+
+/**
+ * 启动双人解密 5 分钟倒计时
+ * 每秒广播 mystery:time-update；时间到后强制揭晓（判定为失败）
+ */
+function startMysteryTimer(io: Io, roomId: string) {
+  stopMysteryTimer(roomId);
+  const room = RoomManager.getRoom(roomId);
+  if (!room) return;
+  const timeLimit = RoomManager.getMysteryTimeLimit();
+  // 立即下发一次剩余时间
+  io.to(roomId).emit("mystery:time-update", { timeLeft: timeLimit });
+
+  const interval = setInterval(() => {
+    const r = RoomManager.getRoom(roomId);
+    // 房间不存在、已离开 DRAWING 阶段、或已揭晓，则停止计时
+    if (!r || r.state.phase !== "DRAWING" || r.state.mysteryResolved) {
+      stopMysteryTimer(roomId);
+      return;
+    }
+    const timeLeft = RoomManager.getMysteryTimeLeft(r);
+    io.to(roomId).emit("mystery:time-update", { timeLeft });
+    if (timeLeft <= 0) {
+      // 时间到：强制揭晓（失败）
+      stopMysteryTimer(roomId);
+      const timeUpRoom = RoomManager.mysteryTimeUp(roomId);
+      if (timeUpRoom) {
+        io.to(roomId).emit("game:state", {
+          phase: timeUpRoom.state.phase,
+          currentRound: timeUpRoom.state.currentRound,
+        });
+        io.to(roomId).emit("mystery:reveal", {
+          answer: RoomManager.getMysteryAnswer(timeUpRoom),
+          won: false,
+        });
+      }
+    }
+  }, 1000);
+  mysteryTimers.set(roomId, interval);
 }

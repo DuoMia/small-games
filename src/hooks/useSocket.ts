@@ -26,12 +26,13 @@ export function useSocketConnection() {
     setTelepathyQuestion,
     setTelepathyReveal,
     setTelepathyOpponentChose,
-    setTurtleSurface,
-    addTurtleQuestion,
-    setTurtleQuestionsLeft,
-    addTurtleGuess,
-    setTurtleReveal,
-    setTurtleJudging,
+    setMysteryCase,
+    addMysteryChat,
+    addMysteryGuess,
+    setMysteryAttemptsLeft,
+    setMysteryTimeLeft,
+    setMysteryReveal,
+    setMysteryJudging,
     setCoOpPrompt,
     setCoOpTimeLeft,
     setCoOpOrientation,
@@ -120,36 +121,31 @@ export function useSocketConnection() {
       playSfx(sfx.opponentAnswered);
     };
 
-    // ---- 海龟汤事件 ----
-    const onTurtleSurface = (s) => {
-      setTurtleSurface(s);
+    // ---- 双人解密事件 ----
+    const onMysteryCase = (c) => {
+      setMysteryCase(c);
     };
-    const onTurtleJudging = (j) => {
-      setTurtleJudging(j);
-    };
-    const onTurtleAnswered = (d) => {
-      addTurtleQuestion({ question: d.question, asker: d.asker, answer: d.answer });
-      setTurtleQuestionsLeft(d.questionsLeft);
-      setTurtleJudging(null);
-      // 是/否/无关 音效
-      if (d.answer === "是") {
-        playSfx(sfx.correct);
-      } else if (d.answer === "否") {
-        playSfx(sfx.wrong);
-      } else {
+    const onMysteryChat = (msg) => {
+      addMysteryChat(msg);
+      // 收到对方消息时轻提示音
+      if (msg.sender !== useGameStore.getState().room?.players.find((p) => p.id === useGameStore.getState().myId)?.nickname) {
         playSfx(sfx.uiTick);
       }
     };
-    const onTurtleGuessResult = (d) => {
-      addTurtleGuess({
+    const onMysteryJudging = () => {
+      setMysteryJudging(true);
+    };
+    const onMysterySubmitResult = (d) => {
+      addMysteryGuess({
         guess: d.guess,
         guesser: d.guesser,
         correct: d.correct,
         close: d.close,
         feedback: d.feedback,
       });
-      setTurtleJudging(null);
-      // 猜中=correct，接近=uiTick，其他=wrong
+      setMysteryAttemptsLeft(d.attemptsLeft);
+      setMysteryJudging(false);
+      // 答对=correct，接近=uiTick，其他=wrong
       if (d.correct) {
         playSfx(sfx.correct);
       } else if (d.close) {
@@ -158,8 +154,20 @@ export function useSocketConnection() {
         playSfx(sfx.wrong);
       }
     };
-    const onTurtleReveal = (r) => {
-      setTurtleReveal(r);
+    let lastMysterySec = 300;
+    const onMysteryTimeUpdate = (t) => {
+      setMysteryTimeLeft(t.timeLeft);
+      // 最后 10 秒滴答音效
+      const sec = Math.ceil(t.timeLeft);
+      if (sec !== lastMysterySec) {
+        if (sec <= 10 && sec > 0) {
+          playSfx(sfx.tickUrgent);
+        }
+        lastMysterySec = sec;
+      }
+    };
+    const onMysteryReveal = (r) => {
+      setMysteryReveal(r);
       // 胜负音效
       playSfx(r.won ? sfx.win : sfx.lose);
     };
@@ -264,11 +272,12 @@ export function useSocketConnection() {
     socket.on("telepathy:question", onTelepathyQuestion);
     socket.on("telepathy:reveal", onTelepathyReveal);
     socket.on("telepathy:opponent-chose", onTelepathyOpponentChose);
-    socket.on("turtle:surface", onTurtleSurface);
-    socket.on("turtle:judging", onTurtleJudging);
-    socket.on("turtle:answered", onTurtleAnswered);
-    socket.on("turtle:guess-result", onTurtleGuessResult);
-    socket.on("turtle:reveal", onTurtleReveal);
+    socket.on("mystery:case", onMysteryCase);
+    socket.on("mystery:chat", onMysteryChat);
+    socket.on("mystery:judging", onMysteryJudging);
+    socket.on("mystery:submit-result", onMysterySubmitResult);
+    socket.on("mystery:time-update", onMysteryTimeUpdate);
+    socket.on("mystery:reveal", onMysteryReveal);
     socket.on("coop:prompt", onCoOpPrompt);
     socket.on("coop:orientation-changed", onCoOpOrientationChanged);
     socket.on("coop:time-update", onCoOpTimeUpdate);
@@ -303,11 +312,12 @@ export function useSocketConnection() {
       socket.off("telepathy:question", onTelepathyQuestion);
       socket.off("telepathy:reveal", onTelepathyReveal);
       socket.off("telepathy:opponent-chose", onTelepathyOpponentChose);
-      socket.off("turtle:surface", onTurtleSurface);
-      socket.off("turtle:judging", onTurtleJudging);
-      socket.off("turtle:answered", onTurtleAnswered);
-      socket.off("turtle:guess-result", onTurtleGuessResult);
-      socket.off("turtle:reveal", onTurtleReveal);
+      socket.off("mystery:case", onMysteryCase);
+      socket.off("mystery:chat", onMysteryChat);
+      socket.off("mystery:judging", onMysteryJudging);
+      socket.off("mystery:submit-result", onMysterySubmitResult);
+      socket.off("mystery:time-update", onMysteryTimeUpdate);
+      socket.off("mystery:reveal", onMysteryReveal);
       socket.off("coop:prompt", onCoOpPrompt);
       socket.off("coop:orientation-changed", onCoOpOrientationChanged);
       socket.off("coop:time-update", onCoOpTimeUpdate);
@@ -363,14 +373,14 @@ export function useRoomActions() {
       socket.emit("telepathy:choose", { roomId, questionIndex, choice }),
     telepathyNext: (roomId: string) => socket.emit("telepathy:next", { roomId }),
     telepathyRestart: (roomId: string) => socket.emit("telepathy:restart", { roomId }),
-    // 海龟汤
-    setTurtleDifficulty: (roomId: string, difficulty: string) =>
-      socket.emit("room:set-turtle-difficulty", { roomId, difficulty }),
-    turtleAsk: (roomId: string, question: string) =>
-      socket.emit("turtle:ask", { roomId, question }),
-    turtleGuess: (roomId: string, guess: string) =>
-      socket.emit("turtle:guess", { roomId, guess }),
-    turtleRestart: (roomId: string) => socket.emit("turtle:restart", { roomId }),
+    // 双人解密
+    setMysteryDifficulty: (roomId: string, difficulty: string) =>
+      socket.emit("room:set-mystery-difficulty", { roomId, difficulty }),
+    mysteryChat: (roomId: string, text: string) =>
+      socket.emit("mystery:chat", { roomId, text }),
+    mysterySubmit: (roomId: string, answer: string) =>
+      socket.emit("mystery:submit", { roomId, answer }),
+    mysteryRestart: (roomId: string) => socket.emit("mystery:restart", { roomId }),
     // 合作画画（同时画 + AI 评分）
     coOpStrokeStart: (roomId: string, stroke: { color: string; size: number; isEraser: boolean; points: { x: number; y: number }[] }) =>
       socket.emit("coop:stroke-start", { roomId, stroke }),

@@ -11,11 +11,11 @@ import type {
   GameOverData,
   TelepathyQuestionData,
   TelepathyRevealData,
-  TurtleSurfaceData,
-  TurtleQuestionRecord,
-  TurtleGuessRecord,
-  TurtleRevealData,
-  TurtleJudgingData,
+  MysteryCaseData,
+  MysteryChatRecord,
+  MysteryGuessRecord,
+  MysterySubmitResultData,
+  MysteryRevealData,
   CoOpStroke,
   CoOpPromptData,
   CoOpTimeData,
@@ -53,13 +53,14 @@ interface GameState {
   telepathyReveal: TelepathyRevealData | null;
   telepathyOpponentChose: boolean;
 
-  // 海龟汤
-  turtleSurface: TurtleSurfaceData | null;
-  turtleQuestions: TurtleQuestionRecord[];
-  turtleGuesses: TurtleGuessRecord[];
-  turtleQuestionsLeft: number;
-  turtleReveal: TurtleRevealData | null;
-  turtleJudging: TurtleJudgingData | null;
+  // 双人解密
+  mysteryCase: MysteryCaseData | null;
+  mysteryChat: MysteryChatRecord[];
+  mysteryGuesses: MysteryGuessRecord[];
+  mysteryAttemptsLeft: number;
+  mysteryTimeLeft: number; // 剩余时间（秒），5 分钟倒计时
+  mysteryReveal: MysteryRevealData | null;
+  mysteryJudging: boolean; // AI 判断中
 
   // 合作画画（同时画 + AI 评分）
   coOpPrompt: CoOpPromptData | null;
@@ -96,12 +97,13 @@ interface GameState {
   setTelepathyQuestion: (q: TelepathyQuestionData | null) => void;
   setTelepathyReveal: (r: TelepathyRevealData | null) => void;
   setTelepathyOpponentChose: (v: boolean) => void;
-  setTurtleSurface: (s: TurtleSurfaceData | null) => void;
-  addTurtleQuestion: (q: TurtleQuestionRecord) => void;
-  setTurtleQuestionsLeft: (n: number) => void;
-  addTurtleGuess: (g: TurtleGuessRecord) => void;
-  setTurtleReveal: (r: TurtleRevealData | null) => void;
-  setTurtleJudging: (j: TurtleJudgingData | null) => void;
+  setMysteryCase: (c: MysteryCaseData | null) => void;
+  addMysteryChat: (msg: MysteryChatRecord) => void;
+  addMysteryGuess: (g: MysteryGuessRecord) => void;
+  setMysteryAttemptsLeft: (n: number) => void;
+  setMysteryTimeLeft: (n: number) => void;
+  setMysteryReveal: (r: MysteryRevealData | null) => void;
+  setMysteryJudging: (v: boolean) => void;
   // 合作画画
   setCoOpPrompt: (p: CoOpPromptData | null) => void;
   setCoOpTimeLeft: (n: number) => void;
@@ -138,12 +140,13 @@ export const useGameStore = create<GameState>((set) => ({
   telepathyQuestion: null,
   telepathyReveal: null,
   telepathyOpponentChose: false,
-  turtleSurface: null,
-  turtleQuestions: [],
-  turtleGuesses: [],
-  turtleQuestionsLeft: 20,
-  turtleReveal: null,
-  turtleJudging: null,
+  mysteryCase: null,
+  mysteryChat: [],
+  mysteryGuesses: [],
+  mysteryAttemptsLeft: 3,
+  mysteryTimeLeft: 300,
+  mysteryReveal: null,
+  mysteryJudging: false,
   // 合作画画
   coOpPrompt: null,
   coOpTimeLeft: 90,
@@ -196,22 +199,24 @@ export const useGameStore = create<GameState>((set) => ({
     }),
   setTelepathyReveal: (r) => set({ telepathyReveal: r }),
   setTelepathyOpponentChose: (v) => set({ telepathyOpponentChose: v }),
-  setTurtleSurface: (s) =>
+  setMysteryCase: (c) =>
     set({
-      turtleSurface: s,
-      turtleQuestions: [],
-      turtleGuesses: [],
-      turtleQuestionsLeft: s?.questionsLeft ?? 20,
-      turtleReveal: null,
-      turtleJudging: null,
+      mysteryCase: c,
+      mysteryChat: [],
+      mysteryGuesses: [],
+      mysteryAttemptsLeft: c?.attemptsLeft ?? 3,
+      mysteryTimeLeft: c?.timeLimit ?? 300,
+      mysteryReveal: null,
+      mysteryJudging: false,
     }),
-  addTurtleQuestion: (q) =>
-    set((s) => ({ turtleQuestions: [...s.turtleQuestions, q] })),
-  setTurtleQuestionsLeft: (n) => set({ turtleQuestionsLeft: n }),
-  addTurtleGuess: (g) =>
-    set((s) => ({ turtleGuesses: [...s.turtleGuesses, g] })),
-  setTurtleReveal: (r) => set({ turtleReveal: r, turtleJudging: null }),
-  setTurtleJudging: (j) => set({ turtleJudging: j }),
+  addMysteryChat: (msg) =>
+    set((s) => ({ mysteryChat: [...s.mysteryChat, msg] })),
+  addMysteryGuess: (g) =>
+    set((s) => ({ mysteryGuesses: [...s.mysteryGuesses, g] })),
+  setMysteryAttemptsLeft: (n) => set({ mysteryAttemptsLeft: n }),
+  setMysteryTimeLeft: (n) => set({ mysteryTimeLeft: n }),
+  setMysteryReveal: (r) => set({ mysteryReveal: r, mysteryJudging: false }),
+  setMysteryJudging: (v) => set({ mysteryJudging: v }),
   // 合作画画
   setCoOpPrompt: (p) =>
     set({
@@ -258,12 +263,13 @@ export const useGameStore = create<GameState>((set) => ({
       telepathyQuestion: null,
       telepathyReveal: null,
       telepathyOpponentChose: false,
-      turtleSurface: null,
-      turtleQuestions: [],
-      turtleGuesses: [],
-      turtleQuestionsLeft: 20,
-      turtleReveal: null,
-      turtleJudging: null,
+      mysteryCase: null,
+      mysteryChat: [],
+      mysteryGuesses: [],
+      mysteryAttemptsLeft: 3,
+      mysteryTimeLeft: 300,
+      mysteryReveal: null,
+      mysteryJudging: false,
       coOpPrompt: null,
       coOpTimeLeft: 90,
       coOpOrientation: "landscape",

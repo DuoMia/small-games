@@ -15,7 +15,11 @@ import express, {
 } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { judgeQuestion } from "./ai/judge.js";
+import {
+  generateMysteryCase,
+  mysteryJudge,
+  type MysteryDifficulty,
+} from "./ai/mystery.js";
 
 dotenv.config();
 
@@ -75,22 +79,45 @@ app.use("/api/health", (_req: Request, res: Response): void => {
 });
 
 /**
- * 海龟汤 AI 判断接口（单人模式用 HTTP 调用，双人模式走 Socket.io）
- * POST /api/turtle-judge
- * body: { question, truth, keywords }
- * 返回: { success, answer: "是"|"否"|"无关" }
+ * 双人解密 AI 出题接口（单人模式用 HTTP 调用，双人模式走 Socket.io）
+ * POST /api/mystery-generate
+ * body: { difficulty: "simple"|"medium"|"hard" }
+ * 返回: { success, case: MysteryCase } 失败时 { success: false, error }
  */
-app.post("/api/turtle-judge", async (req: Request, res: Response): Promise<void> => {
-  const { question, truth, keywords } = req.body;
-  if (!question || !truth || !Array.isArray(keywords)) {
+app.post("/api/mystery-generate", async (req: Request, res: Response): Promise<void> => {
+  const { difficulty } = req.body;
+  const valid: MysteryDifficulty[] = ["simple", "medium", "hard"];
+  const diff: MysteryDifficulty = valid.includes(difficulty) ? difficulty : "medium";
+  try {
+    const caseData = await generateMysteryCase(diff);
+    if (!caseData) {
+      res.status(503).json({ success: false, error: "AI 出题暂不可用，请使用预设题库" });
+      return;
+    }
+    res.json({ success: true, case: caseData });
+  } catch (err) {
+    console.error("[/api/mystery-generate] AI出题异常:", err);
+    res.status(500).json({ success: false, error: "AI出题失败" });
+  }
+});
+
+/**
+ * 双人解密 AI 判断接口（单人模式用 HTTP 调用，双人模式走 Socket.io）
+ * POST /api/mystery-judge
+ * body: { userAnswer, correctAnswer, keywords }
+ * 返回: { success, correct, close, feedback }
+ */
+app.post("/api/mystery-judge", async (req: Request, res: Response): Promise<void> => {
+  const { userAnswer, correctAnswer, keywords } = req.body;
+  if (!userAnswer || !correctAnswer || !Array.isArray(keywords)) {
     res.status(400).json({ success: false, error: "参数缺失" });
     return;
   }
   try {
-    const answer = await judgeQuestion(question, truth, keywords);
-    res.json({ success: true, answer });
+    const result = await mysteryJudge(userAnswer, correctAnswer, keywords);
+    res.json({ success: true, ...result });
   } catch (err) {
-    console.error("[/api/turtle-judge] AI判断异常:", err);
+    console.error("[/api/mystery-judge] AI判断异常:", err);
     res.status(500).json({ success: false, error: "AI判断失败" });
   }
 });

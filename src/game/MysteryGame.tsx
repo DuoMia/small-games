@@ -5,199 +5,219 @@ import {
   RotateCcw,
   LogOut,
   Send,
-  Mic,
   Sparkles,
-  HelpCircle,
+  KeyRound,
   Trophy,
+  Clock,
+  MessageCircle,
 } from "lucide-react";
 import { useGameStore } from "@/store/gameStore";
 import { useRoomActions } from "@/hooks/useSocket";
 import { useAudioStore } from "@/store/audioStore";
-import { useSpeech } from "@/hooks/useSpeech";
 import { sfx } from "@/audio/engine";
 import Confetti from "@/components/Confetti";
 
 // 难度显示映射
 const DIFFICULTY_LABEL: Record<string, string> = {
   any: "任意",
-  easy: "简单",
+  simple: "简单",
   medium: "中等",
   hard: "困难",
 };
 
-export default function TurtleSoup({ roomId }: { roomId: string }) {
+export default function MysteryGame({ roomId }: { roomId: string }) {
   const { phase } = useGameStore();
 
   // 根据阶段分发
   if (phase === "GAME_OVER") {
-    return <TurtleResult roomId={roomId} />;
+    return <MysteryResult roomId={roomId} />;
   }
-  // DRAWING = 游戏中
-  return <TurtlePlaying roomId={roomId} />;
+  // DRAWING = 解密中
+  return <MysteryPlaying roomId={roomId} />;
 }
 
-// ============ 游戏中 ============
-function TurtlePlaying({ roomId }: { roomId: string }) {
+// ============ 解密中 ============
+function MysteryPlaying({ roomId }: { roomId: string }) {
   const {
-    turtleSurface,
-    turtleQuestions,
-    turtleGuesses,
-    turtleQuestionsLeft,
-    turtleJudging,
-    turtleReveal,
+    mysteryCase,
+    mysteryChat,
+    mysteryGuesses,
+    mysteryAttemptsLeft,
+    mysteryTimeLeft,
+    mysteryJudging,
+    mysteryReveal,
+    myId,
+    room,
   } = useGameStore();
-  const { turtleAsk, turtleGuess } = useRoomActions();
+  const { mysteryChat: sendChat, mysterySubmit } = useRoomActions();
   const { sfxEnabled } = useAudioStore();
-  const { listening, transcript, start, stop, supported, error: speechError } = useSpeech();
 
   const playSfx = (fn: () => void) => {
     if (sfxEnabled) fn();
   };
 
-  const [inputText, setInputText] = useState("");
-  const [guessModalOpen, setGuessModalOpen] = useState(false);
-  const [guessText, setGuessText] = useState("");
+  const [chatText, setChatText] = useState("");
+  const [answerModalOpen, setAnswerModalOpen] = useState(false);
+  const [answerText, setAnswerText] = useState("");
 
-  const historyRef = useRef<HTMLDivElement | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const chatRef = useRef<HTMLDivElement | null>(null);
 
-  // 语音识别结果自动填入输入框
+  // 新消息到达时，滚动到底部
   useEffect(() => {
-    if (transcript) {
-      setInputText(transcript);
+    if (chatRef.current) {
+      chatRef.current.scrollTop = chatRef.current.scrollHeight;
     }
-  }, [transcript]);
-
-  // 新提问/猜测到达时，滚动到底部
-  useEffect(() => {
-    if (historyRef.current) {
-      historyRef.current.scrollTop = historyRef.current.scrollHeight;
-    }
-  }, [turtleQuestions.length, turtleGuesses.length, turtleJudging]);
+  }, [mysteryChat.length, mysteryGuesses.length, mysteryJudging]);
 
   // 已揭晓则不可再操作
-  const revealed = Boolean(turtleReveal);
-  const canInteract = !revealed && (turtleQuestionsLeft ?? 0) > 0 && !turtleJudging;
+  const revealed = Boolean(mysteryReveal);
+  const canInteract = !revealed && (mysteryAttemptsLeft ?? 0) > 0 && !mysteryJudging;
 
-  const handleAsk = () => {
-    const q = inputText.trim();
-    if (!q || !canInteract) return;
+  const myNickname =
+    room?.players.find((p) => p.id === myId)?.nickname || "我";
+
+  const handleSendChat = () => {
+    const t = chatText.trim();
+    if (!t || revealed) return;
     playSfx(sfx.click);
-    turtleAsk(roomId, q);
-    setInputText("");
+    sendChat(roomId, t);
+    setChatText("");
   };
 
-  const handleMicToggle = () => {
-    if (!supported) {
-      playSfx(sfx.wrong);
-      return;
-    }
-    playSfx(sfx.uiTick);
-    if (listening) {
-      stop();
-    } else {
-      start();
-    }
-  };
-
-  const handleOpenGuess = () => {
+  const handleOpenAnswer = () => {
     if (revealed) return;
     playSfx(sfx.click);
-    setGuessText("");
-    setGuessModalOpen(true);
+    setAnswerText("");
+    setAnswerModalOpen(true);
   };
 
-  const handleSubmitGuess = () => {
-    const g = guessText.trim();
-    if (!g || revealed || turtleJudging) return;
+  const handleSubmitAnswer = () => {
+    const g = answerText.trim();
+    if (!g || revealed || mysteryJudging) return;
     playSfx(sfx.click);
-    turtleGuess(roomId, g);
-    setGuessModalOpen(false);
-    setGuessText("");
+    mysterySubmit(roomId, g);
+    setAnswerModalOpen(false);
+    setAnswerText("");
   };
 
-  if (!turtleSurface) {
+  if (!mysteryCase) {
     return (
       <div className="paper-bg h-[100dvh] flex items-center justify-center">
         <div className="text-center">
           <Loader2 size={40} className="animate-spin text-coral mx-auto mb-3" />
-          <p className="text-ink-muted">准备汤面...</p>
+          <p className="text-ink-muted">AI 出题中...</p>
         </div>
       </div>
     );
   }
+
+  // 倒计时格式化 mm:ss
+  const mins = Math.floor((mysteryTimeLeft ?? 0) / 60);
+  const secs = (mysteryTimeLeft ?? 0) % 60;
+  const timeStr = `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  const timeUrgent = (mysteryTimeLeft ?? 0) <= 30;
 
   return (
     <div className="paper-bg h-[100dvh] flex flex-col overflow-hidden">
       {/* 顶栏 */}
       <div className="flex-shrink-0 px-4 py-2.5 flex items-center justify-between border-b-2 border-ink-muted/20 bg-white/50">
         <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-base">🐢</span>
-          <span className="font-display text-ink text-sm">海龟汤</span>
+          <span className="text-base">🔐</span>
+          <span className="font-display text-ink text-sm">双人解密</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="font-display text-ink text-xs bg-sun px-2 py-1 rounded-full border-2 border-ink">
-            {DIFFICULTY_LABEL[turtleSurface.difficulty] || turtleSurface.difficulty}
-          </span>
+          {/* 倒计时 */}
           <span
-            className={`font-display text-xs px-2 py-1 rounded-full border-2 border-ink ${
-              (turtleQuestionsLeft ?? 0) <= 5 ? "bg-coral text-white" : "bg-mint text-ink"
+            className={`font-display text-xs px-2 py-1 rounded-full border-2 border-ink flex items-center gap-1 ${
+              timeUrgent ? "bg-coral text-white animate-pulse" : "bg-sun text-ink"
             }`}
           >
-            剩余 {turtleQuestionsLeft} 问
+            <Clock size={12} />
+            {timeStr}
+          </span>
+          {/* 难度 */}
+          <span className="font-display text-xs bg-mint text-ink px-2 py-1 rounded-full border-2 border-ink">
+            {DIFFICULTY_LABEL[mysteryCase.difficulty] || mysteryCase.difficulty}
+          </span>
+          {/* 剩余次数 */}
+          <span
+            className={`font-display text-xs px-2 py-1 rounded-full border-2 border-ink ${
+              (mysteryAttemptsLeft ?? 0) <= 1 ? "bg-coral text-white" : "bg-white text-ink"
+            }`}
+          >
+            剩 {mysteryAttemptsLeft} 次
           </span>
         </div>
       </div>
 
-      {/* 汤面 + 历史（可滚动） */}
-      <div ref={historyRef} className="flex-1 overflow-y-auto px-4 py-3 min-h-0">
-        {/* 汤面 */}
-        <div className="bg-white rounded-blob border-3 border-ink shadow-card p-4 mb-3 animate-bounce-in">
+      {/* 故事 + 线索 + 聊天历史（可滚动） */}
+      <div ref={chatRef} className="flex-1 overflow-y-auto px-4 py-3 min-h-0">
+        {/* 故事背景 */}
+        <div className="bg-white rounded-doodle border-2 border-ink shadow-card p-3.5 mb-3 animate-bounce-in">
           <div className="flex items-center gap-1.5 mb-2">
-            <HelpCircle size={14} className="text-coral" />
-            <span className="font-display text-ink text-xs">汤面</span>
-            {turtleSurface.category && (
+            <Sparkles size={14} className="text-coral" />
+            <span className="font-display text-ink text-xs">{mysteryCase.title}</span>
+            {mysteryCase.category && (
               <span className="ml-auto text-[10px] text-ink-muted bg-cream-dark px-2 py-0.5 rounded-full">
-                {turtleSurface.category}
+                {mysteryCase.category}
               </span>
             )}
           </div>
           <p className="font-body text-ink text-sm leading-relaxed">
-            {turtleSurface.surface}
+            {mysteryCase.story}
           </p>
         </div>
 
-        {/* 提问历史 */}
-        {turtleQuestions.length > 0 && (
+        {/* 我的线索 */}
+        <div className="bg-sun/20 rounded-doodle border-2 border-ink/40 p-3 mb-3 animate-slide-up">
+          <div className="flex items-center gap-1.5 mb-2">
+            <KeyRound size={14} className="text-ink" />
+            <span className="font-display text-ink text-xs">我看到的线索</span>
+          </div>
+          <ul className="space-y-1.5">
+            {mysteryCase.clues.map((clue, idx) => (
+              <li
+                key={idx}
+                className="font-body text-ink text-sm leading-relaxed flex items-start gap-1.5"
+              >
+                <span className="text-coral flex-shrink-0 mt-0.5">·</span>
+                <span>{clue}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="text-[10px] text-ink-muted mt-2 italic">
+            对方看到的是不同的线索，通过聊天交流拼凑真相
+          </div>
+        </div>
+
+        {/* 聊天记录 */}
+        {mysteryChat.length > 0 && (
           <div className="space-y-2 mb-3">
-            {turtleQuestions.map((q, idx) => (
-              <QuestionItem key={`q-${idx}`} record={q} />
+            <div className="flex items-center gap-1.5 px-1">
+              <MessageCircle size={12} className="text-ink-muted" />
+              <span className="text-[10px] text-ink-muted font-display">聊天记录</span>
+            </div>
+            {mysteryChat.map((msg, idx) => (
+              <ChatItem key={`c-${idx}`} record={msg} isMine={msg.sender === myNickname} />
             ))}
           </div>
         )}
 
-        {/* 猜测记录 */}
-        {turtleGuesses.length > 0 && (
+        {/* 答题记录 */}
+        {mysteryGuesses.length > 0 && (
           <div className="space-y-2 mb-3">
-            {turtleGuesses.map((g, idx) => (
+            {mysteryGuesses.map((g, idx) => (
               <GuessItem key={`g-${idx}`} record={g} />
             ))}
           </div>
         )}
 
-        {/* AI 思考中提示 */}
-        {turtleJudging && (
+        {/* AI 判断中提示 */}
+        {mysteryJudging && (
           <div className="flex items-center justify-center gap-2 py-3 animate-bounce-in">
             <Loader2 size={18} className="animate-spin text-coral" />
-            <span className="font-body text-sm text-ink-muted">
-              {turtleJudging.type === "question" ? "主持人思考中..." : "裁判判断中..."}
-            </span>
+            <span className="font-body text-sm text-ink-muted">AI 裁判判断中...</span>
           </div>
-        )}
-
-        {/* 语音识别错误提示 */}
-        {speechError && (
-          <div className="text-center text-xs text-coral py-1">{speechError}</div>
         )}
       </div>
 
@@ -205,105 +225,87 @@ function TurtlePlaying({ roomId }: { roomId: string }) {
       <div className="flex-shrink-0 bg-white border-t-2 border-ink px-3 py-2.5">
         <div className="flex items-center gap-2">
           <input
-            ref={inputRef}
             type="text"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
+            value={chatText}
+            onChange={(e) => setChatText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                handleAsk();
+                handleSendChat();
               }
             }}
-            maxLength={100}
+            maxLength={200}
             disabled={revealed}
-            placeholder={
-              revealed ? "已揭晓" : canInteract ? "提问... (回车发送)" : "等待中..."
-            }
+            placeholder={revealed ? "已揭晓" : "和队友交流... (回车发送)"}
             className="flex-1 px-3 py-2.5 rounded-doodle border-2 border-ink bg-cream font-body text-ink text-sm focus:border-coral focus:bg-white transition-colors disabled:opacity-50"
           />
-          {/* 语音按钮 */}
-          {supported && !revealed && (
-            <button
-              onClick={handleMicToggle}
-              disabled={listening ? false : !canInteract}
-              className={`btn-press flex-shrink-0 w-11 h-11 rounded-doodle border-2 border-ink flex items-center justify-center transition-colors ${
-                listening
-                  ? "bg-coral text-white animate-pulse"
-                  : "bg-sun text-ink"
-              }`}
-              title={listening ? "停止录音" : "语音输入"}
-            >
-              {listening ? <Mic size={20} /> : <Mic size={20} />}
-            </button>
-          )}
-          {/* 提交按钮 */}
+          {/* 发送聊天 */}
           <button
-            onClick={handleAsk}
-            disabled={!canInteract || !inputText.trim() || listening}
-            className="btn-press flex-shrink-0 w-11 h-11 rounded-doodle border-2 border-ink bg-coral text-white flex items-center justify-center disabled:opacity-40"
-            title="发送提问"
+            onClick={handleSendChat}
+            disabled={revealed || !chatText.trim()}
+            className="btn-press flex-shrink-0 w-11 h-11 rounded-doodle border-2 border-ink bg-sun text-ink flex items-center justify-center disabled:opacity-40"
+            title="发送消息"
           >
             <Send size={18} />
           </button>
         </div>
-        {/* 揭晓按钮 */}
+        {/* 提交答案按钮 */}
         <button
-          onClick={handleOpenGuess}
-          disabled={revealed || Boolean(turtleJudging) || listening}
+          onClick={handleOpenAnswer}
+          disabled={revealed || mysteryJudging}
           className="btn-press w-full mt-2 py-2.5 bg-ink text-cream font-display text-sm rounded-doodle border-2 border-ink shadow-soft flex items-center justify-center gap-1.5 disabled:opacity-40"
         >
           <Sparkles size={16} />
-          揭晓答案
+          提交答案
         </button>
       </div>
 
-      {/* 揭晓弹窗 */}
-      {guessModalOpen && (
-        <GuessModal
-          value={guessText}
-          onChange={setGuessText}
-          onClose={() => setGuessModalOpen(false)}
-          onSubmit={handleSubmitGuess}
-          disabled={Boolean(turtleJudging)}
+      {/* 提交答案弹窗 */}
+      {answerModalOpen && (
+        <AnswerModal
+          value={answerText}
+          onChange={setAnswerText}
+          onClose={() => setAnswerModalOpen(false)}
+          onSubmit={handleSubmitAnswer}
+          disabled={mysteryJudging}
+          attemptsLeft={mysteryAttemptsLeft ?? 0}
         />
       )}
     </div>
   );
 }
 
-// ============ 单条提问 ============
-function QuestionItem({
+// ============ 单条聊天 ============
+function ChatItem({
   record,
+  isMine,
 }: {
-  record: { question: string; asker: string; answer: "是" | "否" | "无关" };
+  record: { sender: string; text: string; ts: number };
+  isMine: boolean;
 }) {
-  const answerStyle =
-    record.answer === "是"
-      ? "bg-mint text-ink border-ink"
-      : record.answer === "否"
-      ? "bg-coral text-white border-ink"
-      : "bg-cream-dark text-ink-muted border-ink-muted";
   return (
-    <div className="bg-white rounded-doodle border-2 border-ink/30 p-2.5 animate-slide-up">
-      <div className="flex items-start gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="text-[10px] text-ink-muted mb-0.5">
-            <span className="font-display">{record.asker}</span> 问：
+    <div
+      className={`flex ${isMine ? "justify-end" : "justify-start"} animate-slide-up`}
+    >
+      <div
+        className={`max-w-[85%] rounded-doodle border-2 p-2.5 ${
+          isMine
+            ? "bg-coral text-white border-ink"
+            : "bg-white text-ink border-ink/30"
+        }`}
+      >
+        {!isMine && (
+          <div className="text-[10px] text-ink-muted mb-0.5 font-display">
+            {record.sender}
           </div>
-          <div className="font-body text-ink text-sm break-words">{record.question}</div>
-        </div>
-        <span
-          className={`flex-shrink-0 px-2.5 py-1 rounded-full border-2 font-display text-xs ${answerStyle}`}
-        >
-          {record.answer}
-        </span>
+        )}
+        <div className="font-body text-sm break-words">{record.text}</div>
       </div>
     </div>
   );
 }
 
-// ============ 单条猜测 ============
+// ============ 单条答题记录 ============
 function GuessItem({
   record,
 }: {
@@ -315,7 +317,7 @@ function GuessItem({
     ? "border-sun bg-sun/10"
     : "border-coral/50 bg-coral/5";
   const resultText = record.correct
-    ? "猜中！"
+    ? "答对！"
     : record.close
     ? "接近了"
     : "不对";
@@ -329,7 +331,7 @@ function GuessItem({
       <div className="flex items-start gap-2">
         <div className="flex-1 min-w-0">
           <div className="text-[10px] text-ink-muted mb-0.5">
-            <span className="font-display">{record.guesser}</span> 猜：
+            <span className="font-display">{record.guesser}</span> 提交：
           </div>
           <div className="font-body text-ink text-sm break-words">{record.guess}</div>
           {record.feedback && (
@@ -346,19 +348,21 @@ function GuessItem({
   );
 }
 
-// ============ 揭晓弹窗 ============
-function GuessModal({
+// ============ 提交答案弹窗 ============
+function AnswerModal({
   value,
   onChange,
   onClose,
   onSubmit,
   disabled,
+  attemptsLeft,
 }: {
   value: string;
   onChange: (v: string) => void;
   onClose: () => void;
   onSubmit: () => void;
   disabled?: boolean;
+  attemptsLeft: number;
 }) {
   return (
     <div
@@ -366,15 +370,15 @@ function GuessModal({
       onClick={onClose}
     >
       <div
-        className="bg-cream rounded-blob border-3 border-ink shadow-card p-5 w-full max-w-sm animate-bounce-in"
+        className="bg-cream rounded-doodle border-2 border-ink shadow-card p-5 w-full max-w-sm animate-bounce-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 mb-3">
           <Sparkles size={18} className="text-coral" />
-          <h3 className="font-display text-ink text-lg">揭晓汤底</h3>
+          <h3 className="font-display text-ink text-lg">提交答案</h3>
         </div>
         <p className="text-xs text-ink-muted mb-3">
-          输入你猜的真相，AI 裁判会判断是否正确
+          和队友讨论后输入最终答案，AI 裁判会判断是否正确（剩余 {attemptsLeft} 次机会）
         </p>
         <textarea
           value={value}
@@ -382,7 +386,7 @@ function GuessModal({
           autoFocus
           rows={3}
           maxLength={200}
-          placeholder="你觉得真相是什么？"
+          placeholder="你们推理出的答案是什么？"
           className="w-full px-3 py-2 rounded-doodle border-2 border-ink bg-white font-body text-ink text-sm focus:border-coral transition-colors resize-none"
         />
         <div className="flex gap-2 mt-3">
@@ -416,9 +420,9 @@ function GuessModal({
 }
 
 // ============ 结果页（GAME_OVER） ============
-function TurtleResult({ roomId }: { roomId: string }) {
-  const { turtleReveal, room, myId } = useGameStore();
-  const { turtleRestart, leaveRoom } = useRoomActions();
+function MysteryResult({ roomId }: { roomId: string }) {
+  const { mysteryReveal, room, myId } = useGameStore();
+  const { mysteryRestart, leaveRoom } = useRoomActions();
   const { sfxEnabled } = useAudioStore();
   const navigate = useNavigate();
 
@@ -426,7 +430,7 @@ function TurtleResult({ roomId }: { roomId: string }) {
     if (sfxEnabled) fn();
   };
 
-  if (!turtleReveal) {
+  if (!mysteryReveal) {
     return (
       <div className="paper-bg h-[100dvh] flex items-center justify-center">
         <Loader2 size={40} className="animate-spin text-coral" />
@@ -435,7 +439,7 @@ function TurtleResult({ roomId }: { roomId: string }) {
   }
 
   const isHost = room?.hostId === myId;
-  const won = turtleReveal.won;
+  const won = mysteryReveal.won;
 
   const handleLeave = () => {
     playSfx(sfx.click);
@@ -445,7 +449,7 @@ function TurtleResult({ roomId }: { roomId: string }) {
 
   const handleRestart = () => {
     playSfx(sfx.click);
-    turtleRestart(roomId);
+    mysteryRestart(roomId);
   };
 
   return (
@@ -462,21 +466,21 @@ function TurtleResult({ roomId }: { roomId: string }) {
           <h1
             className={`font-display text-4xl ${won ? "text-mint" : "text-coral"}`}
           >
-            {won ? "猜中了！" : "挑战失败"}
+            {won ? "解密成功！" : "挑战失败"}
           </h1>
           <p className="text-ink-muted mt-2 text-sm">
-            {won ? "你们成功还原了真相" : "20 问用完，真相揭晓"}
+            {won ? "你们成功破解了谜题" : "次数用完或超时，答案揭晓"}
           </p>
         </div>
 
-        {/* 汤底真相 */}
-        <div className="bg-white rounded-blob border-3 border-ink shadow-card p-5 mb-6">
+        {/* 正确答案 */}
+        <div className="bg-white rounded-doodle border-2 border-ink shadow-card p-5 mb-6">
           <div className="flex items-center gap-1.5 mb-3">
             <Trophy size={16} className="text-sun" />
-            <h2 className="font-display text-ink text-sm">汤底真相</h2>
+            <h2 className="font-display text-ink text-sm">正确答案</h2>
           </div>
           <p className="font-body text-ink text-sm leading-relaxed">
-            {turtleReveal.truth}
+            {mysteryReveal.answer}
           </p>
         </div>
 

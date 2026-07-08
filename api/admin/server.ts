@@ -22,7 +22,7 @@ const DB_FILES: Record<string, string> = {
   "draw-words": "words.json",
   telepathy: "telepathy-questions.json",
   emoji: "emoji-puzzles.json",
-  "turtle-soup": "turtle-soup.json",
+  "mystery": "mystery-cases.json",
 };
 
 // === GLM API 配置 ===
@@ -287,23 +287,29 @@ function normalizeItem(db: string, raw: any): any {
         : [],
     };
   }
-  if (db === "turtle-soup") {
+  if (db === "mystery") {
     return {
       id: String(raw.id || "").trim(),
       title: String(raw.title || "").trim(),
-      difficulty: ["easy", "medium", "hard"].includes(raw.difficulty) ? raw.difficulty : "medium",
-      category: String(raw.category || "悬疑").trim(),
-      surface: String(raw.surface || "").trim(),
-      truth: String(raw.truth || "").trim(),
+      story: String(raw.story || "").trim(),
+      cluesA: Array.isArray(raw.cluesA)
+        ? raw.cluesA.map((c: any) => String(c).trim()).filter(Boolean).slice(0, 4)
+        : [],
+      cluesB: Array.isArray(raw.cluesB)
+        ? raw.cluesB.map((c: any) => String(c).trim()).filter(Boolean).slice(0, 4)
+        : [],
+      answer: String(raw.answer || "").trim(),
       keywords: Array.isArray(raw.keywords)
         ? raw.keywords.map((k: any) => String(k).trim()).filter(Boolean).slice(0, 5)
         : [],
+      difficulty: MYSTERY_DIFFICULTIES.includes(raw.difficulty) ? raw.difficulty : "medium",
+      category: MYSTERY_CATEGORIES.includes(raw.category) ? raw.category : "逻辑推理",
     };
   }
   return raw;
 }
 
-/** 重新分配 id（emoji 用 max+1，turtle-soup 用 ts_XXX）*/
+/** 重新分配 id（emoji 用 max+1，mystery 用 ms_XXX）*/
 function reassignIds(db: string, items: any[]): void {
   if (db === "emoji") {
     let maxId = 0;
@@ -318,10 +324,10 @@ function reassignIds(db: string, items: any[]): void {
     }
     return;
   }
-  if (db === "turtle-soup") {
-    // 重新编号 ts_001 ~ ts_NNN，保持格式一致
+  if (db === "mystery") {
+    // 重新编号 ms_001 ~ ms_NNN，保持格式一致
     items.forEach((it, idx) => {
-      it.id = `ts_${String(idx + 1).padStart(3, "0")}`;
+      it.id = `ms_${String(idx + 1).padStart(3, "0")}`;
     });
     return;
   }
@@ -365,8 +371,8 @@ app.post("/api/:db/ai-expand", async (req: Request, res: Response) => {
       newItems = await aiExpandTelepathy(count, options.packId, items);
     } else if (db === "emoji") {
       newItems = await aiExpandEmoji(count, items);
-    } else if (db === "turtle-soup") {
-      newItems = await aiExpandTurtleSoup(count, options.difficulty, items);
+    } else if (db === "mystery") {
+      newItems = await aiExpandMystery(count, options.difficulty, items);
     }
 
     // 合并去重
@@ -397,14 +403,14 @@ app.post("/api/:db/ai-expand", async (req: Request, res: Response) => {
         seenEmoji.add(n.emoji);
         seenAnswer.add(n.answer);
       }
-    } else if (db === "turtle-soup") {
+    } else if (db === "mystery") {
       const seenTitle = new Set(items.map((i: any) => i.title));
-      const seenSurface = new Set(items.map((i: any) => i.surface));
+      const seenStory = new Set(items.map((i: any) => i.story));
       for (const n of newItems) {
-        if (seenTitle.has(n.title) || seenSurface.has(n.surface)) continue;
+        if (seenTitle.has(n.title) || seenStory.has(n.story)) continue;
         items.push(n);
         seenTitle.add(n.title);
-        seenSurface.add(n.surface);
+        seenStory.add(n.story);
       }
     }
 
@@ -428,8 +434,8 @@ const TELEPATHY_PACKS: Record<string, { name: string }> = {
   work: { name: "职场社畜" },
 };
 const EMOJI_CATEGORIES = ["成语", "影视"];
-const SOUP_CATEGORIES = ["悬疑", "惊悚", "日常", "奇幻", "温情"];
-const SOUP_DIFFICULTIES = ["easy", "medium", "hard"];
+const MYSTERY_CATEGORIES = ["逻辑推理", "密码解谜", "找线索"];
+const MYSTERY_DIFFICULTIES = ["simple", "medium", "hard"];
 
 /** 画图猜词 AI 扩展 */
 async function aiExpandWords(count: number, category: string | undefined, existing: any[]): Promise<any[]> {
@@ -559,28 +565,25 @@ ${avoid ? `4. 避免与这些已有题重复（emoji 和答案都不能撞）：
     }));
 }
 
-/** 海龟汤 AI 扩展（许二木风格） */
-async function aiExpandTurtleSoup(count: number, difficulty: string | undefined, existing: any[]): Promise<any[]> {
+/** 双人解密 AI 扩展 */
+async function aiExpandMystery(count: number, difficulty: string | undefined, existing: any[]): Promise<any[]> {
   const avoidTitles = existing.slice(-20).map((s) => `- ${s.title}`).join("\n");
-  const diffHint = difficulty && SOUP_DIFFICULTIES.includes(difficulty) ? `，难度偏向 ${difficulty}` : "";
-  const prompt = `你是海龟汤题库生成器，请模仿抖音知名海龟汤博主"许二木"的风格生成 ${count} 道经典海龟汤。
-
-许二木风格特点：
-- 剧情向，有人物动机和前因后果，故事性强
-- 汤面简短有悬念（50-100 字），看似荒诞但汤底合理
-- 汤底完整（100-300 字），揭示真相、人物动机和事件全貌
-- 经典热门，难度适中，需要逻辑推理才能想通
-- 适合双人合作游玩，避免过于血腥暴力、色情或极端恐怖
+  const diffHint = difficulty && MYSTERY_DIFFICULTIES.includes(difficulty) ? `，难度偏向 ${difficulty}` : "";
+  const prompt = `你是双人解密题库生成器，请生成 ${count} 道合作推理谜题。
 
 题目要求：
-1. 生成 ${count} 题${diffHint}，难度尽量分布均匀
-2. 分类从这些中选：${SOUP_CATEGORIES.join("、")}
-3. title 是简短标题（2-6 字，不要用"海龟汤"本身）
-4. surface 是汤面，50-100 字，制造悬念，不要在汤面里剧透真相
-5. truth 是汤底，100-300 字，含前因后果和人物动机，把荒诞场景解释通
-6. keywords 是 3-5 个关键词，便于 AI 判断玩家提问是否命中关键信息
+1. 谜题类型只能是：逻辑推理、密码解谜、找线索 三选一（不要经典谜语）
+2. 生成 ${count} 题${diffHint}，难度尽量分布均匀
+3. 分类从这些中选：${MYSTERY_CATEGORIES.join("、")}
+4. title 是简短标题（2-6 字）
+5. story 是故事背景，50-150 字，制造悬念但不剧透答案
+6. cluesA 是给玩家A的线索数组（2-3 条），cluesB 是给玩家B的线索数组（2-3 条）
+7. 两人线索必须互补，单独一方无法解出，需要通过聊天交流拼凑信息才能得到答案
+8. answer 是完整答案，30-100 字，解释清楚推理过程
+9. keywords 是 3-5 个关键词，便于判断玩家回答是否命中关键信息
+10. difficulty 只能是 simple/medium/hard：simple 较直白，medium 需要一步推理，hard 需要多步推理
 ${avoidTitles ? `已有标题（避免重复或近似）：\n${avoidTitles}\n` : ""}请严格返回以下 JSON 格式（不要有任何其他文字）：
-{"soups":[{"title":"标题","difficulty":"easy|medium|hard","category":"悬疑|惊悚|日常|奇幻|温情","surface":"汤面","truth":"汤底","keywords":["关键词1","关键词2","关键词3"]}]}`;
+{"cases":[{"title":"标题","story":"故事","cluesA":["线索1","线索2"],"cluesB":["线索1","线索2"],"answer":"答案","keywords":["关键词1","关键词2"],"difficulty":"simple|medium|hard","category":"逻辑推理|密码解谜|找线索"}]}`;
 
   const parsed = await callGLM(
     [
@@ -588,21 +591,27 @@ ${avoidTitles ? `已有标题（避免重复或近似）：\n${avoidTitles}\n` :
       { role: "user", content: prompt },
     ],
     0.9,
-    "[turtle-soup]"
+    "[mystery]"
   );
-  const list = Array.isArray(parsed.soups) ? parsed.soups : [];
+  const list = Array.isArray(parsed.cases) ? parsed.cases : [];
   return list
-    .filter((s: any) => s && typeof s.title === "string" && typeof s.surface === "string" && typeof s.truth === "string")
+    .filter((s: any) => s && typeof s.title === "string" && typeof s.story === "string" && typeof s.answer === "string")
     .map((s: any) => ({
       id: "", // 重新分配
       title: String(s.title).trim(),
-      difficulty: SOUP_DIFFICULTIES.includes(s.difficulty) ? s.difficulty : "medium",
-      category: SOUP_CATEGORIES.includes(s.category) ? s.category : "悬疑",
-      surface: String(s.surface).trim(),
-      truth: String(s.truth).trim(),
+      story: String(s.story).trim(),
+      cluesA: Array.isArray(s.cluesA)
+        ? s.cluesA.map((c: any) => String(c).trim()).filter(Boolean).slice(0, 4)
+        : [],
+      cluesB: Array.isArray(s.cluesB)
+        ? s.cluesB.map((c: any) => String(c).trim()).filter(Boolean).slice(0, 4)
+        : [],
+      answer: String(s.answer).trim(),
       keywords: Array.isArray(s.keywords)
         ? s.keywords.map((k: any) => String(k).trim()).filter(Boolean).slice(0, 5)
         : [],
+      difficulty: MYSTERY_DIFFICULTIES.includes(s.difficulty) ? s.difficulty : "medium",
+      category: MYSTERY_CATEGORIES.includes(s.category) ? s.category : "逻辑推理",
     }));
 }
 

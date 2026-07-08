@@ -9,8 +9,8 @@ export type GamePhase =
   | "ROUND_RESULT"
   | "GAME_OVER";
 
-// 游戏类型：画词记忆 / 默契考验 / 海龟汤 / 合作画画 / 表情包猜词
-export type GameType = "draw-memory" | "telepathy" | "turtle-soup" | "co-op-drawing" | "emoji-guessing";
+// 游戏类型：画词记忆 / 默契考验 / 双人解密 / 合作画画 / 表情包猜词
+export type GameType = "draw-memory" | "telepathy" | "mystery" | "co-op-drawing" | "emoji-guessing";
 
 export interface PlayerView {
   id: string;
@@ -32,7 +32,7 @@ export interface RoomView {
   difficulty: Difficulty;
   gameType: GameType;
   telepathyPackId?: string;
-  turtleDifficulty?: string;
+  mysteryDifficulty?: string;
   createdAt: number; // 房间创建时间戳，用于大厅显示相对时间
 }
 
@@ -94,35 +94,29 @@ export interface TelepathyRevealData {
   match: "full" | "partial" | "none";
 }
 
-// ===== 海龟汤 =====
+// ===== 双人解密 =====
 
-// 汤面数据
-export interface TurtleSurfaceData {
-  soupId: string;
-  surface: string;
+// 谜题下发数据（每个玩家拿到的线索不同，由后端按视角下发）
+export interface MysteryCaseData {
+  caseId: string;
+  title: string;
+  story: string;
+  clues: string[];
   difficulty: string;
   category: string;
-  questionsLeft: number;
+  attemptsLeft: number;
+  timeLimit: number;
 }
 
-// 单条提问记录
-export interface TurtleQuestionRecord {
-  question: string;
-  asker: string;
-  answer: "是" | "否" | "无关";
+// 单条聊天记录
+export interface MysteryChatRecord {
+  sender: string;
+  text: string;
+  ts: number;
 }
 
-// AI 回答事件
-export interface TurtleAnsweredData {
-  questionIndex: number;
-  question: string;
-  asker: string;
-  answer: "是" | "否" | "无关";
-  questionsLeft: number;
-}
-
-// 单条猜测记录
-export interface TurtleGuessRecord {
+// 单条答题记录
+export interface MysteryGuessRecord {
   guess: string;
   guesser: string;
   correct: boolean;
@@ -130,25 +124,21 @@ export interface TurtleGuessRecord {
   feedback: string;
 }
 
-// 猜测结果事件
-export interface TurtleGuessResultData {
+// 答题结果事件
+export interface MysterySubmitResultData {
   guessIndex: number;
   guess: string;
   guesser: string;
   correct: boolean;
   close: boolean;
   feedback: string;
+  attemptsLeft: number;
 }
 
-// 揭晓真相事件
-export interface TurtleRevealData {
-  truth: string;
+// 揭晓答案事件
+export interface MysteryRevealData {
+  answer: string;
   won: boolean;
-}
-
-// AI 思考中提示
-export interface TurtleJudgingData {
-  type: "question" | "guess";
 }
 
 // ===== 合作画画（同时画 + AI 评分）=====

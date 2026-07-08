@@ -21,6 +21,7 @@ import {
   Trophy,
   Eye,
   Loader2,
+  KeyRound,
 } from "lucide-react";
 import {
   DrawingCanvas,
@@ -40,19 +41,17 @@ import {
 } from "@/lib/difficulty";
 import wordBank from "../../api/data/words.json";
 import telepathyPacks from "../../api/data/telepathy-questions.json";
-import turtleSoups from "../../api/data/turtle-soup.json";
+import mysteryCases from "../../api/data/mystery-cases.json";
 import drawingPrompts from "../../api/data/drawing-prompts.json";
 import emojiPuzzles from "../../api/data/emoji-puzzles.json";
 import type { GameType } from "@/lib/types";
-import { useSpeech } from "@/hooks/useSpeech";
-import { Mic, Square } from "lucide-react";
 
 // ============ 单人模式分发器 ============
 // 根据路由 /solo/:gameType 渲染不同的单人游戏组件
 const SOLO_GAME_NAMES: Record<GameType, string> = {
   "draw-memory": "画词记忆",
   "telepathy": "默契考验",
-  "turtle-soup": "海龟汤",
+  "mystery": "双人解密",
   "co-op-drawing": "合作画画",
   "emoji-guessing": "表情包猜词",
 };
@@ -60,7 +59,7 @@ const SOLO_GAME_NAMES: Record<GameType, string> = {
 const SOLO_GAME_EMOJI: Record<GameType, string> = {
   "draw-memory": "🎨",
   "telepathy": "💕",
-  "turtle-soup": "🐢",
+  "mystery": "🔐",
   "co-op-drawing": "✏️",
   "emoji-guessing": "😎",
 };
@@ -93,8 +92,8 @@ export default function SoloMode() {
       return <SoloDrawMemory />;
     case "telepathy":
       return <SoloTelepathy />;
-    case "turtle-soup":
-      return <SoloTurtleSoup />;
+    case "mystery":
+      return <SoloMystery />;
     case "co-op-drawing":
       return <SoloCoOpDrawing />;
     case "emoji-guessing":
@@ -1367,30 +1366,36 @@ function SoloTelepathy() {
   );
 }
 
-// ============ 单人海龟汤 ============
-interface TurtleSoupEntry {
+// ============ 单人双人解密 ============
+interface MysteryCaseEntry {
   id: string;
   title: string;
+  story: string;
+  cluesA: string[];
+  cluesB: string[];
+  answer: string;
+  keywords: string[];
   difficulty: string;
   category: string;
-  surface: string;
-  truth: string;
-  keywords: string[];
 }
-interface SoloTurtleRecord {
-  question: string;
-  answer: "是" | "否" | "无关";
+interface SoloMysteryGuess {
+  guess: string;
+  correct: boolean;
+  close: boolean;
+  feedback: string;
 }
-const SOLO_TURTLE_MAX_QUESTIONS = 10;
-const SOLO_TURTLE_DIFFICULTY_LABEL: Record<string, string> = {
+const SOLO_MYSTERY_MAX_ATTEMPTS = 3;
+const SOLO_MYSTERY_TIME_LIMIT = 300; // 5 分钟
+const SOLO_MYSTERY_DIFFICULTY_LABEL: Record<string, string> = {
   any: "任意",
-  easy: "简单",
+  simple: "简单",
   medium: "中等",
   hard: "困难",
 };
 
-function pickTurtleSoup(): TurtleSoupEntry {
-  const arr = turtleSoups as TurtleSoupEntry[];
+/** 从预设题库随机抽一道 */
+function pickMysteryCase(): MysteryCaseEntry {
+  const arr = mysteryCases as MysteryCaseEntry[];
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
@@ -1419,55 +1424,67 @@ async function probeBackend(): Promise<boolean> {
   } catch {
     backendAvailableCache = false;
   }
-  console.log("[SoloTurtleSoup] 后端可用性探测结果:", backendAvailableCache);
+  console.log("[SoloMystery] 后端可用性探测结果:", backendAvailableCache);
   return backendAvailableCache;
 }
 
-/** 单人海龟汤本地判断逻辑：含关键词→"是"，否则随机（AI不可用时的兜底） */
-function localJudge(question: string, keywords: string[]): "是" | "否" | "无关" {
-  const q = question.toLowerCase();
-  const hit = keywords.some((k) => k && q.includes(k.toLowerCase()));
-  if (hit) return "是";
-  // 随机：偏向"否"和"无关"，避免太容易猜
-  const r = Math.random();
-  if (r < 0.45) return "否";
-  if (r < 0.85) return "无关";
-  return "是";
+/** 本地关键词判断兜底（AI 不可用时使用） */
+function localJudge(
+  userAnswer: string,
+  correctAnswer: string,
+  keywords: string[]
+): { correct: boolean; close: boolean; feedback: string } {
+  const ans = (userAnswer || "").toLowerCase();
+  const truth = (correctAnswer || "").toLowerCase();
+  if (truth && ans.includes(truth)) {
+    return { correct: true, close: true, feedback: "完全正确！" };
+  }
+  const hits = keywords.filter((k) => k && ans.includes(k.toLowerCase()));
+  if (keywords.length > 0 && hits.length === keywords.length) {
+    return { correct: true, close: true, feedback: "完全正确！" };
+  }
+  if (hits.length >= Math.ceil(keywords.length / 2)) {
+    return { correct: false, close: true, feedback: "接近了，再想想" };
+  }
+  return { correct: false, close: false, feedback: "不对，继续推理" };
 }
 
-/** 调后端 AI 判断，后端不可用直接走本地判断 */
-async function aiJudgeQuestion(
-  question: string,
-  truth: string,
+/** 调后端 AI 判断答案，后端不可用直接走本地判断 */
+async function aiJudgeAnswer(
+  userAnswer: string,
+  correctAnswer: string,
   keywords: string[]
-): Promise<"是" | "否" | "无关"> {
-  // 后端不可用，直接本地判断
+): Promise<{ correct: boolean; close: boolean; feedback: string }> {
   const available = await probeBackend();
   if (!available) {
-    return localJudge(question, keywords);
+    return localJudge(userAnswer, correctAnswer, keywords);
   }
   try {
     const base = getBackendUrl();
-    const resp = await fetch(`${base}/api/turtle-judge`, {
+    const resp = await fetch(`${base}/api/mystery-judge`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, truth, keywords }),
+      body: JSON.stringify({ userAnswer, correctAnswer, keywords }),
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
-    if (data.success && data.answer) return data.answer;
+    if (data.success) {
+      return {
+        correct: Boolean(data.correct),
+        close: Boolean(data.close),
+        feedback: data.feedback || "判断完成",
+      };
+    }
     throw new Error("invalid response");
   } catch (err) {
-    console.warn("[SoloTurtleSoup] AI判断失败，回退本地判断:", err);
-    // 单次失败不污染缓存，下次仍可重试
-    return localJudge(question, keywords);
+    console.warn("[SoloMystery] AI判断失败，回退本地判断:", err);
+    return localJudge(userAnswer, correctAnswer, keywords);
   }
 }
 
-function SoloTurtleSoup() {
+function SoloMystery() {
   const navigate = useNavigate();
   const { sfxEnabled } = useAudioStore();
-  const { listening, transcript, start, stop, supported: speechSupported, error: speechError } = useSpeech();
 
   const playSfx = useCallback(
     (fn: () => void) => {
@@ -1477,19 +1494,22 @@ function SoloTurtleSoup() {
   );
 
   const [stage, setStage] = useState<"intro" | "playing" | "result">("intro");
-  const [soup, setSoup] = useState<TurtleSoupEntry | null>(null);
-  const [records, setRecords] = useState<SoloTurtleRecord[]>([]);
-  const [questionsLeft, setQuestionsLeft] = useState(SOLO_TURTLE_MAX_QUESTIONS);
+  const [caseData, setCaseData] = useState<MysteryCaseEntry | null>(null);
+  const [guesses, setGuesses] = useState<SoloMysteryGuess[]>([]);
+  const [attemptsLeft, setAttemptsLeft] = useState(SOLO_MYSTERY_MAX_ATTEMPTS);
+  const [timeLeft, setTimeLeft] = useState(SOLO_MYSTERY_TIME_LIMIT);
   const [inputText, setInputText] = useState("");
   const [revealed, setRevealed] = useState(false);
   const [won, setWon] = useState(false);
   const [judging, setJudging] = useState(false);
   const historyRef = useRef<HTMLDivElement | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const startTurtle = () => {
-    setSoup(pickTurtleSoup());
-    setRecords([]);
-    setQuestionsLeft(SOLO_TURTLE_MAX_QUESTIONS);
+  const startMystery = () => {
+    setCaseData(pickMysteryCase());
+    setGuesses([]);
+    setAttemptsLeft(SOLO_MYSTERY_MAX_ATTEMPTS);
+    setTimeLeft(SOLO_MYSTERY_TIME_LIMIT);
     setInputText("");
     setRevealed(false);
     setWon(false);
@@ -1503,32 +1523,79 @@ function SoloTurtleSoup() {
     probeBackend();
   }, []);
 
-  // 语音识别结果自动填入输入框
+  // 倒计时：playing 阶段每秒减一，到 0 自动揭晓失败
   useEffect(() => {
-    if (transcript) {
-      setInputText(transcript);
+    if (stage !== "playing" || revealed) {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      return;
     }
-  }, [transcript]);
+    timerRef.current = setInterval(() => {
+      setTimeLeft((t) => {
+        if (t <= 1) {
+          // 时间到，揭晓失败
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+          }
+          setRevealed(true);
+          setWon(false);
+          setStage("result");
+          playSfx(sfx.lose);
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [stage, revealed, playSfx]);
 
-  // 新提问到达时滚动到底部
+  // 最后 10 秒滴答音效
+  const lastSecRef = useRef(SOLO_MYSTERY_TIME_LIMIT);
+  useEffect(() => {
+    const sec = Math.ceil(timeLeft);
+    if (sec !== lastSecRef.current) {
+      if (sec <= 10 && sec > 0 && stage === "playing" && !revealed) {
+        playSfx(sfx.tickUrgent);
+      }
+      lastSecRef.current = sec;
+    }
+  }, [timeLeft, stage, revealed, playSfx]);
+
+  // 新猜测到达时滚动到底部
   useEffect(() => {
     if (historyRef.current) {
       historyRef.current.scrollTop = historyRef.current.scrollHeight;
     }
-  }, [records.length, revealed, judging]);
+  }, [guesses.length, revealed, judging]);
 
-  const handleAsk = async () => {
-    const q = inputText.trim();
-    if (!q || revealed || questionsLeft <= 0 || !soup || judging) return;
+  const handleSubmit = async () => {
+    const a = inputText.trim();
+    if (!a || revealed || attemptsLeft <= 0 || !caseData || judging) return;
     setJudging(true);
     setInputText("");
-    const answer = await aiJudgeQuestion(q, soup.truth, soup.keywords);
+    const result = await aiJudgeAnswer(a, caseData.answer, caseData.keywords);
     setJudging(false);
-    setRecords((r) => [...r, { question: q, answer }]);
-    setQuestionsLeft((n) => n - 1);
-    playSfx(answer === "是" ? sfx.correct : answer === "否" ? sfx.wrong : sfx.uiTick);
-    // 用完 10 次提问自动揭晓
-    if (questionsLeft - 1 <= 0) {
+    setGuesses((g) => [...g, { guess: a, ...result }]);
+    const nextLeft = attemptsLeft - 1;
+    setAttemptsLeft(nextLeft);
+    playSfx(result.correct ? sfx.correct : result.close ? sfx.uiTick : sfx.wrong);
+    // 答对或机会用尽自动揭晓
+    if (result.correct) {
+      setTimeout(() => {
+        setRevealed(true);
+        setWon(true);
+        setStage("result");
+        playSfx(sfx.win);
+      }, 600);
+    } else if (nextLeft <= 0) {
       setTimeout(() => {
         setRevealed(true);
         setWon(false);
@@ -1538,32 +1605,24 @@ function SoloTurtleSoup() {
     }
   };
 
-  const handleReveal = () => {
-    if (revealed || !soup) return;
-    setRevealed(true);
-    setWon(false);
-    setStage("result");
-    playSfx(sfx.lose);
-  };
-
   /* ============ 介绍页 ============ */
   if (stage === "intro") {
     return (
       <div className="paper-bg h-[100dvh] overflow-y-auto flex flex-col items-center px-5 py-8 relative">
-        <div className="absolute top-10 left-5 text-6xl animate-float opacity-20">🐢</div>
-        <div className="absolute top-20 right-5 text-5xl animate-float opacity-20" style={{ animationDelay: "1s" }}>🍲</div>
-        <div className="absolute bottom-20 left-8 text-5xl animate-float opacity-20" style={{ animationDelay: "2s" }}>🔍</div>
+        <div className="absolute top-10 left-5 text-6xl animate-float opacity-20">🔐</div>
+        <div className="absolute top-20 right-5 text-5xl animate-float opacity-20" style={{ animationDelay: "1s" }}>🔍</div>
+        <div className="absolute bottom-20 left-8 text-5xl animate-float opacity-20" style={{ animationDelay: "2s" }}>💡</div>
 
         <div className="w-full max-w-md flex flex-col items-center relative z-10">
           <div className="mt-8 mb-2 text-center animate-bounce-in">
-            <h1 className="font-display text-5xl text-ink leading-tight">海龟汤 · 单人游玩</h1>
+            <h1 className="font-display text-5xl text-ink leading-tight">双人解密 · 单人游玩</h1>
             <div className="mt-1 flex items-center justify-center gap-2">
               <div className="h-1 w-16 bg-mint rounded-full" />
-              <HelpCircle size={20} className="text-mint" />
+              <KeyRound size={20} className="text-mint" />
               <div className="h-1 w-16 bg-mint rounded-full" />
             </div>
             <p className="font-body text-ink-muted text-sm mt-3">
-              单人游玩：海龟汤 · AI主持人判断 · 支持语音提问
+              单人游玩：看全部线索 · 3 次提交机会 · 5 分钟倒计时
             </p>
           </div>
 
@@ -1572,31 +1631,31 @@ function SoloTurtleSoup() {
               <div className="flex items-center gap-3 bg-mint rounded-doodle p-3 border-2 border-ink shadow-soft">
                 <div className="flex items-center justify-center w-10 h-10 rounded-full bg-coral border-2 border-ink font-display text-white">1</div>
                 <div className="flex-1">
-                  <div className="font-display text-ink">读汤面</div>
-                  <div className="text-xs text-ink-muted">系统随机抽一题，看表面故事</div>
+                  <div className="font-display text-ink">读故事 + 看全部线索</div>
+                  <div className="text-xs text-ink-muted">系统随机抽一题，单人可见 A+B 所有线索</div>
                 </div>
               </div>
               <div className="flex items-center gap-3 bg-sun rounded-doodle p-3 border-2 border-ink shadow-soft">
                 <div className="flex items-center justify-center w-10 h-10 rounded-full bg-ink border-2 border-ink font-display text-cream">2</div>
                 <div className="flex-1">
-                  <div className="font-display text-ink">文字/语音提问</div>
-                  <div className="text-xs text-ink-muted">AI主持人回答"是/否/无关"，共 10 问</div>
+                  <div className="font-display text-ink">提交答案</div>
+                  <div className="text-xs text-ink-muted">AI 语义判断，共 3 次机会</div>
                 </div>
               </div>
               <div className="flex items-center gap-3 bg-coral-light rounded-doodle p-3 border-2 border-ink shadow-soft">
                 <div className="flex items-center justify-center w-10 h-10 rounded-full bg-mint border-2 border-ink font-display text-ink">3</div>
                 <div className="flex-1">
-                  <div className="font-display text-ink">揭晓汤底</div>
-                  <div className="text-xs text-ink-muted">随时可看真相，或问完自动揭晓</div>
+                  <div className="font-display text-ink">揭晓答案</div>
+                  <div className="text-xs text-ink-muted">5 分钟内答对获胜，超时或用尽机会失败</div>
                 </div>
               </div>
             </div>
 
             <button
-              onClick={startTurtle}
+              onClick={startMystery}
               className="btn-press w-full py-4 bg-mint text-ink font-display text-xl rounded-doodle shadow-pop border-2 border-ink flex items-center justify-center gap-2"
             >
-              <HelpCircle size={22} />
+              <KeyRound size={22} />
               开始挑战
             </button>
             <button
@@ -1615,32 +1674,32 @@ function SoloTurtleSoup() {
   }
 
   /* ============ 结果页 ============ */
-  if (stage === "result" && soup) {
+  if (stage === "result" && caseData) {
     return (
       <div className="paper-bg h-[100dvh] overflow-y-auto flex flex-col items-center justify-center px-5 py-8">
         <div className="w-full max-w-md bg-white rounded-blob shadow-card border-3 border-ink p-6 text-center animate-bounce-in">
           <div className="text-6xl mb-3 animate-float">{won ? "🎉" : "😇"}</div>
           <h2 className={`font-display text-3xl mb-1 ${won ? "text-mint" : "text-coral"}`}>
-            {won ? "猜中了！" : "挑战结束"}
+            {won ? "破案成功！" : "挑战结束"}
           </h2>
           <p className="font-body text-ink-muted text-sm mb-4">
-            {won ? "你还原了真相" : "真相揭晓"}
+            {won ? "你解开了谜题" : "答案揭晓"}
           </p>
 
           <div className="bg-cream rounded-doodle border-2 border-ink p-4 mb-4 text-left">
             <div className="flex items-center gap-1.5 mb-2">
               <Trophy size={14} className="text-sun" />
-              <span className="font-display text-ink text-xs">汤底真相</span>
+              <span className="font-display text-ink text-xs">真相</span>
             </div>
-            <p className="font-body text-ink text-sm leading-relaxed">{soup.truth}</p>
+            <p className="font-body text-ink text-sm leading-relaxed">{caseData.answer}</p>
           </div>
 
           <div className="bg-cream rounded-doodle border-2 border-ink p-2 mb-6 text-xs text-ink-muted">
-            提问 {records.length} / {SOLO_TURTLE_MAX_QUESTIONS} 次
+            提交 {guesses.length} / {SOLO_MYSTERY_MAX_ATTEMPTS} 次
           </div>
 
           <button
-            onClick={startTurtle}
+            onClick={startMystery}
             className="btn-press w-full py-4 bg-coral text-white font-display text-xl rounded-doodle shadow-pop border-2 border-ink flex items-center justify-center gap-2 mb-3"
           >
             <RotateCcw size={22} />
@@ -1662,81 +1721,112 @@ function SoloTurtleSoup() {
   }
 
   /* ============ 游戏中 ============ */
-  if (!soup) {
+  if (!caseData) {
     return (
       <div className="paper-bg h-[100dvh] flex items-center justify-center">
-        <p className="text-ink-muted">准备汤面中...</p>
+        <p className="text-ink-muted">准备谜题中...</p>
       </div>
     );
   }
 
-  const canInteract = !revealed && questionsLeft > 0 && !judging;
+  const canInteract = !revealed && attemptsLeft > 0 && !judging;
+  const allClues = [...caseData.cluesA, ...caseData.cluesB];
+  // 格式化倒计时 mm:ss
+  const mm = String(Math.floor(timeLeft / 60)).padStart(2, "0");
+  const ss = String(timeLeft % 60).padStart(2, "0");
+  const timerUrgent = timeLeft <= 30;
 
   return (
     <div className="paper-bg h-[100dvh] flex flex-col overflow-hidden">
       {/* 顶栏 */}
       <div className="flex-shrink-0 px-4 py-2.5 flex items-center justify-between border-b-2 border-ink-muted/20 bg-white/50">
         <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-base">🐢</span>
-          <span className="font-display text-ink text-sm">海龟汤 · 单人</span>
+          <span className="text-base">🔐</span>
+          <span className="font-display text-ink text-sm">双人解密 · 单人</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="font-display text-ink text-xs bg-sun px-2 py-1 rounded-full border-2 border-ink">
-            {SOLO_TURTLE_DIFFICULTY_LABEL[soup.difficulty] || soup.difficulty}
+            {SOLO_MYSTERY_DIFFICULTY_LABEL[caseData.difficulty] || caseData.difficulty}
           </span>
           <span
             className={`font-display text-xs px-2 py-1 rounded-full border-2 border-ink ${
-              questionsLeft <= 3 ? "bg-coral text-white" : "bg-mint text-ink"
+              attemptsLeft <= 1 ? "bg-coral text-white" : "bg-mint text-ink"
             }`}
           >
-            剩余 {questionsLeft} 问
+            剩余 {attemptsLeft} 次
+          </span>
+          <span
+            className={`font-display text-xs px-2 py-1 rounded-full border-2 border-ink ${
+              timerUrgent ? "bg-coral text-white animate-pulse" : "bg-white text-ink"
+            }`}
+          >
+            {mm}:{ss}
           </span>
         </div>
       </div>
 
-      {/* 汤面 + 历史 */}
+      {/* 故事 + 线索 + 历史 */}
       <div ref={historyRef} className="flex-1 overflow-y-auto px-4 py-3 min-h-0">
-        {/* 汤面 */}
+        {/* 故事 */}
         <div className="bg-white rounded-blob border-3 border-ink shadow-card p-4 mb-3 animate-bounce-in">
           <div className="flex items-center gap-1.5 mb-2">
-            <HelpCircle size={14} className="text-coral" />
-            <span className="font-display text-ink text-xs">汤面：{soup.title}</span>
-            {soup.category && (
+            <KeyRound size={14} className="text-coral" />
+            <span className="font-display text-ink text-xs">案件：{caseData.title}</span>
+            {caseData.category && (
               <span className="ml-auto text-[10px] text-ink-muted bg-cream-dark px-2 py-0.5 rounded-full">
-                {soup.category}
+                {caseData.category}
               </span>
             )}
           </div>
-          <p className="font-body text-ink text-sm leading-relaxed">{soup.surface}</p>
+          <p className="font-body text-ink text-sm leading-relaxed">{caseData.story}</p>
+        </div>
+
+        {/* 所有线索（单人模式可见全部） */}
+        <div className="bg-mint/30 rounded-doodle border-2 border-ink p-3 mb-3 animate-slide-up">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Sparkles size={14} className="text-ink" />
+            <span className="font-display text-ink text-xs">全部线索</span>
+          </div>
+          <ul className="space-y-1.5">
+            {allClues.map((c, i) => (
+              <li key={i} className="font-body text-ink text-sm leading-relaxed flex gap-1.5">
+                <span className="text-ink-muted flex-shrink-0">·</span>
+                <span>{c}</span>
+              </li>
+            ))}
+          </ul>
         </div>
 
         {/* AI 判断中提示 */}
         {judging && (
           <div className="bg-coral-light rounded-doodle border-2 border-ink p-3 mb-3 flex items-center gap-2 animate-slide-up">
             <Loader2 size={16} className="animate-spin text-coral flex-shrink-0" />
-            <span className="font-body text-ink text-sm">AI主持人正在思考...</span>
+            <span className="font-body text-ink text-sm">AI 正在判断你的答案...</span>
           </div>
         )}
 
-        {/* 提问历史 */}
-        {records.length > 0 && (
+        {/* 提交历史 */}
+        {guesses.length > 0 && (
           <div className="space-y-2 mb-3">
-            {records.map((r, idx) => {
-              const style =
-                r.answer === "是"
-                  ? "bg-mint text-ink border-ink"
-                  : r.answer === "否"
-                  ? "bg-coral text-white border-ink"
-                  : "bg-cream-dark text-ink-muted border-ink-muted";
+            {guesses.map((g, idx) => {
+              const style = g.correct
+                ? "bg-mint text-ink border-ink"
+                : g.close
+                ? "bg-sun text-ink border-ink"
+                : "bg-coral text-white border-ink";
+              const tag = g.correct ? "正确" : g.close ? "接近" : "错误";
               return (
                 <div key={idx} className="bg-white rounded-doodle border-2 border-ink/30 p-2.5 animate-slide-up">
                   <div className="flex items-start gap-2">
                     <div className="flex-1 min-w-0">
-                      <div className="text-[10px] text-ink-muted mb-0.5">问：</div>
-                      <div className="font-body text-ink text-sm break-words">{r.question}</div>
+                      <div className="text-[10px] text-ink-muted mb-0.5">答：</div>
+                      <div className="font-body text-ink text-sm break-words">{g.guess}</div>
+                      {g.feedback && (
+                        <div className="text-[10px] text-ink-muted mt-0.5">反馈：{g.feedback}</div>
+                      )}
                     </div>
                     <span className={`flex-shrink-0 px-2.5 py-1 rounded-full border-2 font-display text-xs ${style}`}>
-                      {r.answer}
+                      {tag}
                     </span>
                   </div>
                 </div>
@@ -1746,19 +1836,12 @@ function SoloTurtleSoup() {
         )}
 
         {/* 提示 */}
-        {records.length === 0 && !judging && (
+        {guesses.length === 0 && !judging && (
           <div className="text-center text-xs text-ink-muted py-3">
-            AI主持人根据汤底判断你的提问 · 支持语音
+            综合所有线索推理 · 提交答案由 AI 语义判断
           </div>
         )}
       </div>
-
-      {/* 语音识别错误提示 */}
-      {speechError && (
-        <div className="flex-shrink-0 px-3 py-1.5 bg-coral/10 border-t border-coral/30">
-          <p className="text-xs text-coral text-center">{speechError}</p>
-        </div>
-      )}
 
       {/* 底部输入区 */}
       <div className="flex-shrink-0 bg-white border-t-2 border-ink px-3 py-2.5">
@@ -1770,44 +1853,23 @@ function SoloTurtleSoup() {
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                handleAsk();
+                handleSubmit();
               }
             }}
-            maxLength={100}
+            maxLength={200}
             disabled={!canInteract}
-            placeholder={judging ? "AI思考中..." : canInteract ? "提问... (回车发送)" : "已揭晓"}
+            placeholder={judging ? "AI判断中..." : canInteract ? "输入答案... (回车提交)" : "已揭晓"}
             className="flex-1 px-3 py-2.5 rounded-doodle border-2 border-ink bg-cream font-body text-ink text-sm focus:border-coral focus:bg-white transition-colors disabled:opacity-50"
           />
-          {/* 语音按钮 */}
-          {speechSupported && (
-            <button
-              onClick={listening ? stop : start}
-              disabled={!canInteract}
-              className={`btn-press flex-shrink-0 w-11 h-11 rounded-doodle border-2 border-ink flex items-center justify-center disabled:opacity-40 ${
-                listening ? "bg-coral text-white animate-pulse" : "bg-sun text-ink"
-              }`}
-              title={listening ? "停止录音" : "语音输入"}
-            >
-              {listening ? <Square size={16} /> : <Mic size={18} />}
-            </button>
-          )}
           <button
-            onClick={handleAsk}
+            onClick={handleSubmit}
             disabled={!canInteract || !inputText.trim()}
             className="btn-press flex-shrink-0 w-11 h-11 rounded-doodle border-2 border-ink bg-coral text-white flex items-center justify-center disabled:opacity-40"
-            title="发送提问"
+            title="提交答案"
           >
             {judging ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
           </button>
         </div>
-        <button
-          onClick={handleReveal}
-          disabled={revealed || judging}
-          className="btn-press w-full mt-2 py-2.5 bg-ink text-cream font-display text-sm rounded-doodle border-2 border-ink shadow-soft flex items-center justify-center gap-1.5 disabled:opacity-40"
-        >
-          <Sparkles size={16} />
-          查看汤底
-        </button>
       </div>
     </div>
   );

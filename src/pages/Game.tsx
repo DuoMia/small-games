@@ -7,7 +7,7 @@ import QuizPhase from "@/game/QuizPhase";
 import RoundResult from "@/game/RoundResult";
 import GameResult from "@/game/GameResult";
 import TelepathyGame from "@/game/TelepathyGame";
-import TurtleSoup from "@/game/TurtleSoup";
+import MysteryGame from "@/game/MysteryGame";
 import CoOpDrawing from "@/game/CoOpDrawing";
 import EmojiGuessing from "@/game/EmojiGuessing";
 
@@ -43,9 +43,9 @@ export default function Game() {
     return <TelepathyGame roomId={roomId} />;
   }
 
-  // 海龟汤：统一交给 TurtleSoup 处理
-  if (room.gameType === "turtle-soup") {
-    return <TurtleSoup roomId={roomId} />;
+  // 双人解密：统一交给 MysteryGame 处理
+  if (room.gameType === "mystery") {
+    return <MysteryGame roomId={roomId} />;
   }
 
   // 合作画画：统一交给 CoOpDrawing 处理
