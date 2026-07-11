@@ -109,7 +109,6 @@
       <button data-db="draw-words" class="tab-btn doodle-btn px-5 py-2.5 bg-white">🎨 画图猜词</button>
       <button data-db="telepathy" class="tab-btn doodle-btn px-5 py-2.5 bg-white">💭 默契考验</button>
       <button data-db="emoji" class="tab-btn doodle-btn px-5 py-2.5 bg-white">😀 表情包</button>
-      <button data-db="mystery" class="tab-btn doodle-btn px-5 py-2.5 bg-white">🔐 双人解密</button>
     </nav>
 
     <!-- 统计 + 操作栏 -->
@@ -211,22 +210,6 @@
           { key: "alternatives", label: "备选答案（逗号分隔）", type: "csv" },
         ],
         aiOptions: [],
-      },
-      "mystery": {
-        label: "双人解密",
-        fields: [
-          { key: "title", label: "标题", type: "text", required: true },
-          { key: "difficulty", label: "难度", type: "select", options: ["simple", "medium", "hard"], default: "medium" },
-          { key: "category", label: "分类", type: "select", options: ["逻辑推理", "密码解谜", "找线索"], default: "逻辑推理" },
-          { key: "story", label: "故事背景", type: "textarea", required: true },
-          { key: "cluesA", label: "玩家A线索（逗号分隔）", type: "csv", required: true },
-          { key: "cluesB", label: "玩家B线索（逗号分隔）", type: "csv", required: true },
-          { key: "answer", label: "答案", type: "textarea", required: true },
-          { key: "keywords", label: "关键词（逗号分隔）", type: "csv" },
-        ],
-        aiOptions: [
-          { key: "difficulty", label: "难度（可选）", type: "select", options: ["随机", "simple", "medium", "hard"], default: "随机" },
-        ],
       },
     };
 
@@ -374,17 +357,6 @@
           <div class="font-bold">答案：${escapeHtml(item.answer)}</div>
           ${item.alternatives && item.alternatives.length ? `<div class="text-sm text-gray-600 mt-1">备选：${item.alternatives.map(escapeHtml).join("、")}</div>` : ""}
         `;
-      } else if (db === "mystery") {
-        const diffColor = { simple: "bg-green-200", medium: "bg-yellow-200", hard: "bg-red-200" }[item.difficulty] || "bg-gray-200";
-        badge = `<span class="px-2 py-0.5 text-xs rounded-full ${diffColor} border-2 border-[var(--ink)]">${item.difficulty}</span><span class="px-2 py-0.5 text-xs rounded-full bg-[var(--sun)] border-2 border-[var(--ink)] ml-1">${item.category}</span><span class="text-xs text-gray-500 ml-2">${item.id}</span>`;
-        content = `
-          <div class="font-bold text-lg">${escapeHtml(item.title)}</div>
-          <div class="text-sm mt-1"><span class="font-semibold">故事：</span>${escapeHtml(item.story)}</div>
-          <div class="text-sm mt-1"><span class="font-semibold">A线索：</span>${item.cluesA ? item.cluesA.map(escapeHtml).join("；") : ""}</div>
-          <div class="text-sm mt-1"><span class="font-semibold">B线索：</span>${item.cluesB ? item.cluesB.map(escapeHtml).join("；") : ""}</div>
-          <details class="mt-2"><summary class="cursor-pointer text-sm font-semibold text-[var(--coral)]">查看答案</summary><div class="text-sm mt-1 bg-gray-50 p-2 rounded">${escapeHtml(item.answer)}</div></details>
-          ${item.keywords && item.keywords.length ? `<div class="text-xs text-gray-500 mt-2">关键词：${item.keywords.map(escapeHtml).join("、")}</div>` : ""}
-        `;
       }
 
       return `
@@ -529,7 +501,6 @@
       if (STATE.currentDb === "draw-words") preview = item.word;
       else if (STATE.currentDb === "telepathy") preview = item.question;
       else if (STATE.currentDb === "emoji") preview = `${item.emoji} = ${item.answer}`;
-      else if (STATE.currentDb === "mystery") preview = item.title;
       if (!confirm(`确定删除「${preview}」吗？此操作不可撤销。`)) return;
       try {
         showLoading("删除中...");

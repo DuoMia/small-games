@@ -7,7 +7,7 @@ import QuizPhase from "@/game/QuizPhase";
 import RoundResult from "@/game/RoundResult";
 import GameResult from "@/game/GameResult";
 import TelepathyGame from "@/game/TelepathyGame";
-import MysteryGame from "@/game/MysteryGame";
+import HeartAttackGame from "@/game/HeartAttackGame";
 import CoOpDrawing from "@/game/CoOpDrawing";
 import EmojiGuessing from "@/game/EmojiGuessing";
 
@@ -43,9 +43,9 @@ export default function Game() {
     return <TelepathyGame roomId={roomId} />;
   }
 
-  // 双人解密：统一交给 MysteryGame 处理
-  if (room.gameType === "mystery") {
-    return <MysteryGame roomId={roomId} />;
+  // 德国心脏病：统一交给 HeartAttackGame 处理
+  if (room.gameType === "heart-attack") {
+    return <HeartAttackGame roomId={roomId} />;
   }
 
   // 合作画画：统一交给 CoOpDrawing 处理

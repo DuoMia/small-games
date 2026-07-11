@@ -71,15 +71,6 @@ export function registerSocketHandlers(io: Io) {
       }
     });
 
-    socket.on("room:set-mystery-difficulty", ({ roomId, difficulty }) => {
-      const room = RoomManager.setMysteryDifficulty(roomId, socket.id, difficulty);
-      if (room) {
-        io.to(roomId).emit("room:updated", { room: RoomManager.toRoomView(room) });
-      } else {
-        socket.emit("room:error", { message: "无法修改难度" });
-      }
-    });
-
     socket.on("room:leave", ({ roomId }) => {
       handleLeave(io, socket, roomId);
     });
@@ -114,20 +105,18 @@ export function registerSocketHandlers(io: Io) {
         return;
       }
 
-      if (room.gameType === "mystery") {
-        // 双人解密：AI 出题完成，分别下发各玩家视角的谜题（线索不同）
+      if (room.gameType === "heart-attack") {
+        // 德国心脏病：已生成牌堆，分别下发各玩家视角的初始状态
         io.to(roomId).emit("game:state", {
           phase: room.state.phase,
           currentRound: room.state.currentRound,
         });
         room.players.forEach((p) => {
-          const view = RoomManager.getCurrentMysteryView(room, p.id);
+          const view = RoomManager.getHeartStateView(room, p.id);
           if (view) {
-            io.to(p.id).emit("mystery:case", view);
+            io.to(p.id).emit("heart:state", view);
           }
         });
-        // 启动 5 分钟倒计时
-        startMysteryTimer(io, roomId);
         return;
       }
 
@@ -330,21 +319,18 @@ export function registerSocketHandlers(io: Io) {
         return;
       }
 
-      if (room.gameType === "mystery") {
-        // 双人解密重玩（换一道题，AI 重新出题）
-        stopMysteryTimer(roomId);
+      if (room.gameType === "heart-attack") {
+        // 德国心脏病重玩（重新洗牌）
         io.to(roomId).emit("game:state", {
           phase: room.state.phase,
           currentRound: room.state.currentRound,
         });
         room.players.forEach((p) => {
-          const view = RoomManager.getCurrentMysteryView(room, p.id);
+          const view = RoomManager.getHeartStateView(room, p.id);
           if (view) {
-            io.to(p.id).emit("mystery:case", view);
+            io.to(p.id).emit("heart:state", view);
           }
         });
-        // 重新启动 5 分钟倒计时
-        startMysteryTimer(io, roomId);
         return;
       }
 
@@ -469,65 +455,79 @@ export function registerSocketHandlers(io: Io) {
       });
     });
 
-    // ---------- 双人解密 ----------
+    // ---------- 德国心脏病 ----------
 
-    socket.on("mystery:chat", ({ roomId, text }) => {
-      const result = RoomManager.submitMysteryChat(roomId, socket.id, text);
-      if (!result) return;
-      // 广播聊天记录给房间所有人
-      io.to(roomId).emit("mystery:chat", result.record);
-    });
-
-    socket.on("mystery:submit", async ({ roomId, answer }) => {
-      // 先通知"AI 判断中"
-      io.to(roomId).emit("mystery:judging");
-      const result = await RoomManager.submitMysteryAnswer(roomId, socket.id, answer);
+    socket.on("heart:flip", ({ roomId }) => {
+      const result = RoomManager.flipHeartCard(roomId, socket.id);
       if (result.ok === false) {
         socket.emit("room:error", { message: result.error });
         return;
       }
-      // 广播提交结果给房间所有人
-      io.to(roomId).emit("mystery:submit-result", {
-        guessIndex: result.guessIndex,
-        guess: result.guess,
-        guesser: result.guesser,
-        correct: result.correct,
-        close: result.close,
-        feedback: result.feedback,
-        attemptsLeft: result.attemptsLeft,
+      const room = result.room;
+      // 双方都翻完后，如果桌面无 fruit=5，自动推进到下一轮
+      const allFlipped = room.players.every((p) => room.state.heartFlipped?.[p.id]);
+      if (allFlipped) {
+        const advanced = RoomManager.nextHeartRound(roomId);
+        if (advanced) room.state = advanced.state;
+      }
+      // 广播最新状态给双方（视角不同）
+      room.players.forEach((p) => {
+        const view = RoomManager.getHeartStateView(room, p.id);
+        if (view) {
+          io.to(p.id).emit("heart:state", view);
+        }
       });
-      // 答对 或 次数用完：揭晓答案
-      if (result.correct || result.exhausted) {
-        const room = result.room;
-        stopMysteryTimer(roomId);
+    });
+
+    socket.on("heart:ring", ({ roomId }) => {
+      const result = RoomManager.ringHeartBell(roomId, socket.id);
+      if (result.ok === false) {
+        socket.emit("room:error", { message: result.error });
+        return;
+      }
+      const room = result.room;
+      // 广播拍铃结果给房间所有人
+      io.to(roomId).emit("heart:result", {
+        type: result.type,
+        ringerId: result.ringerId,
+        ringerNickname: result.ringerNickname,
+      });
+      // 如果游戏结束
+      if (result.gameOver) {
         io.to(roomId).emit("game:state", {
           phase: room.state.phase,
           currentRound: room.state.currentRound,
         });
-        io.to(roomId).emit("mystery:reveal", {
-          answer: RoomManager.getMysteryAnswer(room),
-          won: result.correct,
+        room.players.forEach((p) => {
+          const overData = RoomManager.getHeartGameOverData(room, p.id);
+          if (overData) {
+            io.to(p.id).emit("heart:game-over", overData);
+          }
         });
+        return;
       }
+      // 广播最新状态给双方
+      room.players.forEach((p) => {
+        const view = RoomManager.getHeartStateView(room, p.id);
+        if (view) {
+          io.to(p.id).emit("heart:state", view);
+        }
+      });
     });
 
-    socket.on("mystery:restart", async ({ roomId }) => {
-      stopMysteryTimer(roomId);
-      const result = await RoomManager.restartMystery(roomId, socket.id);
-      if (!result) return;
-      const room = result.room;
+    socket.on("heart:restart", ({ roomId }) => {
+      const room = RoomManager.restartHeartAttack(roomId, socket.id);
+      if (!room) return;
       io.to(roomId).emit("game:state", {
         phase: room.state.phase,
         currentRound: room.state.currentRound,
       });
       room.players.forEach((p) => {
-        const view = RoomManager.getCurrentMysteryView(room, p.id);
+        const view = RoomManager.getHeartStateView(room, p.id);
         if (view) {
-          io.to(p.id).emit("mystery:case", view);
+          io.to(p.id).emit("heart:state", view);
         }
       });
-      // 重新启动 5 分钟倒计时
-      startMysteryTimer(io, roomId);
     });
 
     // ---------- 合作画画（同时画 + AI 评分）----------
@@ -693,9 +693,8 @@ function handleLeave(io: Io, socket: Sock, roomId: string) {
   const { room, shouldDelete } = RoomManager.leaveRoom(roomId, socket.id);
   socket.leave(roomId);
   if (shouldDelete) {
-    // 房间已删除，清理合作画画与双人解密计时器
+    // 房间已删除，清理合作画画计时器
     stopCoOpTimer(roomId);
-    stopMysteryTimer(roomId);
   } else if (room) {
     io.to(roomId).emit("room:updated", { room: RoomManager.toRoomView(room) });
     io.to(roomId).emit("player:left", { playerId: socket.id });
@@ -783,57 +782,4 @@ function startCoOpTimer(io: Io, roomId: string) {
     }
   }, 1000);
   coOpTimers.set(roomId, interval);
-}
-
-// ============ 双人解密计时器管理 ============
-// 每秒广播剩余时间的 interval
-const mysteryTimers = new Map<string, ReturnType<typeof setInterval>>();
-
-/** 停止双人解密倒计时 */
-function stopMysteryTimer(roomId: string) {
-  const t = mysteryTimers.get(roomId);
-  if (t) {
-    clearInterval(t);
-    mysteryTimers.delete(roomId);
-  }
-}
-
-/**
- * 启动双人解密 5 分钟倒计时
- * 每秒广播 mystery:time-update；时间到后强制揭晓（判定为失败）
- */
-function startMysteryTimer(io: Io, roomId: string) {
-  stopMysteryTimer(roomId);
-  const room = RoomManager.getRoom(roomId);
-  if (!room) return;
-  const timeLimit = RoomManager.getMysteryTimeLimit();
-  // 立即下发一次剩余时间
-  io.to(roomId).emit("mystery:time-update", { timeLeft: timeLimit });
-
-  const interval = setInterval(() => {
-    const r = RoomManager.getRoom(roomId);
-    // 房间不存在、已离开 DRAWING 阶段、或已揭晓，则停止计时
-    if (!r || r.state.phase !== "DRAWING" || r.state.mysteryResolved) {
-      stopMysteryTimer(roomId);
-      return;
-    }
-    const timeLeft = RoomManager.getMysteryTimeLeft(r);
-    io.to(roomId).emit("mystery:time-update", { timeLeft });
-    if (timeLeft <= 0) {
-      // 时间到：强制揭晓（失败）
-      stopMysteryTimer(roomId);
-      const timeUpRoom = RoomManager.mysteryTimeUp(roomId);
-      if (timeUpRoom) {
-        io.to(roomId).emit("game:state", {
-          phase: timeUpRoom.state.phase,
-          currentRound: timeUpRoom.state.currentRound,
-        });
-        io.to(roomId).emit("mystery:reveal", {
-          answer: RoomManager.getMysteryAnswer(timeUpRoom),
-          won: false,
-        });
-      }
-    }
-  }, 1000);
-  mysteryTimers.set(roomId, interval);
 }

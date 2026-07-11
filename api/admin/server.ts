@@ -17,12 +17,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = 8788;
 const DATA_DIR = path.join(__dirname, "..", "data");
 
-// 4 个题库文件路径
+// 3 个题库文件路径
 const DB_FILES: Record<string, string> = {
   "draw-words": "words.json",
   telepathy: "telepathy-questions.json",
   emoji: "emoji-puzzles.json",
-  "mystery": "mystery-cases.json",
 };
 
 // === GLM API 配置 ===
@@ -287,29 +286,10 @@ function normalizeItem(db: string, raw: any): any {
         : [],
     };
   }
-  if (db === "mystery") {
-    return {
-      id: String(raw.id || "").trim(),
-      title: String(raw.title || "").trim(),
-      story: String(raw.story || "").trim(),
-      cluesA: Array.isArray(raw.cluesA)
-        ? raw.cluesA.map((c: any) => String(c).trim()).filter(Boolean).slice(0, 4)
-        : [],
-      cluesB: Array.isArray(raw.cluesB)
-        ? raw.cluesB.map((c: any) => String(c).trim()).filter(Boolean).slice(0, 4)
-        : [],
-      answer: String(raw.answer || "").trim(),
-      keywords: Array.isArray(raw.keywords)
-        ? raw.keywords.map((k: any) => String(k).trim()).filter(Boolean).slice(0, 5)
-        : [],
-      difficulty: MYSTERY_DIFFICULTIES.includes(raw.difficulty) ? raw.difficulty : "medium",
-      category: MYSTERY_CATEGORIES.includes(raw.category) ? raw.category : "逻辑推理",
-    };
-  }
   return raw;
 }
 
-/** 重新分配 id（emoji 用 max+1，mystery 用 ms_XXX）*/
+/** 重新分配 id（emoji 用 max+1）*/
 function reassignIds(db: string, items: any[]): void {
   if (db === "emoji") {
     let maxId = 0;
@@ -322,13 +302,6 @@ function reassignIds(db: string, items: any[]): void {
         it.id = ++maxId;
       }
     }
-    return;
-  }
-  if (db === "mystery") {
-    // 重新编号 ms_001 ~ ms_NNN，保持格式一致
-    items.forEach((it, idx) => {
-      it.id = `ms_${String(idx + 1).padStart(3, "0")}`;
-    });
     return;
   }
   // words / telepathy 无 id
@@ -371,8 +344,6 @@ app.post("/api/:db/ai-expand", async (req: Request, res: Response) => {
       newItems = await aiExpandTelepathy(count, options.packId, items);
     } else if (db === "emoji") {
       newItems = await aiExpandEmoji(count, items);
-    } else if (db === "mystery") {
-      newItems = await aiExpandMystery(count, options.difficulty, items);
     }
 
     // 合并去重
@@ -403,15 +374,6 @@ app.post("/api/:db/ai-expand", async (req: Request, res: Response) => {
         seenEmoji.add(n.emoji);
         seenAnswer.add(n.answer);
       }
-    } else if (db === "mystery") {
-      const seenTitle = new Set(items.map((i: any) => i.title));
-      const seenStory = new Set(items.map((i: any) => i.story));
-      for (const n of newItems) {
-        if (seenTitle.has(n.title) || seenStory.has(n.story)) continue;
-        items.push(n);
-        seenTitle.add(n.title);
-        seenStory.add(n.story);
-      }
     }
 
     reassignIds(db, items);
@@ -434,8 +396,6 @@ const TELEPATHY_PACKS: Record<string, { name: string }> = {
   work: { name: "职场社畜" },
 };
 const EMOJI_CATEGORIES = ["成语", "影视"];
-const MYSTERY_CATEGORIES = ["逻辑推理", "密码解谜", "找线索"];
-const MYSTERY_DIFFICULTIES = ["simple", "medium", "hard"];
 
 /** 画图猜词 AI 扩展 */
 async function aiExpandWords(count: number, category: string | undefined, existing: any[]): Promise<any[]> {
@@ -562,67 +522,6 @@ ${avoid ? `4. 避免与这些已有题重复（emoji 和答案都不能撞）：
       alternatives: Array.isArray(p.alternatives)
         ? p.alternatives.map((a: any) => String(a).trim()).filter(Boolean).slice(0, 3)
         : [],
-    }));
-}
-
-/** 双人解密 AI 扩展 */
-async function aiExpandMystery(count: number, difficulty: string | undefined, existing: any[]): Promise<any[]> {
-  const avoidTitles = existing.slice(-20).map((s) => `- ${s.title}`).join("\n");
-  const diffHint = difficulty && MYSTERY_DIFFICULTIES.includes(difficulty) ? `，难度偏向 ${difficulty}` : "";
-  const prompt = `你是双人解密题库生成器，请生成 ${count} 道合作推理谜题。
-
-核心原则：
-1. cluesA 和 cluesB 必须互补——任何一方单独看无法解出，必须交流拼凑才能破案
-2. 线索绝对不能直接透露答案（错误示范：线索写"这是摩斯密码""解密后是HELLO"——等于把答案给了玩家）
-3. 每条线索只提供一个信息碎片，需要玩家自己推理出关联
-
-好题目示例：
-- 故事：富翁死在反锁书房，胸口有刺伤但找不到凶器，地毯上有水渍
-- A线索：伤口细长尖锐，像是锥形利器；水渍没有颜色和气味
-- B线索：案发时正值盛夏室温很高；通风管道格栅松动，人无法通过但能伸入手臂
-- 答案：凶手从通风管道伸入冰锥刺杀死者，冰锥融化成水，凶器消失
-- 关键词：冰锥、融化、通风管道、水渍
-
-题目要求：
-1. 谜题类型只能是：逻辑推理、密码解谜、找线索 三选一（不要经典谜语）
-2. 生成 ${count} 题${diffHint}，难度尽量分布均匀
-3. 分类从这些中选：${MYSTERY_CATEGORIES.join("、")}
-4. title 是简短标题（2-6 字）
-5. story 是故事背景，50-150 字，制造悬念但不剧透答案
-6. cluesA 是给玩家A的线索数组（2-3 条），cluesB 是给玩家B的线索数组（2-3 条）
-7. answer 是完整答案，30-100 字，解释清楚推理过程
-8. keywords 是 3-5 个关键词，便于判断玩家回答是否命中关键信息
-9. difficulty 只能是 simple/medium/hard：simple 较直白，medium 需要一步推理，hard 需要多步推理
-${avoidTitles ? `已有标题（避免重复或近似）：\n${avoidTitles}\n` : ""}请严格返回以下 JSON 格式（不要有任何其他文字）：
-{"cases":[{"title":"标题","story":"故事","cluesA":["线索1","线索2"],"cluesB":["线索1","线索2"],"answer":"答案","keywords":["关键词1","关键词2"],"difficulty":"simple|medium|hard","category":"逻辑推理|密码解谜|找线索"}]}`;
-
-  const parsed = await callGLM(
-    [
-      { role: "system", content: "你是一个 JSON 生成器，只返回有效的 JSON，不要任何其他文字。" },
-      { role: "user", content: prompt },
-    ],
-    0.9,
-    "[mystery]"
-  );
-  const list = Array.isArray(parsed.cases) ? parsed.cases : [];
-  return list
-    .filter((s: any) => s && typeof s.title === "string" && typeof s.story === "string" && typeof s.answer === "string")
-    .map((s: any) => ({
-      id: "", // 重新分配
-      title: String(s.title).trim(),
-      story: String(s.story).trim(),
-      cluesA: Array.isArray(s.cluesA)
-        ? s.cluesA.map((c: any) => String(c).trim()).filter(Boolean).slice(0, 4)
-        : [],
-      cluesB: Array.isArray(s.cluesB)
-        ? s.cluesB.map((c: any) => String(c).trim()).filter(Boolean).slice(0, 4)
-        : [],
-      answer: String(s.answer).trim(),
-      keywords: Array.isArray(s.keywords)
-        ? s.keywords.map((k: any) => String(k).trim()).filter(Boolean).slice(0, 5)
-        : [],
-      difficulty: MYSTERY_DIFFICULTIES.includes(s.difficulty) ? s.difficulty : "medium",
-      category: MYSTERY_CATEGORIES.includes(s.category) ? s.category : "逻辑推理",
     }));
 }
 

@@ -10,8 +10,8 @@ export type GamePhase =
   | "ROUND_RESULT"
   | "GAME_OVER";
 
-// 游戏类型：画词记忆 / 默契考验 / 双人解密 / 合作画画 / 表情包猜词
-export type GameType = "draw-memory" | "telepathy" | "mystery" | "co-op-drawing" | "emoji-guessing";
+// 游戏类型：画词记忆 / 默契考验 / 德国心脏病 / 合作画画 / 表情包猜词
+export type GameType = "draw-memory" | "telepathy" | "heart-attack" | "co-op-drawing" | "emoji-guessing";
 
 // 表情包猜词单题结构
 export interface EmojiPuzzle {
@@ -20,6 +20,15 @@ export interface EmojiPuzzle {
   emoji: string;
   answer: string;
   alternatives: string[];
+}
+
+// 德国心脏病水果类型
+export type HeartFruit = "apple" | "banana" | "cherry" | "lemon";
+
+// 德国心脏病单张牌
+export interface HeartCard {
+  fruit: HeartFruit;
+  count: number; // 1-5
 }
 
 // 合作画画单笔笔画
@@ -81,22 +90,13 @@ export interface GameState {
   telepathyChoices?: Record<string, number>; // playerId -> 选项索引
   telepathyScores?: Record<string, number>; // playerId -> 本题得分
   telepathyRevealed?: boolean;
-  // 双人解密专用字段
-  mysteryCaseId?: string; // 当前谜题ID
-  mysteryTitle?: string; // 谜题标题
-  mysteryStory?: string; // 故事背景
-  mysteryCluesA?: string[]; // 玩家A的线索
-  mysteryCluesB?: string[]; // 玩家B的线索
-  mysteryAnswer?: string; // 正确答案（只在后端用，不发给前端）
-  mysteryKeywords?: string[];
-  mysteryCategory?: string; // 谜题分类
-  mysteryDifficulty?: string; // 谜题难度
-  mysteryAttemptsLeft?: number; // 剩余答题次数，初始3
-  mysteryStartTime?: number; // 开始时间戳（用于5分钟倒计时）
-  mysteryTimeLimit?: number; // 时间限制（秒），默认300
-  mysteryResolved?: boolean; // 是否已揭晓
-  mysteryChat?: { sender: string; text: string; ts: number }[]; // 聊天记录
-  mysteryGuesses?: { guess: string; guesser: string; correct: boolean; close: boolean; feedback: string }[]; // 答题历史
+  // 德国心脏病专用字段
+  heartDeck?: Record<string, HeartCard[]>; // playerId -> 牌堆（剩余可翻的牌）
+  heartWon?: Record<string, number>; // playerId -> 赢到的牌数
+  heartTable?: { card: HeartCard; owner: string }[]; // 桌面上的牌
+  heartFlipped?: Record<string, boolean>; // 本轮各玩家是否已翻牌
+  heartLastResult?: { type: "correct" | "wrong"; ringerId: string; ringerNickname: string } | null;
+  heartGameOver?: boolean;
   // 合作画画专用字段（同时画 + AI 评分玩法）
   coOpPrompt?: string; // 当前命题
   coOpStrokes?: CoOpStroke[]; // 所有已完成笔画
@@ -126,7 +126,6 @@ export interface Room {
   difficulty: Difficulty;
   gameType: GameType;
   telepathyPackId?: string; // 房主选的题包
-  mysteryDifficulty?: string; // 双人解密难度：any/simple/medium/hard
 }
 
 // 客户端用的简化玩家信息
@@ -150,7 +149,6 @@ export interface RoomView {
   difficulty: Difficulty;
   gameType: GameType;
   telepathyPackId?: string;
-  mysteryDifficulty?: string;
   createdAt: number; // 房间创建时间戳，用于大厅显示相对时间
 }
 
@@ -174,11 +172,10 @@ export interface ClientToServerEvents {
   "telepathy:choose": (data: { roomId: string; questionIndex: number; choice: number }) => void;
   "telepathy:next": (data: { roomId: string }) => void;
   "telepathy:restart": (data: { roomId: string }) => void;
-  // 双人解密
-  "room:set-mystery-difficulty": (data: { roomId: string; difficulty: string }) => void;
-  "mystery:chat": (data: { roomId: string; text: string }) => void;
-  "mystery:submit": (data: { roomId: string; answer: string }) => void;
-  "mystery:restart": (data: { roomId: string }) => void;
+  // 德国心脏病
+  "heart:flip": (data: { roomId: string }) => void;
+  "heart:ring": (data: { roomId: string }) => void;
+  "heart:restart": (data: { roomId: string }) => void;
   // 合作画画（同时画 + AI 评分）
   "coop:stroke-start": (data: { roomId: string; stroke: Omit<CoOpStroke, "author"> }) => void;
   "coop:stroke-point": (data: { roomId: string; point: { x: number; y: number } }) => void;
@@ -213,13 +210,19 @@ export interface ServerToClientEvents {
   "telepathy:question": (data: { questionIndex: number; question: string; options: string[]; totalQuestions: number }) => void;
   "telepathy:reveal": (data: { questionIndex: number; myChoice: number; opponentChoice: number; myScore: number; opponentScore: number; match: "full" | "partial" | "none" }) => void;
   "telepathy:opponent-chose": (data: { questionIndex: number }) => void;
-  // 双人解密
-  "mystery:case": (data: { caseId: string; title: string; story: string; clues: string[]; difficulty: string; category: string; attemptsLeft: number; timeLimit: number }) => void;
-  "mystery:chat": (data: { sender: string; text: string; ts: number }) => void;
-  "mystery:submit-result": (data: { guessIndex: number; guess: string; guesser: string; correct: boolean; close: boolean; feedback: string; attemptsLeft: number }) => void;
-  "mystery:reveal": (data: { answer: string; won: boolean }) => void;
-  "mystery:judging": () => void;
-  "mystery:time-update": (data: { timeLeft: number }) => void;
+  // 德国心脏病
+  "heart:state": (data: {
+    myDeckCount: number;
+    myWonCount: number;
+    opponentDeckCount: number;
+    opponentWonCount: number;
+    tableCards: { card: HeartCard; owner: string }[];
+    myFlipped: boolean;
+    opponentFlipped: boolean;
+    canRing: boolean;
+  }) => void;
+  "heart:result": (data: { type: "correct" | "wrong"; ringerId: string; ringerNickname: string }) => void;
+  "heart:game-over": (data: { winnerId: string | null; myWon: number; opponentWon: number; reason: "deck-empty" }) => void;
   // 合作画画（同时画 + AI 评分）
   "coop:prompt": (data: { prompt: string; orientation: "landscape" | "portrait" }) => void;
   "coop:orientation-changed": (data: { orientation: "landscape" | "portrait" }) => void;

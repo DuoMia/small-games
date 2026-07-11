@@ -26,13 +26,9 @@ export function useSocketConnection() {
     setTelepathyQuestion,
     setTelepathyReveal,
     setTelepathyOpponentChose,
-    setMysteryCase,
-    addMysteryChat,
-    addMysteryGuess,
-    setMysteryAttemptsLeft,
-    setMysteryTimeLeft,
-    setMysteryReveal,
-    setMysteryJudging,
+    setHeartState,
+    setHeartResult,
+    setHeartGameOver,
     setCoOpPrompt,
     setCoOpTimeLeft,
     setCoOpOrientation,
@@ -121,55 +117,24 @@ export function useSocketConnection() {
       playSfx(sfx.opponentAnswered);
     };
 
-    // ---- 双人解密事件 ----
-    const onMysteryCase = (c) => {
-      setMysteryCase(c);
+    // ---- 德国心脏病事件 ----
+    const onHeartState = (s) => setHeartState(s);
+    const onHeartResult = (r) => {
+      setHeartResult(r);
+      // 拍铃结果音效：正确=correct，错误=wrong
+      playSfx(r.type === "correct" ? sfx.correct : sfx.wrong);
     };
-    const onMysteryChat = (msg) => {
-      addMysteryChat(msg);
-      // 收到对方消息时轻提示音
-      if (msg.sender !== useGameStore.getState().room?.players.find((p) => p.id === useGameStore.getState().myId)?.nickname) {
-        playSfx(sfx.uiTick);
-      }
-    };
-    const onMysteryJudging = () => {
-      setMysteryJudging(true);
-    };
-    const onMysterySubmitResult = (d) => {
-      addMysteryGuess({
-        guess: d.guess,
-        guesser: d.guesser,
-        correct: d.correct,
-        close: d.close,
-        feedback: d.feedback,
-      });
-      setMysteryAttemptsLeft(d.attemptsLeft);
-      setMysteryJudging(false);
-      // 答对=correct，接近=uiTick，其他=wrong
-      if (d.correct) {
-        playSfx(sfx.correct);
-      } else if (d.close) {
-        playSfx(sfx.uiTick);
+    const onHeartGameOver = (g) => {
+      setHeartGameOver(g);
+      // 游戏结束胜负音效
+      const myId = useGameStore.getState().myId;
+      if (g.winnerId && g.winnerId === myId) {
+        playSfx(sfx.win);
+      } else if (g.winnerId === null) {
+        playSfx(sfx.roundEnd);
       } else {
-        playSfx(sfx.wrong);
+        playSfx(sfx.lose);
       }
-    };
-    let lastMysterySec = 300;
-    const onMysteryTimeUpdate = (t) => {
-      setMysteryTimeLeft(t.timeLeft);
-      // 最后 10 秒滴答音效
-      const sec = Math.ceil(t.timeLeft);
-      if (sec !== lastMysterySec) {
-        if (sec <= 10 && sec > 0) {
-          playSfx(sfx.tickUrgent);
-        }
-        lastMysterySec = sec;
-      }
-    };
-    const onMysteryReveal = (r) => {
-      setMysteryReveal(r);
-      // 胜负音效
-      playSfx(r.won ? sfx.win : sfx.lose);
     };
 
     // ---- 合作画画事件（同时画 + AI 评分）----
@@ -272,12 +237,9 @@ export function useSocketConnection() {
     socket.on("telepathy:question", onTelepathyQuestion);
     socket.on("telepathy:reveal", onTelepathyReveal);
     socket.on("telepathy:opponent-chose", onTelepathyOpponentChose);
-    socket.on("mystery:case", onMysteryCase);
-    socket.on("mystery:chat", onMysteryChat);
-    socket.on("mystery:judging", onMysteryJudging);
-    socket.on("mystery:submit-result", onMysterySubmitResult);
-    socket.on("mystery:time-update", onMysteryTimeUpdate);
-    socket.on("mystery:reveal", onMysteryReveal);
+    socket.on("heart:state", onHeartState);
+    socket.on("heart:result", onHeartResult);
+    socket.on("heart:game-over", onHeartGameOver);
     socket.on("coop:prompt", onCoOpPrompt);
     socket.on("coop:orientation-changed", onCoOpOrientationChanged);
     socket.on("coop:time-update", onCoOpTimeUpdate);
@@ -312,12 +274,9 @@ export function useSocketConnection() {
       socket.off("telepathy:question", onTelepathyQuestion);
       socket.off("telepathy:reveal", onTelepathyReveal);
       socket.off("telepathy:opponent-chose", onTelepathyOpponentChose);
-      socket.off("mystery:case", onMysteryCase);
-      socket.off("mystery:chat", onMysteryChat);
-      socket.off("mystery:judging", onMysteryJudging);
-      socket.off("mystery:submit-result", onMysterySubmitResult);
-      socket.off("mystery:time-update", onMysteryTimeUpdate);
-      socket.off("mystery:reveal", onMysteryReveal);
+      socket.off("heart:state", onHeartState);
+      socket.off("heart:result", onHeartResult);
+      socket.off("heart:game-over", onHeartGameOver);
       socket.off("coop:prompt", onCoOpPrompt);
       socket.off("coop:orientation-changed", onCoOpOrientationChanged);
       socket.off("coop:time-update", onCoOpTimeUpdate);
@@ -373,14 +332,10 @@ export function useRoomActions() {
       socket.emit("telepathy:choose", { roomId, questionIndex, choice }),
     telepathyNext: (roomId: string) => socket.emit("telepathy:next", { roomId }),
     telepathyRestart: (roomId: string) => socket.emit("telepathy:restart", { roomId }),
-    // 双人解密
-    setMysteryDifficulty: (roomId: string, difficulty: string) =>
-      socket.emit("room:set-mystery-difficulty", { roomId, difficulty }),
-    mysteryChat: (roomId: string, text: string) =>
-      socket.emit("mystery:chat", { roomId, text }),
-    mysterySubmit: (roomId: string, answer: string) =>
-      socket.emit("mystery:submit", { roomId, answer }),
-    mysteryRestart: (roomId: string) => socket.emit("mystery:restart", { roomId }),
+    // 德国心脏病
+    heartFlip: (roomId: string) => socket.emit("heart:flip", { roomId }),
+    heartRing: (roomId: string) => socket.emit("heart:ring", { roomId }),
+    heartRestart: (roomId: string) => socket.emit("heart:restart", { roomId }),
     // 合作画画（同时画 + AI 评分）
     coOpStrokeStart: (roomId: string, stroke: { color: string; size: number; isEraser: boolean; points: { x: number; y: number }[] }) =>
       socket.emit("coop:stroke-start", { roomId, stroke }),

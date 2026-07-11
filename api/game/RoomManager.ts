@@ -10,6 +10,8 @@ import type {
   TelepathyQuestion,
   CoOpStroke,
   EmojiPuzzle,
+  HeartCard,
+  HeartFruit,
 } from "./types.js";
 import { pickRandomWords, generateQuestions, wordBank } from "./WordBank.js";
 import { checkAnswer } from "./AnswerChecker.js";
@@ -21,14 +23,11 @@ import {
 } from "./difficulty.js";
 // 默契考验题包数据
 import telepathyPacks from "../data/telepathy-questions.json";
-// 双人解密预设题库
-import mysteryCases from "../data/mystery-cases.json";
 // 合作画画命题题库
 import drawingPrompts from "../data/drawing-prompts.json";
 // 表情包猜词题库
 import emojiPuzzlesData from "../data/emoji-puzzles.json";
 import { judgeDrawing } from "../ai/judge.js";
-import { generateMysteryCase, mysteryJudge, type MysteryCase, type MysteryDifficulty } from "../ai/mystery.js";
 
 const TOTAL_ROUNDS = 3;
 const MAX_PLAYERS = 2;
@@ -38,12 +37,8 @@ const VALID_WORD_COUNTS = [15, 30];
 const TELEPATHY_TOTAL_QUESTIONS = 10;
 // 默契考验默认题包
 const DEFAULT_TELEPATHY_PACK = "life";
-// 双人解密最大答题次数
-const MYSTERY_MAX_ATTEMPTS = 3;
-// 双人解密时间限制（秒），5 分钟
-const MYSTERY_TIME_LIMIT = 300;
-// 双人解密默认难度
-const DEFAULT_MYSTERY_DIFFICULTY = "any";
+// 德国心脏病总牌数
+const HEART_DECK_TOTAL = 60;
 // 合作画画总时长（秒），双方同时画
 const CO_OP_TIME_LIMIT = 90;
 // 表情包猜词总题数
@@ -60,19 +55,6 @@ interface TelepathyPack {
   icon: string;
   color: string;
   questions: TelepathyQuestion[];
-}
-
-// 双人解密预设题库结构（与 ai/mystery.ts 的 MysteryCase 一致）
-interface MysteryEntry {
-  id: string;
-  title: string;
-  story: string;
-  cluesA: string[];
-  cluesB: string[];
-  answer: string;
-  keywords: string[];
-  difficulty: string; // simple/medium/hard
-  category: string; // 逻辑推理 / 密码解谜 / 找线索
 }
 
 class RoomManagerClass {
@@ -120,7 +102,6 @@ class RoomManagerClass {
       difficulty: DEFAULT_DIFFICULTY,
       gameType,
       telepathyPackId: gameType === "telepathy" ? DEFAULT_TELEPATHY_PACK : undefined,
-      mysteryDifficulty: gameType === "mystery" ? DEFAULT_MYSTERY_DIFFICULTY : undefined,
     };
     this.rooms.set(roomId, room);
     return room;
@@ -210,9 +191,9 @@ class RoomManagerClass {
       return { room, words: [] };
     }
 
-    if (room.gameType === "mystery") {
-      // 双人解密：AI 出题或预设题库兜底，进入 DRAWING（游戏中）
-      await this.startMysteryInternal(room);
+    if (room.gameType === "heart-attack") {
+      // 德国心脏病：生成 60 张牌洗牌后 30/30 均分，进入 DRAWING（游戏中）
+      this.startHeartAttackInternal(room);
       return { room, words: [] };
     }
 
@@ -522,8 +503,8 @@ class RoomManagerClass {
       return { room, words: [] };
     }
 
-    if (room.gameType === "mystery") {
-      await this.startMysteryInternal(room);
+    if (room.gameType === "heart-attack") {
+      this.startHeartAttackInternal(room);
       return { room, words: [] };
     }
 
@@ -803,66 +784,36 @@ class RoomManagerClass {
     return { room };
   }
 
-  // ============ 双人解密相关 ============
+  // ============ 德国心脏病相关 ============
 
   /**
-   * 设置双人解密难度（仅房主、仅 WAITING 阶段）
-   * 可选值：any / simple / medium / hard
+   * 生成德国心脏病牌堆：4 种水果各 15 张（1-5 各 3 张），共 60 张
+   * Fisher-Yates 洗牌后返回
    */
-  setMysteryDifficulty(roomId: string, socketId: string, difficulty: string): Room | null {
-    const room = this.rooms.get(roomId);
-    if (!room) return null;
-    if (room.hostId !== socketId) return null;
-    if (room.state.phase !== "WAITING") return null;
-    if (room.gameType !== "mystery") return null;
-    const valid = ["any", "simple", "medium", "hard"];
-    if (!valid.includes(difficulty)) return null;
-    if (room.mysteryDifficulty === difficulty) return room;
-    room.mysteryDifficulty = difficulty;
-    return room;
+  private generateHeartDeck(): HeartCard[] {
+    const fruits: HeartFruit[] = ["apple", "banana", "cherry", "lemon"];
+    const deck: HeartCard[] = [];
+    for (const fruit of fruits) {
+      // 每种水果：1-5 各 3 张 = 15 张
+      for (let count = 1; count <= 5; count++) {
+        for (let i = 0; i < 3; i++) {
+          deck.push({ fruit, count });
+        }
+      }
+    }
+    // Fisher-Yates 洗牌
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+    return deck;
   }
 
   /**
-   * 从预设题库按难度随机抽一题（AI 失败时的兜底）
-   * 同一局内避免重复（用 usedWords 临时记 id）
+   * 内部启动德国心脏病（开始或重玩都走这里）
+   * 生成 60 张牌洗牌后 30/30 均分给双方
    */
-  private pickMysteryCase(room: Room): MysteryEntry {
-    const diff = room.mysteryDifficulty || DEFAULT_MYSTERY_DIFFICULTY;
-    const pool = (mysteryCases as MysteryEntry[]).filter(
-      (s) => diff === "any" || s.difficulty === diff
-    );
-    // 排除本局已用过的谜题 id（记在 usedWords 里）
-    const available = pool.filter((s) => !room.usedWords.includes(s.id));
-    // 池子空了就用全池（避免无题可出）
-    const list = available.length > 0 ? available : pool;
-    const pick = list[Math.floor(Math.random() * list.length)] || (mysteryCases as MysteryEntry[])[0];
-    // 记录已用 id（与画词 usedWords 共用）
-    room.usedWords.push(pick.id);
-    return pick;
-  }
-
-  /**
-   * 把预设题库条目转换为 MysteryCase（统一类型）
-   */
-  private entryToCase(entry: MysteryEntry): MysteryCase {
-    return {
-      id: entry.id,
-      title: entry.title,
-      story: entry.story,
-      cluesA: entry.cluesA,
-      cluesB: entry.cluesB,
-      answer: entry.answer,
-      keywords: entry.keywords,
-      difficulty: entry.difficulty as MysteryDifficulty,
-      category: entry.category,
-    };
-  }
-
-  /**
-   * 内部启动双人解密（开始或重玩都走这里）
-   * 优先用 AI 出题，失败时走预设题库兜底
-   */
-  private async startMysteryInternal(room: Room) {
+  private startHeartAttackInternal(room: Room) {
     // 重置玩家分数
     room.players.forEach((p) => {
       p.totalScore = 0;
@@ -871,30 +822,20 @@ class RoomManagerClass {
       p.answers = [];
     });
 
-    // 优先 AI 出题
-    const diffSetting = room.mysteryDifficulty || DEFAULT_MYSTERY_DIFFICULTY;
-    const aiDiff: MysteryDifficulty =
-      diffSetting === "any"
-        ? (["simple", "medium", "hard"] as MysteryDifficulty[])[Math.floor(Math.random() * 3)]
-        : (diffSetting as MysteryDifficulty);
-    let caseData: MysteryCase | null = null;
-    try {
-      caseData = await generateMysteryCase(aiDiff);
-    } catch (err) {
-      console.error("[RoomManager] generateMysteryCase 异常：", err);
-      caseData = null;
-    }
-    // AI 失败兜底
-    if (!caseData) {
-      const entry = this.pickMysteryCase(room);
-      caseData = this.entryToCase(entry);
-    } else {
-      // AI 题也记入 usedWords 防重
-      room.usedWords.push(caseData.id);
-    }
+    const fullDeck = this.generateHeartDeck();
+    const half = Math.floor(fullDeck.length / 2); // 30
+
+    const deck: Record<string, HeartCard[]> = {};
+    const won: Record<string, number> = {};
+    const flipped: Record<string, boolean> = {};
+    room.players.forEach((p, idx) => {
+      deck[p.id] = fullDeck.slice(idx * half, (idx + 1) * half);
+      won[p.id] = 0;
+      flipped[p.id] = false;
+    });
 
     room.state = {
-      phase: "DRAWING", // 复用 DRAWING 作为"解密中"
+      phase: "DRAWING", // 复用 DRAWING 作为"游戏中"
       currentRound: 1,
       words: [],
       wordEntries: [],
@@ -906,191 +847,213 @@ class RoomManagerClass {
       answerResults: {},
       questionNextReady: {},
       revealed: false,
-      // 双人解密字段
-      mysteryCaseId: caseData.id,
-      mysteryTitle: caseData.title,
-      mysteryStory: caseData.story,
-      mysteryCluesA: caseData.cluesA,
-      mysteryCluesB: caseData.cluesB,
-      mysteryAnswer: caseData.answer,
-      mysteryKeywords: caseData.keywords,
-      mysteryCategory: caseData.category,
-      mysteryDifficulty: caseData.difficulty,
-      mysteryAttemptsLeft: MYSTERY_MAX_ATTEMPTS,
-      mysteryStartTime: Date.now(),
-      mysteryTimeLimit: MYSTERY_TIME_LIMIT,
-      mysteryResolved: false,
-      mysteryChat: [],
-      mysteryGuesses: [],
+      // 德国心脏病字段
+      heartDeck: deck,
+      heartWon: won,
+      heartTable: [],
+      heartFlipped: flipped,
+      heartLastResult: null,
+      heartGameOver: false,
     };
   }
 
   /**
-   * 获取当前谜题信息（针对每个玩家视角，返回各自的线索）
-   * 玩家索引 0 拿 cluesA，索引 1 拿 cluesB
+   * 判断桌面上是否有任意水果总数恰好为 5
    */
-  getCurrentMysteryView(room: Room, socketId: string): {
-    caseId: string;
-    title: string;
-    story: string;
-    clues: string[];
-    difficulty: string;
-    category: string;
-    attemptsLeft: number;
-    timeLimit: number;
+  private hasFruitFive(table: { card: HeartCard; owner: string }[]): boolean {
+    const sums: Record<string, number> = { apple: 0, banana: 0, cherry: 0, lemon: 0 };
+    for (const item of table) {
+      sums[item.card.fruit] += item.card.count;
+    }
+    return (Object.values(sums) as number[]).some((s) => s === 5);
+  }
+
+  /**
+   * 获取德国心脏病当前状态（按玩家视角）
+   */
+  getHeartStateView(room: Room, socketId: string): {
+    myDeckCount: number;
+    myWonCount: number;
+    opponentDeckCount: number;
+    opponentWonCount: number;
+    tableCards: { card: HeartCard; owner: string }[];
+    myFlipped: boolean;
+    opponentFlipped: boolean;
+    canRing: boolean;
   } | null {
-    if (!room.state.mysteryCaseId) return null;
-    const playerIdx = room.players.findIndex((p) => p.id === socketId);
-    // 索引 0 → cluesA，索引 1 → cluesB
-    const clues = playerIdx === 0
-      ? (room.state.mysteryCluesA || [])
-      : (room.state.mysteryCluesB || []);
+    if (!room.state.heartDeck) return null;
+    const opponent = room.players.find((p) => p.id !== socketId);
+    const myDeck = room.state.heartDeck[socketId] || [];
+    const opponentDeck = opponent ? (room.state.heartDeck[opponent.id] || []) : [];
+    const table = room.state.heartTable || [];
     return {
-      caseId: room.state.mysteryCaseId,
-      title: room.state.mysteryTitle || "",
-      story: room.state.mysteryStory || "",
-      clues,
-      difficulty: room.state.mysteryDifficulty || "",
-      category: room.state.mysteryCategory || "",
-      attemptsLeft: room.state.mysteryAttemptsLeft ?? MYSTERY_MAX_ATTEMPTS,
-      timeLimit: room.state.mysteryTimeLimit ?? MYSTERY_TIME_LIMIT,
+      myDeckCount: myDeck.length,
+      myWonCount: room.state.heartWon?.[socketId] ?? 0,
+      opponentDeckCount: opponentDeck.length,
+      opponentWonCount: opponent ? (room.state.heartWon?.[opponent.id] ?? 0) : 0,
+      tableCards: table,
+      myFlipped: room.state.heartFlipped?.[socketId] ?? false,
+      opponentFlipped: opponent ? (room.state.heartFlipped?.[opponent.id] ?? false) : false,
+      canRing: this.hasFruitFive(table),
     };
   }
 
   /**
-   * 提交聊天消息（任意玩家可发，广播给房间所有人）
+   * 翻牌：玩家翻出自己牌堆顶的一张到桌面
+   * 返回 null 表示参数错误；返回对象表示翻牌成功
    */
-  submitMysteryChat(
+  flipHeartCard(
     roomId: string,
-    socketId: string,
-    text: string
-  ): { room: Room; record: { sender: string; text: string; ts: number } } | null {
-    const room = this.rooms.get(roomId);
-    if (!room) return null;
-    if (room.gameType !== "mystery") return null;
-    if (room.state.phase !== "DRAWING") return null; // 解密中才能聊天
-    if (room.state.mysteryResolved) return null;
-    const player = room.players.find((p) => p.id === socketId);
-    if (!player) return null;
-    const t = (text || "").trim().slice(0, 200); // 限制长度
-    if (!t) return null;
-    const record = { sender: player.nickname, text: t, ts: Date.now() };
-    const chat = room.state.mysteryChat || [];
-    chat.push(record);
-    room.state.mysteryChat = chat;
-    return { room, record };
-  }
-
-  /**
-   * 提交答案：调用 AI 判断，扣减次数，处理揭晓
-   * 返回 null 表示参数错误；返回对象表示本次提交结果
-   */
-  async submitMysteryAnswer(
-    roomId: string,
-    socketId: string,
-    answer: string
-  ): Promise<
-    | { ok: true; room: Room; guessIndex: number; guess: string; guesser: string; correct: boolean; close: boolean; feedback: string; attemptsLeft: number; exhausted: boolean }
-    | { ok: false; error: string }
-  > {
+    socketId: string
+  ): { ok: true; room: Room } | { ok: false; error: string } {
     const room = this.rooms.get(roomId);
     if (!room) return { ok: false, error: "房间不存在" };
-    if (room.gameType !== "mystery") return { ok: false, error: "非双人解密房间" };
-    if (room.state.phase !== "DRAWING") return { ok: false, error: "当前不可提交" };
-    if (room.state.mysteryResolved) return { ok: false, error: "已揭晓" };
+    if (room.gameType !== "heart-attack") return { ok: false, error: "非德国心脏病房间" };
+    if (room.state.phase !== "DRAWING") return { ok: false, error: "当前不可翻牌" };
+    if (room.state.heartGameOver) return { ok: false, error: "游戏已结束" };
     const player = room.players.find((p) => p.id === socketId);
     if (!player) return { ok: false, error: "玩家不存在" };
-    const g = (answer || "").trim();
-    if (!g) return { ok: false, error: "答案不能为空" };
-    if ((room.state.mysteryAttemptsLeft ?? 0) <= 0) return { ok: false, error: "答题次数已用完" };
+    // 本轮已翻过
+    if (room.state.heartFlipped?.[socketId]) return { ok: false, error: "本轮已翻牌" };
+    const deck = room.state.heartDeck?.[socketId] || [];
+    if (deck.length === 0) return { ok: false, error: "牌堆已空" };
 
-    const truth = room.state.mysteryAnswer || "";
-    const keywords = room.state.mysteryKeywords || [];
-    const result = await mysteryJudge(g, truth, keywords);
+    // 弹出牌堆顶（末尾）的一张
+    const card = deck.pop()!;
+    room.state.heartDeck[socketId] = deck;
+    // 加入桌面
+    const table = room.state.heartTable || [];
+    table.push({ card, owner: socketId });
+    room.state.heartTable = table;
+    // 标记本轮已翻
+    const flipped = room.state.heartFlipped || {};
+    flipped[socketId] = true;
+    room.state.heartFlipped = flipped;
 
-    const guesses = room.state.mysteryGuesses || [];
-    const guessIndex = guesses.length;
-    guesses.push({
-      guess: g,
-      guesser: player.nickname,
-      correct: result.correct,
-      close: result.close,
-      feedback: result.feedback,
-    });
-    room.state.mysteryGuesses = guesses;
-    room.state.mysteryAttemptsLeft = (room.state.mysteryAttemptsLeft ?? MYSTERY_MAX_ATTEMPTS) - 1;
-    const attemptsLeft = room.state.mysteryAttemptsLeft;
+    // 检查是否需要进入下一轮（双方都翻完且无可拍铃）
+    // 下一轮由 nextHeartRound 处理，这里不自动推进，等待前端或拍铃触发
 
-    // 答对 或 次数用完 都进入揭晓
-    const exhausted = attemptsLeft <= 0;
-    if (result.correct || exhausted) {
-      room.state.mysteryResolved = true;
-      room.state.phase = "GAME_OVER";
-    }
-
-    return {
-      ok: true,
-      room,
-      guessIndex,
-      guess: g,
-      guesser: player.nickname,
-      correct: result.correct,
-      close: result.close,
-      feedback: result.feedback,
-      attemptsLeft,
-      exhausted,
-    };
+    return { ok: true, room };
   }
 
   /**
-   * 时间到：强制揭晓（玩家未在 5 分钟内解出，判定为失败）
+   * 推进到下一轮：双方都翻完后，如果没人拍铃，重置 flipped 标记
+   * 在前端"翻牌"按钮可用时自动调用（双方都翻完且无 fruit=5 时）
    */
-  mysteryTimeUp(roomId: string): Room | null {
+  nextHeartRound(roomId: string): Room | null {
     const room = this.rooms.get(roomId);
     if (!room) return null;
-    if (room.gameType !== "mystery") return null;
+    if (room.gameType !== "heart-attack") return null;
     if (room.state.phase !== "DRAWING") return null;
-    if (room.state.mysteryResolved) return null;
-    room.state.mysteryResolved = true;
-    room.state.phase = "GAME_OVER";
+    if (room.state.heartGameOver) return null;
+    // 必须双方都翻完
+    const allFlipped = room.players.every((p) => room.state.heartFlipped?.[p.id]);
+    if (!allFlipped) return null;
+    // 桌面无 fruit=5 才推进（有 fruit=5 时等待拍铃）
+    if (this.hasFruitFive(room.state.heartTable || [])) return null;
+    // 重置 flipped，进入下一轮
+    const flipped: Record<string, boolean> = {};
+    room.players.forEach((p) => { flipped[p.id] = false; });
+    room.state.heartFlipped = flipped;
     return room;
   }
 
   /**
-   * 重玩双人解密（房主触发，换一道题）
-   * 走 startMysteryInternal 重新出题
+   * 拍铃：验证桌面是否有水果总数=5
+   * 正确：拍铃者赢得桌面所有牌，清空桌面，重置 flipped
+   * 错误：拍铃者给对手 1 张牌（从牌堆顶）
+   * 返回结果对象，由 handler 广播
    */
-  async restartMystery(roomId: string, socketId: string): Promise<{ room: Room } | null> {
+  ringHeartBell(
+    roomId: string,
+    socketId: string
+  ): { ok: true; room: Room; type: "correct" | "wrong"; ringerId: string; ringerNickname: string; gameOver: boolean } | { ok: false; error: string } {
+    const room = this.rooms.get(roomId);
+    if (!room) return { ok: false, error: "房间不存在" };
+    if (room.gameType !== "heart-attack") return { ok: false, error: "非德国心脏病房间" };
+    if (room.state.phase !== "DRAWING") return { ok: false, error: "当前不可拍铃" };
+    if (room.state.heartGameOver) return { ok: false, error: "游戏已结束" };
+    const player = room.players.find((p) => p.id === socketId);
+    if (!player) return { ok: false, error: "玩家不存在" };
+
+    const table = room.state.heartTable || [];
+    const isCorrect = this.hasFruitFive(table);
+
+    if (isCorrect) {
+      // 正确拍铃：拍铃者赢得桌面所有牌
+      const wonCount = table.length;
+      const won = room.state.heartWon || {};
+      won[socketId] = (won[socketId] ?? 0) + wonCount;
+      room.state.heartWon = won;
+      // 清空桌面
+      room.state.heartTable = [];
+      // 重置 flipped
+      const flipped: Record<string, boolean> = {};
+      room.players.forEach((p) => { flipped[p.id] = false; });
+      room.state.heartFlipped = flipped;
+      room.state.heartLastResult = { type: "correct", ringerId: socketId, ringerNickname: player.nickname };
+    } else {
+      // 错误拍铃：给对手 1 张牌（从自己牌堆顶）
+      const opponent = room.players.find((p) => p.id !== socketId);
+      if (!opponent) return { ok: false, error: "对手不存在" };
+      const myDeck = room.state.heartDeck?.[socketId] || [];
+      if (myDeck.length > 0) {
+        const card = myDeck.pop()!;
+        room.state.heartDeck[socketId] = myDeck;
+        // 对手牌堆底部加入（保持牌堆顺序，加到开头）
+        const oppDeck = room.state.heartDeck?.[opponent.id] || [];
+        oppDeck.unshift(card);
+        room.state.heartDeck[opponent.id] = oppDeck;
+      }
+      room.state.heartLastResult = { type: "wrong", ringerId: socketId, ringerNickname: player.nickname };
+    }
+
+    // 检查游戏结束：任一玩家牌堆为空
+    const anyEmpty = room.players.some((p) => (room.state.heartDeck?.[p.id] || []).length === 0);
+    let gameOver = false;
+    if (anyEmpty) {
+      room.state.heartGameOver = true;
+      room.state.phase = "GAME_OVER";
+      gameOver = true;
+    }
+
+    return { ok: true, room, type: isCorrect ? "correct" : "wrong", ringerId: socketId, ringerNickname: player.nickname, gameOver };
+  }
+
+  /**
+   * 获取德国心脏病游戏结束数据（按玩家视角）
+   */
+  getHeartGameOverData(room: Room, socketId: string): {
+    winnerId: string | null;
+    myWon: number;
+    opponentWon: number;
+    reason: "deck-empty";
+  } | null {
+    if (!room.state.heartGameOver) return null;
+    const opponent = room.players.find((p) => p.id !== socketId);
+    const myWon = room.state.heartWon?.[socketId] ?? 0;
+    const opponentWon = opponent ? (room.state.heartWon?.[opponent.id] ?? 0) : 0;
+    let winnerId: string | null;
+    if (myWon > opponentWon) {
+      winnerId = socketId;
+    } else if (opponentWon > myWon) {
+      winnerId = opponent?.id ?? null;
+    } else {
+      winnerId = null; // 平局
+    }
+    return { winnerId, myWon, opponentWon, reason: "deck-empty" };
+  }
+
+  /**
+   * 重玩德国心脏病（房主触发，重新洗牌）
+   */
+  restartHeartAttack(roomId: string, socketId: string): Room | null {
     const room = this.rooms.get(roomId);
     if (!room) return null;
     if (room.hostId !== socketId) return null;
-    if (room.gameType !== "mystery") return null;
-    await this.startMysteryInternal(room);
-    return { room };
-  }
-
-  /**
-   * 获取谜题答案（揭晓用）
-   */
-  getMysteryAnswer(room: Room): string {
-    return room.state.mysteryAnswer || "";
-  }
-
-  /**
-   * 获取双人解密剩余时间（秒）
-   */
-  getMysteryTimeLeft(room: Room): number {
-    if (!room.state.mysteryStartTime) return room.state.mysteryTimeLimit ?? MYSTERY_TIME_LIMIT;
-    const limit = room.state.mysteryTimeLimit ?? MYSTERY_TIME_LIMIT;
-    const elapsed = (Date.now() - room.state.mysteryStartTime) / 1000;
-    return Math.max(0, Math.ceil(limit - elapsed));
-  }
-
-  /**
-   * 获取双人解密总时长（秒），供外部计时器使用
-   */
-  getMysteryTimeLimit(): number {
-    return MYSTERY_TIME_LIMIT;
+    if (room.gameType !== "heart-attack") return null;
+    this.startHeartAttackInternal(room);
+    return room;
   }
 
   // ============ 合作画画（接龙画）相关 ============
@@ -1698,7 +1661,6 @@ class RoomManagerClass {
       difficulty: room.difficulty,
       gameType: room.gameType,
       telepathyPackId: room.telepathyPackId,
-      mysteryDifficulty: room.mysteryDifficulty,
       createdAt: room.createdAt,
     };
   }

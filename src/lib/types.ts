@@ -9,8 +9,8 @@ export type GamePhase =
   | "ROUND_RESULT"
   | "GAME_OVER";
 
-// 游戏类型：画词记忆 / 默契考验 / 双人解密 / 合作画画 / 表情包猜词
-export type GameType = "draw-memory" | "telepathy" | "mystery" | "co-op-drawing" | "emoji-guessing";
+// 游戏类型：画词记忆 / 默契考验 / 德国心脏病 / 合作画画 / 表情包猜词
+export type GameType = "draw-memory" | "telepathy" | "heart-attack" | "co-op-drawing" | "emoji-guessing";
 
 export interface PlayerView {
   id: string;
@@ -32,7 +32,6 @@ export interface RoomView {
   difficulty: Difficulty;
   gameType: GameType;
   telepathyPackId?: string;
-  mysteryDifficulty?: string;
   createdAt: number; // 房间创建时间戳，用于大厅显示相对时间
 }
 
@@ -94,51 +93,50 @@ export interface TelepathyRevealData {
   match: "full" | "partial" | "none";
 }
 
-// ===== 双人解密 =====
+// ===== 德国心脏病 =====
 
-// 谜题下发数据（每个玩家拿到的线索不同，由后端按视角下发）
-export interface MysteryCaseData {
-  caseId: string;
-  title: string;
-  story: string;
-  clues: string[];
-  difficulty: string;
-  category: string;
-  attemptsLeft: number;
-  timeLimit: number;
+// 水果类型：苹果 / 香蕉 / 樱桃 / 柠檬
+export type HeartFruit = "apple" | "banana" | "cherry" | "lemon";
+
+// 单张牌：一种水果 + 数量（1-5）
+export interface HeartCard {
+  fruit: HeartFruit;
+  count: number;
 }
 
-// 单条聊天记录
-export interface MysteryChatRecord {
-  sender: string;
-  text: string;
-  ts: number;
+// 桌面上的牌（含归属，用于前端展示左右两张）
+export interface HeartTableCard {
+  card: HeartCard;
+  owner: string; // 出牌玩家 playerId
 }
 
-// 单条答题记录
-export interface MysteryGuessRecord {
-  guess: string;
-  guesser: string;
-  correct: boolean;
-  close: boolean;
-  feedback: string;
+// 德国心脏病状态下发（按玩家视角，myDeckCount/opponentDeckCount 区分）
+export interface HeartStateData {
+  myDeckCount: number; // 我的牌堆剩余张数
+  myWonCount: number; // 我赢到的牌数
+  opponentDeckCount: number;
+  opponentWonCount: number;
+  tableCards: HeartTableCard[]; // 桌面上所有牌
+  myFlipped: boolean; // 本轮我是否已翻牌
+  opponentFlipped: boolean;
+  canRing: boolean; // 桌面是否有水果总数=5（可拍铃）
 }
 
-// 答题结果事件
-export interface MysterySubmitResultData {
-  guessIndex: number;
-  guess: string;
-  guesser: string;
-  correct: boolean;
-  close: boolean;
-  feedback: string;
-  attemptsLeft: number;
+// 单次拍铃结果
+export interface HeartResultData {
+  type: "correct" | "wrong";
+  ringerId: string; // 拍铃玩家
+  ringerNickname: string;
+  // correct: 拍铃者赢得桌面所有牌
+  // wrong: 拍铃者给对手 1 张牌
 }
 
-// 揭晓答案事件
-export interface MysteryRevealData {
-  answer: string;
-  won: boolean;
+// 游戏结束数据
+export interface HeartGameOverData {
+  winnerId: string | null;
+  myWon: number;
+  opponentWon: number;
+  reason: "deck-empty"; // 牌堆耗尽
 }
 
 // ===== 合作画画（同时画 + AI 评分）=====

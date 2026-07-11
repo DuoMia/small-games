@@ -105,7 +105,7 @@ function Start-Backend {
         Write-Log "CORS 白名单: $($script:pagesDomain)"
     }
 
-    # 加载 scripts/.env 中的环境变量（GLM_API_KEY 等），供双人解密 AI 使用
+    # 加载 scripts/.env 中的环境变量（GLM_API_KEY 等），供题库 AI 扩展使用
     # 该文件已被 .gitignore 忽略，不会提交到仓库
     # 注意：必须用 [System.IO.File]::ReadAllLines 强制 UTF-8 读取，
     #       PowerShell 5.x 的 Get-Content 默认按 GBK 解码 UTF-8 无 BOM 文件会出问题
@@ -130,15 +130,15 @@ function Start-Backend {
             }
             if ($env:GLM_API_KEY) {
                 $masked = $env:GLM_API_KEY.Substring(0, [Math]::Min(8, $env:GLM_API_KEY.Length)) + "..."
-                Write-Log "已加载 GLM_API_KEY（$masked，双人解密 AI 可用）"
+                Write-Log "已加载 GLM_API_KEY（$masked，题库 AI 扩展可用）"
             } else {
-                Write-Log "警告: scripts/.env 中未找到 GLM_API_KEY（已解析 $loadedCount 行），双人解密 AI 将走预设题库兜底"
+                Write-Log "警告: scripts/.env 中未找到 GLM_API_KEY（已解析 $loadedCount 行），题库 AI 扩展将不可用"
             }
         } catch {
             Write-Log "读取 scripts/.env 失败: $_"
         }
     } else {
-        Write-Log "提示: 未找到 scripts/.env，双人解密 AI 将走预设题库兜底"
+        Write-Log "提示: 未找到 scripts/.env，题库 AI 扩展将不可用"
     }
 
     # Windows 上 npx 是 npx.cmd 批处理文件，Start-Process 需要明确指定
@@ -218,7 +218,7 @@ function Stop-Tunnel {
 
 # ---------- 启动/停止管理后台 ----------
 # 管理后台是独立 Express 服务（端口 8788），只监听 127.0.0.1，不暴露公网
-# 用于管理 4 个题库（画图猜词/默契考验/表情包/双人解密）的题目，并支持 AI 扩展
+# 用于管理 3 个题库（画图猜词/默契考验/表情包）的题目，并支持 AI 扩展
 function Start-Admin {
     if (Is-ProcessRunning $script:adminPid) {
         Write-Log "管理后台已在运行中"
@@ -531,7 +531,7 @@ $btnStopAdmin.Add_Click({ Stop-Admin })
 $panelAdmin.Controls.Add($btnStopAdmin)
 
 $lblAdminDesc = New-Object System.Windows.Forms.Label
-$lblAdminDesc.Text = "管理4个题库（画图/默契/表情/双人解密）· 端口 $script:AdminPort · 仅本机访问"
+$lblAdminDesc.Text = "管理3个题库（画图/默契/表情）· 端口 $script:AdminPort · 仅本机访问"
 $lblAdminDesc.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 7)
 $lblAdminDesc.ForeColor = [System.Drawing.Color]::Gray
 $lblAdminDesc.Location = New-Object System.Drawing.Point(10, 48)

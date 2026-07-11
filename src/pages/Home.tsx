@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Pencil, LogIn, Sparkles, Palette, User, Heart, HelpCircle, Smile, RefreshCw, ChevronDown, ChevronUp, X } from "lucide-react";
+import { Pencil, LogIn, Sparkles, Palette, User, Heart, Bell, Smile, RefreshCw, ChevronDown, ChevronUp, X } from "lucide-react";
 import { useRoomActions } from "@/hooks/useSocket";
 import { useGameStore } from "@/store/gameStore";
 import { useAudioStore } from "@/store/audioStore";
@@ -12,7 +12,7 @@ import type { GameType, RoomView } from "@/lib/types";
 const SOLO_GAME_OPTIONS: { gameType: GameType; emoji: string; name: string; desc: string }[] = [
   { gameType: "draw-memory", emoji: "🎨", name: "画词记忆", desc: "看词画图答题" },
   { gameType: "telepathy", emoji: "💕", name: "默契考验", desc: "模拟朋友答案" },
-  { gameType: "mystery", emoji: "🔐", name: "双人解密", desc: "合作推理破案" },
+  { gameType: "heart-attack", emoji: "🔔", name: "德国心脏病", desc: "眼疾手快拍铃" },
   { gameType: "co-op-drawing", emoji: "✏️", name: "合作画画", desc: "命题作画自评" },
   { gameType: "emoji-guessing", emoji: "😎", name: "表情包猜词", desc: "看 emoji 猜词" },
 ];
@@ -42,7 +42,7 @@ function genRandomNickname(): string {
 const GAME_TYPE_INFO: Record<GameType, { name: string; emoji: string }> = {
   "draw-memory": { name: "画词记忆", emoji: "🎨" },
   "telepathy": { name: "默契考验", emoji: "💕" },
-  "mystery": { name: "双人解密", emoji: "🔐" },
+  "heart-attack": { name: "德国心脏病", emoji: "🔔" },
   "co-op-drawing": { name: "合作画画", emoji: "✏️" },
   "emoji-guessing": { name: "表情包猜词", emoji: "😎" },
 };
@@ -51,7 +51,7 @@ const GAME_TYPE_INFO: Record<GameType, { name: string; emoji: string }> = {
 const GAME_OVERVIEW: { emoji: string; name: string; desc: string; color: string }[] = [
   { emoji: "🎨", name: "画词记忆", desc: "看词画画猜词 · 3 轮对战", color: "bg-coral-light" },
   { emoji: "💕", name: "默契考验", desc: "同题同选 · 测默契度", color: "bg-coral-light" },
-  { emoji: "🔐", name: "双人解密", desc: "合作推理 · 各持线索破案", color: "bg-mint" },
+  { emoji: "🔔", name: "德国心脏病", desc: "眼疾手快 · 拍铃抢牌", color: "bg-mint" },
   { emoji: "✏️", name: "合作画画", desc: "接龙共创 · 双人合作", color: "bg-sun" },
   { emoji: "😎", name: "表情包猜词", desc: "看 emoji 猜词 · 10 题 PK", color: "bg-coral-light" },
 ];
@@ -167,7 +167,7 @@ export default function Home() {
         🧠
       </div>
       <div className="absolute bottom-32 right-10 text-4xl animate-float opacity-20" style={{ animationDelay: "0.5s" }}>
-        🔐
+        🔔
       </div>
 
       <div className="w-full max-w-md flex flex-col items-center relative z-10">
@@ -246,13 +246,13 @@ export default function Home() {
                 }}
               />
               <GameCard
-                icon={<HelpCircle size={18} />}
-                emoji="🔐"
-                title="双人解密"
-                desc="合作推理"
-                selected={gameType === "mystery"}
+                icon={<Bell size={18} />}
+                emoji="🔔"
+                title="德国心脏病"
+                desc="眼疾手快"
+                selected={gameType === "heart-attack"}
                 onClick={() => {
-                  setGameType("mystery");
+                  setGameType("heart-attack");
                   playSfx(sfx.uiTick);
                 }}
               />
