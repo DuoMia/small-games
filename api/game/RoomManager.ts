@@ -1807,11 +1807,11 @@ class RoomManagerClass {
   private DV_INITIAL_HAND = 4; // 每人初始手牌数
 
   /**
-   * 牌排序键：黑牌在前（0-11），白牌在后（0-11）
+   * 牌排序键：先数字升序，同数字黑在白左（黑X紧挨白X左边）
+   * 示例：黑2、白2、黑4、白5、白6
    */
   private dvCardSortKey(c: DaVinciCard): number {
-    // 黑牌在前（0-11），白牌在后（0-11），各自升序
-    return (c.color === "white" ? 100 : 0) + c.number;
+    return c.number * 2 + (c.color === "white" ? 1 : 0);
   }
 
   /**

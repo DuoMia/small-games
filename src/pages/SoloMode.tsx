@@ -3122,9 +3122,10 @@ interface DVPlayerState {
 }
 
 function sortDaVinciHand(cards: DaVinciCard[]): DaVinciCard[] {
+  // 先按数字升序，同数字黑在白左（黑X紧挨白X左边）
   return [...cards].sort((a, b) => {
-    if (a.color !== b.color) return a.color === "black" ? -1 : 1;
-    return a.number - b.number;
+    if (a.number !== b.number) return a.number - b.number;
+    return a.color === "black" ? -1 : 1;
   });
 }
 
