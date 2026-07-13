@@ -431,8 +431,8 @@ export default function Lobby() {
             </ul>
           ) : isHeartAttack ? (
             <ul className="text-xs text-ink-muted space-y-1">
-              <li>· 4 种水果（🍎🍌🍒🍋），每张牌含混合水果（1-5个）</li>
-              <li>· 双方牌堆均分，轮流翻牌到桌面中央</li>
+              <li>· 4 种水果（🍎🍌🍒🍋），每张牌含混合水果（1-4个）</li>
+              <li>· 双方牌堆均分，每 3 秒自动翻一张牌到桌面中央</li>
               <li>· 桌面任一水果总数恰好为 5 时，先拍铃者赢牌</li>
               <li>· 拍铃正确：赢得桌面所有牌；错误：给对手{difficulty === "hard" ? " 2" : " 1"}张牌</li>
               <li>· 双方牌堆耗尽，赢牌多者获胜</li>

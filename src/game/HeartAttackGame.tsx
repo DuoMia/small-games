@@ -208,6 +208,28 @@ function HeartPlaying({ roomId }: { roomId: string }) {
     prevCountRef.current = cur;
   }, [heartState]);
 
+  // 自动翻牌：轮到我时 3 秒后自动翻一张
+  const autoFlipTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (autoFlipTimerRef.current) {
+      window.clearTimeout(autoFlipTimerRef.current);
+      autoFlipTimerRef.current = null;
+    }
+    if (!heartState) return;
+    if (heartState.myTurn && heartState.myDeckCount > 0) {
+      autoFlipTimerRef.current = window.setTimeout(() => {
+        playSfx(sfx.click);
+        heartFlip(roomId);
+      }, 3000);
+    }
+    return () => {
+      if (autoFlipTimerRef.current) {
+        window.clearTimeout(autoFlipTimerRef.current);
+        autoFlipTimerRef.current = null;
+      }
+    };
+  }, [heartState?.myTurn, heartState?.myDeckCount, roomId, playSfx, heartFlip]);
+
   if (!heartState) {
     return (
       <div className="paper-bg h-[100dvh] flex items-center justify-center">
@@ -403,41 +425,22 @@ function HeartPlaying({ roomId }: { roomId: string }) {
 
       {/* 底部拍铃区 */}
       <div className="flex-shrink-0 bg-white border-t-2 border-ink/10 px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))]">
-        <div className="flex items-center gap-3">
-          {/* 翻牌提示/按钮 */}
-          <div className="w-24 flex-shrink-0">
-            {canFlip ? (
-              <button
-                onClick={handleFlip}
-                className="btn-press w-full py-3 bg-sun text-ink font-display text-sm rounded-2xl border-[3px] border-ink shadow-soft active:scale-95"
-              >
-                翻牌
-              </button>
-            ) : (
-              <div className="w-full py-3 text-center font-display text-xs text-ink-muted">
-                {heartState.myDeckCount === 0 ? "牌堆空了" : heartState.opponentTurn ? "对手翻牌" : "等待..."}
-              </div>
-            )}
-          </div>
-
-          {/* 大拍铃按钮 */}
-          <button
-            onClick={handleRing}
-            disabled={heartState.tableCards.length === 0}
-            className={`btn-press flex-1 h-16 rounded-full border-[3px] border-ink font-display text-xl flex items-center justify-center gap-2 shadow-pop transition-all ${
-              canRing
-                ? "bg-gradient-to-b from-yellow-300 to-yellow-500 text-ink animate-pulse"
-                : "bg-gradient-to-b from-yellow-200 to-yellow-400 text-ink/80"
-            } disabled:opacity-50`}
-            style={canRing ? { animation: "shakeBell 0.5s infinite, ringFlash 1s infinite" } : undefined}
-          >
-            <Bell size={28} />
-            拍铃
-          </button>
+        <div className="text-center text-[11px] text-ink-muted mb-2 font-body">
+          {canRing ? "🔔 水果凑齐 5 个！快拍！" : canFlip ? "⏰ 3 秒后自动翻你的牌" : heartState.opponentTurn ? "⏰ 3 秒后自动翻对手的牌" : heartState.myDeckCount === 0 ? "牌堆空了" : "等待..."}
         </div>
-        <div className="text-center text-[10px] text-ink-muted mt-1.5 font-display">
-          {canRing ? "🔔 水果凑齐 5 个！快拍！" : heartState.tableCards.length === 0 ? "先翻牌开始" : "桌面任一水果总数 = 5 时拍铃"}
-        </div>
+        <button
+          onClick={handleRing}
+          disabled={heartState.tableCards.length === 0}
+          className={`btn-press w-full h-16 rounded-full border-[3px] border-ink font-display text-xl flex items-center justify-center gap-2 shadow-pop transition-all ${
+            canRing
+              ? "bg-gradient-to-b from-yellow-300 to-yellow-500 text-ink animate-pulse"
+              : "bg-gradient-to-b from-yellow-200 to-yellow-400 text-ink/80"
+          } disabled:opacity-50`}
+          style={canRing ? { animation: "shakeBell 0.5s infinite, ringFlash 1s infinite" } : undefined}
+        >
+          <Bell size={28} />
+          拍铃
+        </button>
       </div>
     </div>
   );

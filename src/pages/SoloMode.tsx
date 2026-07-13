@@ -1657,6 +1657,7 @@ function SoloHeartAttack() {
     clearAiTimers();
 
     const timing = getSoloHeartAITiming(difficulty);
+    const AUTO_FLIP_MS = 3000;
 
     if (hasSoloHeartFruitFive(table)) {
       let delay = timing.ringMin + Math.random() * (timing.ringMax - timing.ringMin);
@@ -1669,14 +1670,18 @@ function SoloHeartAttack() {
         const wrongDelay = 600 + Math.random() * 900;
         aiRingTimerRef.current = setTimeout(() => doAiWrongRing(), wrongDelay);
       }
+      // 自动翻牌：双方均 3 秒自动翻一张
       if (currentTurn === "ai" && aiDeck.length > 0) {
-        const delay = timing.flipMin + Math.random() * (timing.flipMax - timing.flipMin);
         aiFlipTimerRef.current = setTimeout(() => {
           doAiFlip();
-        }, delay);
+        }, AUTO_FLIP_MS);
+      } else if (currentTurn === "me" && myDeck.length > 0) {
+        aiFlipTimerRef.current = setTimeout(() => {
+          handleFlip();
+        }, AUTO_FLIP_MS);
       }
     }
-  }, [table, currentTurn, stage, gameOver, aiDeck.length, myDeck.length, difficulty, clearAiTimers, doAiFlip, doAiRing, doAiWrongRing]);
+  }, [table, currentTurn, stage, gameOver, aiDeck.length, myDeck.length, difficulty, clearAiTimers, doAiFlip, doAiRing, doAiWrongRing, handleFlip]);
 
   const handleRing = useCallback(() => {
     if (gameOver) return;
@@ -1752,8 +1757,8 @@ function SoloHeartAttack() {
               <div className="flex items-center gap-3 bg-mint/30 rounded-doodle p-3 border-2 border-ink shadow-soft">
                 <div className="flex items-center justify-center w-10 h-10 rounded-full bg-sun border-2 border-ink font-display text-ink">1</div>
                 <div className="flex-1">
-                  <div className="font-display text-ink">轮流翻牌</div>
-                  <div className="text-xs text-ink-muted">玩家与 AI 轮流翻牌到桌面，牌含混合水果</div>
+                  <div className="font-display text-ink">自动翻牌</div>
+                  <div className="text-xs text-ink-muted">每 3 秒自动翻一张牌到桌面，牌含混合水果</div>
                 </div>
               </div>
               <div className="flex items-center gap-3 bg-sun/40 rounded-doodle p-3 border-2 border-ink shadow-soft">
@@ -2033,41 +2038,24 @@ function SoloHeartAttack() {
 
       {/* 底部拍铃区 */}
       <div className="flex-shrink-0 bg-white border-t-2 border-ink/10 px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))]">
-        <div className="flex items-center gap-3">
-          {/* 翻牌提示/按钮 */}
-          <div className="w-24 flex-shrink-0">
-            {canFlip ? (
-              <button
-                onClick={handleFlip}
-                className="btn-press w-full py-3 bg-sun text-ink font-display text-sm rounded-2xl border-[3px] border-ink shadow-soft active:scale-95"
-              >
-                翻牌
-              </button>
-            ) : (
-              <div className="w-full py-3 text-center font-display text-xs text-ink-muted">
-                {myDeck.length === 0 ? "牌堆空了" : currentTurn === "ai" ? "AI翻牌中" : "等待..."}
-              </div>
-            )}
-          </div>
-
-          {/* 大拍铃按钮 */}
-          <button
-            onClick={handleRing}
-            disabled={table.length === 0}
-            className={`btn-press flex-1 h-16 rounded-full border-[3px] border-ink font-display text-xl flex items-center justify-center gap-2 shadow-pop transition-all ${
-              canRing
-                ? "bg-gradient-to-b from-yellow-300 to-yellow-500 text-ink animate-pulse"
-                : "bg-gradient-to-b from-yellow-200 to-yellow-400 text-ink/80"
-            } disabled:opacity-50`}
-            style={canRing ? { animation: "shakeBell 0.5s infinite" } : undefined}
-          >
-            <Bell size={28} />
-            拍铃
-          </button>
+        {/* 自动翻牌提示 */}
+        <div className="text-center text-[11px] text-ink-muted mb-2 font-body">
+          {gameOver ? "游戏结束" : canRing ? "🔔 水果凑齐 5 个！快拍！" : currentTurn === "me" ? "⏰ 3 秒后自动翻你的牌" : "⏰ 3 秒后自动翻 AI 的牌"}
         </div>
-        <div className="text-center text-[10px] text-ink-muted mt-1.5 font-display">
-          {canRing ? "🔔 水果凑齐 5 个！快拍！" : table.length === 0 ? "先翻牌开始" : "桌面任一水果总数 = 5 时拍铃"}
-        </div>
+        {/* 大拍铃按钮 */}
+        <button
+          onClick={handleRing}
+          disabled={table.length === 0 || !!gameOver}
+          className={`btn-press w-full h-16 rounded-full border-[3px] border-ink font-display text-xl flex items-center justify-center gap-2 shadow-pop transition-all ${
+            canRing
+              ? "bg-gradient-to-b from-yellow-300 to-yellow-500 text-ink animate-pulse"
+              : "bg-gradient-to-b from-yellow-200 to-yellow-400 text-ink/80"
+          } disabled:opacity-50`}
+          style={canRing ? { animation: "shakeBell 0.5s infinite" } : undefined}
+        >
+          <Bell size={28} />
+          拍铃
+        </button>
       </div>
     </div>
   );
