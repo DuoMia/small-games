@@ -56,8 +56,9 @@ export interface DaVinciGuessResult {
   guesserNickname: string;
   targetId: string; // 被猜的玩家
   targetCardIndex: number; // 被猜牌的位置索引
+  targetCardId: string; // 被猜牌的ID（用于追踪错误猜测）
   guessedNumber: number;
-  actualNumber?: number; // 猜错时显示实际数字
+  actualNumber?: number; // 仅猜对时展示（同guessedNumber）
   gameOver?: boolean;
 }
 

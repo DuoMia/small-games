@@ -239,6 +239,7 @@ export interface DaVinciResultData {
   guesserNickname: string;
   targetId: string;
   targetCardIndex: number;
+  targetCardId: string;
   guessedNumber: number;
   actualNumber?: number;
 }

@@ -1807,10 +1807,11 @@ class RoomManagerClass {
   private DV_INITIAL_HAND = 4; // 每人初始手牌数
 
   /**
-   * 牌排序键：先数字后颜色（黑0<白0<黑1<白1...）
+   * 牌排序键：黑牌在前（0-11），白牌在后（0-11）
    */
   private dvCardSortKey(c: DaVinciCard): number {
-    return c.number * 2 + (c.color === "white" ? 1 : 0);
+    // 黑牌在前（0-11），白牌在后（0-11），各自升序
+    return (c.color === "white" ? 100 : 0) + c.number;
   }
 
   /**
@@ -1955,6 +1956,7 @@ class RoomManagerClass {
         guesserNickname: guesser.nickname,
         targetId,
         targetCardIndex: cardIndex,
+        targetCardId: targetCard.id,
         guessedNumber: number,
       };
 
@@ -1996,8 +1998,8 @@ class RoomManagerClass {
         guesserNickname: guesser.nickname,
         targetId,
         targetCardIndex: cardIndex,
+        targetCardId: targetCard.id,
         guessedNumber: number,
-        actualNumber: targetCard.number,
       };
 
       // 检查自己是否所有牌都亮了（包括新倒下的）

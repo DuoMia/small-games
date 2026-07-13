@@ -3159,6 +3159,7 @@ function DVCardTile({
   onClick,
   clickable,
   compact,
+  wrongGuesses,
 }: {
   card: DaVinciCard;
   isMine: boolean;
@@ -3168,6 +3169,7 @@ function DVCardTile({
   onClick?: () => void;
   clickable?: boolean;
   compact?: boolean;
+  wrongGuesses?: number[];
 }) {
   const isUnknown = !isMine && !card.revealed;
   const style = isUnknown
@@ -3178,28 +3180,39 @@ function DVCardTile({
   const h = compact ? 68 : 82;
 
   return (
-    <button
-      onClick={onClick}
-      disabled={!clickable}
-      className={`
-        relative rounded-xl border-[3px] shadow-card transition-all duration-200
-        flex flex-col items-center justify-center select-none
-        ${style.bg} ${style.text} ${style.border}
-        ${clickable ? "hover:scale-105 hover:-translate-y-1 cursor-pointer" : "cursor-default"}
-        ${isSelected ? "ring-4 ring-amber-400 scale-105 -translate-y-1" : ""}
-        ${isDrawn ? "ring-2 ring-amber-300 animate-pulse" : ""}
-        ${isNew ? "animate-[flipIn_0.5s_ease-out]" : ""}
-      `}
-      style={{ width: w, height: h }}
-    >
-      <span className="text-[10px] opacity-60 leading-none">{DV_COLOR_STYLES[card.color].label}</span>
-      <span className={`${compact ? "text-xl" : "text-2xl"} font-black leading-none mt-1`}>{numberDisplay}</span>
-      {card.revealed && (
-        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
-          <X className="w-3 h-3 text-white" strokeWidth={3} />
-        </span>
+    <div className="flex flex-col items-center gap-1">
+      <button
+        onClick={onClick}
+        disabled={!clickable}
+        className={`
+          relative rounded-xl border-[3px] shadow-card transition-all duration-200
+          flex flex-col items-center justify-center select-none
+          ${style.bg} ${style.text} ${style.border}
+          ${clickable ? "hover:scale-105 hover:-translate-y-1 cursor-pointer" : "cursor-default"}
+          ${isSelected ? "ring-4 ring-amber-400 scale-105 -translate-y-1" : ""}
+          ${isDrawn ? "ring-2 ring-amber-300 animate-pulse" : ""}
+          ${isNew ? "animate-[flipIn_0.5s_ease-out]" : ""}
+        `}
+        style={{ width: w, height: h }}
+      >
+        <span className="text-[10px] opacity-60 leading-none">{DV_COLOR_STYLES[card.color].label}</span>
+        <span className={`${compact ? "text-xl" : "text-2xl"} font-black leading-none mt-1`}>{numberDisplay}</span>
+        {card.revealed && (
+          <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+            <X className="w-3 h-3 text-white" strokeWidth={3} />
+          </span>
+        )}
+      </button>
+      {wrongGuesses && wrongGuesses.length > 0 && (
+        <div className="flex flex-wrap gap-0.5 justify-center max-w-[60px]">
+          {wrongGuesses.map((n, i) => (
+            <span key={i} className="text-[10px] font-bold text-coral bg-coral/10 rounded px-1 leading-tight line-through">
+              {n}
+            </span>
+          ))}
+        </div>
       )}
-    </button>
+    </div>
   );
 }
 
@@ -3216,10 +3229,12 @@ function SoloDaVinci() {
   const [selectedTarget, setSelectedTarget] = useState<number | null>(null);
   const [showGuessModal, setShowGuessModal] = useState(false);
   const [guessTargetIdx, setGuessTargetIdx] = useState<number | null>(null);
-  const [toast, setToast] = useState<{ correct: boolean; guesser: string; num: number; actual?: number } | null>(null);
+  const [toast, setToast] = useState<{ correct: boolean; guesser: string; num: number } | null>(null);
   const [winner, setWinner] = useState<"player" | "ai" | null>(null);
   const [aiThinking, setAiThinking] = useState(false);
   const [passAvailable, setPassAvailable] = useState(false);
+  // 错误猜测记录：cardId -> 猜过的数字列表
+  const [wrongGuesses, setWrongGuesses] = useState<Record<string, number[]>>({});
   const timerRef = useRef<number | null>(null);
 
   const { sfxEnabled } = useAudioStore();
@@ -3260,6 +3275,7 @@ function SoloDaVinci() {
     setShowDrawnPreview(false);
     setToast(null);
     setAiThinking(false);
+    setWrongGuesses({});
     playSfx(sfx.click);
   }, [clearTimer, playSfx]);
 
@@ -3269,7 +3285,7 @@ function SoloDaVinci() {
     return null;
   }, []);
 
-  const showToastMsg = useCallback((msg: { correct: boolean; guesser: string; num: number; actual?: number }) => {
+  const showToastMsg = useCallback((msg: { correct: boolean; guesser: string; num: number }) => {
     setToast(msg);
     window.setTimeout(() => setToast(null), 1500);
   }, []);
@@ -3335,7 +3351,14 @@ function SoloDaVinci() {
       setPassAvailable(true);
       setPhase("guess");
     } else {
-      showToastMsg({ correct: false, guesser: "你", num, actual: targetCard.number });
+      showToastMsg({ correct: false, guesser: "你", num });
+      // 记录错误猜测
+      setWrongGuesses((prev) => {
+        const cardId = targetCard.id;
+        const existing = prev[cardId] || [];
+        if (existing.includes(num)) return prev;
+        return { ...prev, [cardId]: [...existing, num] };
+      });
       let newPlayerHand = player.hand;
       if (drawnCard) {
         newPlayerHand = sortDaVinciHand([...player.hand, { ...drawnCard, revealed: true }]);
@@ -3489,7 +3512,14 @@ function SoloDaVinci() {
           if (hiddenLeft === 0) { continueGuessing = false; break; }
           if (Math.random() > aiConfig.continueChance) continueGuessing = false;
         } else {
-          showToastMsg({ correct: false, guesser: "AI", num: guess.number, actual: targetCard.number });
+          showToastMsg({ correct: false, guesser: "AI", num: guess.number });
+          // 记录错误猜测
+          setWrongGuesses((prev) => {
+            const cardId = targetCard.id;
+            const existing = prev[cardId] || [];
+            if (existing.includes(guess.number)) return prev;
+            return { ...prev, [cardId]: [...existing, guess.number] };
+          });
           if (hasDrawnCard && curDrawn) {
             curAiHand = sortDaVinciHand([...curAiHand, { ...curDrawn, revealed: true }]);
             setAi({ hand: curAiHand });
@@ -3675,6 +3705,7 @@ function SoloDaVinci() {
               isSelected={selectedTarget === i}
               isNew={c.revealed}
               clickable={isPlayerTurn && phase === "guess" && !c.revealed}
+              wrongGuesses={wrongGuesses[c.id]}
               onClick={() => selectTarget(i)}
             />
           ))}
@@ -3724,7 +3755,7 @@ function SoloDaVinci() {
       <div className="flex-shrink-0 px-4 py-3 bg-white border-t-3 border-ink">
         <div className="flex gap-1.5 justify-center flex-wrap mb-2">
           {player.hand.map((c) => (
-            <DVCardTile key={c.id} card={c} isMine />
+            <DVCardTile key={c.id} card={c} isMine wrongGuesses={wrongGuesses[c.id]} />
           ))}
         </div>
         <div className="flex items-center gap-2">
@@ -3805,7 +3836,6 @@ function SoloDaVinci() {
           <div className="text-2xl font-black mb-1">{toast.correct ? "破译成功！" : "破译失败！"}</div>
           <div className="text-sm opacity-90">
             {toast.guesser} 猜 <b className="text-lg">{toast.num}</b>
-            {!toast.correct && toast.actual !== undefined && <>，实际是 <b className="text-lg">{toast.actual}</b></>}
           </div>
         </div>
       )}

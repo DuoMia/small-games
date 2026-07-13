@@ -31,6 +31,7 @@ function DaVinciCardTile({
   onClick,
   clickable,
   isDrawn,
+  wrongGuesses,
 }: {
   card: DaVinciCard;
   isMine: boolean;
@@ -39,6 +40,7 @@ function DaVinciCardTile({
   onClick?: () => void;
   clickable?: boolean;
   isDrawn?: boolean;
+  wrongGuesses?: number[];
 }) {
   const isUnknown = !isMine && !card.revealed;
   const style = isUnknown
@@ -48,28 +50,39 @@ function DaVinciCardTile({
   const numberDisplay = card.revealed || isMine ? card.number : "?";
 
   return (
-    <button
-      onClick={onClick}
-      disabled={!clickable}
-      className={`
-        relative rounded-xl border-[3px] shadow-card transition-all duration-200
-        flex flex-col items-center justify-center
-        ${style.bg} ${style.text} ${style.border}
-        ${clickable ? "hover:scale-105 hover:-translate-y-1 cursor-pointer" : "cursor-default"}
-        ${isSelected ? "ring-4 ring-amber-400 scale-105 -translate-y-1" : ""}
-        ${isNewlyRevealed ? "animate-[flipIn_0.5s_ease-out]" : ""}
-        ${isDrawn ? "ring-2 ring-amber-300 animate-pulse" : ""}
-      `}
-      style={{ width: 56, height: 80 }}
-    >
-      <span className="text-xs opacity-60 leading-none">{COLOR_STYLES[card.color].label}</span>
-      <span className="text-2xl font-black leading-none mt-1">{numberDisplay}</span>
-      {card.revealed && (
-        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
-          <X className="w-3 h-3 text-white" strokeWidth={3} />
-        </span>
+    <div className="flex flex-col items-center gap-1">
+      <button
+        onClick={onClick}
+        disabled={!clickable}
+        className={`
+          relative rounded-xl border-[3px] shadow-card transition-all duration-200
+          flex flex-col items-center justify-center
+          ${style.bg} ${style.text} ${style.border}
+          ${clickable ? "hover:scale-105 hover:-translate-y-1 cursor-pointer" : "cursor-default"}
+          ${isSelected ? "ring-4 ring-amber-400 scale-105 -translate-y-1" : ""}
+          ${isNewlyRevealed ? "animate-[flipIn_0.5s_ease-out]" : ""}
+          ${isDrawn ? "ring-2 ring-amber-300 animate-pulse" : ""}
+        `}
+        style={{ width: 56, height: 80 }}
+      >
+        <span className="text-xs opacity-60 leading-none">{COLOR_STYLES[card.color].label}</span>
+        <span className="text-2xl font-black leading-none mt-1">{numberDisplay}</span>
+        {card.revealed && (
+          <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+            <X className="w-3 h-3 text-white" strokeWidth={3} />
+          </span>
+        )}
+      </button>
+      {wrongGuesses && wrongGuesses.length > 0 && (
+        <div className="flex flex-wrap gap-0.5 justify-center max-w-[60px]">
+          {wrongGuesses.map((n, i) => (
+            <span key={i} className="text-[10px] font-bold text-coral bg-coral/10 rounded px-1 leading-tight line-through">
+              {n}
+            </span>
+          ))}
+        </div>
       )}
-    </button>
+    </div>
   );
 }
 
@@ -156,7 +169,7 @@ function GuessNumberModal({
   );
 }
 
-function ResultToast({ result }: { result: { correct: boolean; guesserNickname: string; guessedNumber: number; actualNumber?: number } }) {
+function ResultToast({ result }: { result: { correct: boolean; guesserNickname: string; guessedNumber: number } }) {
   return (
     <div
       className={`
@@ -170,7 +183,6 @@ function ResultToast({ result }: { result: { correct: boolean; guesserNickname: 
       </div>
       <div className="text-sm opacity-90">
         {result.guesserNickname} 猜 <b className="text-lg">{result.guessedNumber}</b>
-        {!result.correct && result.actualNumber !== undefined && <>，实际是 <b className="text-lg">{result.actualNumber}</b></>}
       </div>
     </div>
   );
@@ -203,6 +215,8 @@ function DaVinciPlaying({ roomId }: { roomId: string }) {
   const [showResult, setShowResult] = useState(false);
   const [showOpponentDrew, setShowOpponentDrew] = useState(false);
   const [showPassedHint, setShowPassedHint] = useState(false);
+  // 错误猜测记录：cardId -> 猜过的数字列表
+  const [wrongGuesses, setWrongGuesses] = useState<Record<string, number[]>>({});
 
   const me = room?.players.find((p) => p.id === myId);
   const opponent = room?.players.find((p) => p.id !== myId);
@@ -239,6 +253,14 @@ function DaVinciPlaying({ roomId }: { roomId: string }) {
       setShowResult(true);
       setSelectedTargetCard(null);
       setShowGuessModal(false);
+      // 猜错时记录错误猜测数字
+      if (!dvResult.correct && dvResult.targetCardId) {
+        setWrongGuesses((prev) => {
+          const existing = prev[dvResult.targetCardId!] || [];
+          if (existing.includes(dvResult.guessedNumber)) return prev;
+          return { ...prev, [dvResult.targetCardId!]: [...existing, dvResult.guessedNumber] };
+        });
+      }
       const t = setTimeout(() => setShowResult(false), 1500);
       return () => clearTimeout(t);
     }
@@ -338,6 +360,7 @@ function DaVinciPlaying({ roomId }: { roomId: string }) {
                 isSelected={isSelected}
                 clickable={canGuess && !card.revealed}
                 isNewlyRevealed={dvResult?.targetId === opponent.id && dvResult.targetCardIndex === i && dvResult.correct}
+                wrongGuesses={wrongGuesses[card.id]}
                 onClick={() => handleCardClick(i)}
               />
             );
@@ -405,6 +428,7 @@ function DaVinciPlaying({ roomId }: { roomId: string }) {
               card={card}
               isMine={true}
               isDrawn={dvState.myDrawnCard?.id === card.id}
+              wrongGuesses={wrongGuesses[card.id]}
             />
           ))}
           {/* 我摸到但未入手牌的新牌（背面/已知） */}
