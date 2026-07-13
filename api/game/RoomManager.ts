@@ -813,17 +813,17 @@ class RoomManagerClass {
   private generateHeartDeck(difficulty: Difficulty): HeartCard[] {
     const fruits: HeartFruit[] = ["apple", "banana", "cherry", "lemon"];
 
-    // 难度参数
+    // 难度参数（每张牌每种水果最多 4 个图案，四角排列）
     let minFruitTypes = 1, maxFruitTypes = 2;
     let minFruitsOnCard = 1, maxFruitsOnCard = 4;
     let deckSize = 56;
     if (difficulty === "normal") {
       minFruitTypes = 2; maxFruitTypes = 3;
-      minFruitsOnCard = 2; maxFruitsOnCard = 5;
+      minFruitsOnCard = 2; maxFruitsOnCard = 4;
       deckSize = 56;
     } else if (difficulty === "hard" || difficulty === "nightmare") {
       minFruitTypes = 2; maxFruitTypes = 4;
-      minFruitsOnCard = 3; maxFruitsOnCard = 5;
+      minFruitsOnCard = 3; maxFruitsOnCard = 4;
       deckSize = 56;
     }
 

@@ -42,7 +42,7 @@ import wordBank from "../../api/data/words.json";
 import telepathyPacks from "../../api/data/telepathy-questions.json";
 import drawingPrompts from "../../api/data/drawing-prompts.json";
 import emojiPuzzles from "../../api/data/emoji-puzzles.json";
-import type { GameType, HeartCard, HeartFruit } from "@/lib/types";
+import type { GameType, HeartCard, HeartFruit, DaVinciCard, DaVinciColor } from "@/lib/types";
 import { HeartCardView, CardBack } from "@/game/HeartAttackGame";
 import Confetti from "@/components/Confetti";
 
@@ -54,7 +54,7 @@ const SOLO_GAME_NAMES: Record<GameType, string> = {
   "heart-attack": "德国心脏病",
   "co-op-drawing": "合作画画",
   "emoji-guessing": "表情包猜词",
-  "davinci-code": "达芬奇密码（双人）",
+  "davinci-code": "达芬奇密码",
 };
 
 const SOLO_GAME_EMOJI: Record<GameType, string> = {
@@ -100,6 +100,8 @@ export default function SoloMode() {
       return <SoloCoOpDrawing />;
     case "emoji-guessing":
       return <SoloEmoji />;
+    case "davinci-code":
+      return <SoloDaVinci />;
     default:
       return null;
   }
@@ -1398,10 +1400,10 @@ function generateSoloHeartDeck(difficulty: Difficulty): HeartCard[] {
   let deckSize = SOLO_HEART_DECK_TOTAL;
   if (difficulty === "normal") {
     minFruitTypes = 2; maxFruitTypes = 3;
-    minFruitsOnCard = 2; maxFruitsOnCard = 5;
+    minFruitsOnCard = 2; maxFruitsOnCard = 4;
   } else if (difficulty === "hard" || difficulty === "nightmare") {
     minFruitTypes = 2; maxFruitTypes = 4;
-    minFruitsOnCard = 3; maxFruitsOnCard = 5;
+    minFruitsOnCard = 3; maxFruitsOnCard = 4;
   }
 
   const deck: HeartCard[] = [];
@@ -3118,6 +3120,707 @@ function SoloEmoji() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ============ 单人：达芬奇密码（vs AI） ============
+
+type DVPhase = "idle" | "draw" | "guess" | "opponent-turn" | "gameover";
+type DVTurn = "player" | "ai";
+
+interface DVPlayerState {
+  hand: DaVinciCard[];
+}
+
+function sortDaVinciHand(cards: DaVinciCard[]): DaVinciCard[] {
+  return [...cards].sort((a, b) => {
+    if (a.color !== b.color) return a.color === "black" ? -1 : 1;
+    return a.number - b.number;
+  });
+}
+
+function generateSoloDaVinciDeck(): DaVinciCard[] {
+  const colors: DaVinciColor[] = ["black", "white"];
+  const cards: DaVinciCard[] = [];
+  let idxCounter = 0;
+  for (const color of colors) {
+    for (let n = 0; n <= 11; n++) {
+      cards.push({ id: `solo_dv_${idxCounter++}`, color, number: n, revealed: false });
+    }
+  }
+  for (let i = cards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [cards[i], cards[j]] = [cards[j], cards[i]];
+  }
+  return cards;
+}
+
+const DV_COLOR_STYLES: Record<DaVinciColor, { bg: string; text: string; border: string; label: string }> = {
+  black: { bg: "bg-slate-900", text: "text-white", border: "border-slate-700", label: "黑" },
+  white: { bg: "bg-white", text: "text-slate-900", border: "border-slate-300", label: "白" },
+};
+const DV_UNKNOWN_COLOR = "bg-gradient-to-br from-rose-200 to-rose-100";
+
+function DVCardTile({
+  card,
+  isMine,
+  isSelected,
+  isDrawn,
+  isNew,
+  onClick,
+  clickable,
+  compact,
+}: {
+  card: DaVinciCard;
+  isMine: boolean;
+  isSelected?: boolean;
+  isDrawn?: boolean;
+  isNew?: boolean;
+  onClick?: () => void;
+  clickable?: boolean;
+  compact?: boolean;
+}) {
+  const isUnknown = !isMine && !card.revealed;
+  const style = isUnknown
+    ? { bg: DV_UNKNOWN_COLOR, text: "text-rose-900/70", border: "border-rose-300" }
+    : DV_COLOR_STYLES[card.color];
+  const numberDisplay = card.revealed || isMine ? card.number : "?";
+  const w = compact ? 48 : 58;
+  const h = compact ? 68 : 82;
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={!clickable}
+      className={`
+        relative rounded-xl border-[3px] shadow-card transition-all duration-200
+        flex flex-col items-center justify-center select-none
+        ${style.bg} ${style.text} ${style.border}
+        ${clickable ? "hover:scale-105 hover:-translate-y-1 cursor-pointer" : "cursor-default"}
+        ${isSelected ? "ring-4 ring-amber-400 scale-105 -translate-y-1" : ""}
+        ${isDrawn ? "ring-2 ring-amber-300 animate-pulse" : ""}
+        ${isNew ? "animate-[flipIn_0.5s_ease-out]" : ""}
+      `}
+      style={{ width: w, height: h }}
+    >
+      <span className="text-[10px] opacity-60 leading-none">{DV_COLOR_STYLES[card.color].label}</span>
+      <span className={`${compact ? "text-xl" : "text-2xl"} font-black leading-none mt-1`}>{numberDisplay}</span>
+      {card.revealed && (
+        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+          <X className="w-3 h-3 text-white" strokeWidth={3} />
+        </span>
+      )}
+    </button>
+  );
+}
+
+function SoloDaVinci() {
+  const navigate = useNavigate();
+  const [difficulty, setDifficulty] = useState<Difficulty>("easy");
+  const [phase, setPhase] = useState<DVPhase>("idle");
+  const [turn, setTurn] = useState<DVTurn>("player");
+  const [player, setPlayer] = useState<DVPlayerState>({ hand: [] });
+  const [ai, setAi] = useState<DVPlayerState>({ hand: [] });
+  const [deck, setDeck] = useState<DaVinciCard[]>([]);
+  const [drawnCard, setDrawnCard] = useState<DaVinciCard | null>(null);
+  const [showDrawnPreview, setShowDrawnPreview] = useState(false);
+  const [selectedTarget, setSelectedTarget] = useState<number | null>(null);
+  const [showGuessModal, setShowGuessModal] = useState(false);
+  const [guessTargetIdx, setGuessTargetIdx] = useState<number | null>(null);
+  const [toast, setToast] = useState<{ correct: boolean; guesser: string; num: number; actual?: number } | null>(null);
+  const [winner, setWinner] = useState<"player" | "ai" | null>(null);
+  const [aiThinking, setAiThinking] = useState(false);
+  const [passAvailable, setPassAvailable] = useState(false);
+  const timerRef = useRef<number | null>(null);
+
+  const { sfxEnabled } = useAudioStore();
+  const playSfx = useCallback((fn: () => void) => { if (sfxEnabled) fn(); }, [sfxEnabled]);
+
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => clearTimer(), [clearTimer]);
+
+  const aiConfig = useMemo(() => {
+    if (difficulty === "easy") return { delay: [1200, 2200] as [number, number], mistakeRate: 0.35, reasonChance: 0, continueChance: 0.3 };
+    if (difficulty === "normal") return { delay: [700, 1500] as [number, number], mistakeRate: 0.18, reasonChance: 0.5, continueChance: 0.5 };
+    return { delay: [400, 900] as [number, number], mistakeRate: 0.08, reasonChance: 0.9, continueChance: 0.7 };
+  }, [difficulty]);
+
+  const rand = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+  const startGame = useCallback(() => {
+    clearTimer();
+    const full = generateSoloDaVinciDeck();
+    const pHand = sortDaVinciHand(full.splice(0, 4));
+    const aHand = sortDaVinciHand(full.splice(0, 4));
+    setPlayer({ hand: pHand });
+    setAi({ hand: aHand });
+    setDeck(full);
+    setDrawnCard(null);
+    setWinner(null);
+    setPhase("draw");
+    setTurn("player");
+    setPassAvailable(false);
+    setSelectedTarget(null);
+    setShowGuessModal(false);
+    setShowDrawnPreview(false);
+    setToast(null);
+    setAiThinking(false);
+    playSfx(sfx.click);
+  }, [clearTimer, playSfx]);
+
+  const checkWinAfterReveal = useCallback((pHand: DaVinciCard[], aHand: DaVinciCard[]): "player" | "ai" | null => {
+    if (aHand.every((c) => c.revealed)) return "player";
+    if (pHand.every((c) => c.revealed)) return "ai";
+    return null;
+  }, []);
+
+  const showToastMsg = useCallback((msg: { correct: boolean; guesser: string; num: number; actual?: number }) => {
+    setToast(msg);
+    window.setTimeout(() => setToast(null), 1500);
+  }, []);
+
+  const playerDraw = useCallback(() => {
+    if (turn !== "player" || phase !== "draw") return;
+    if (deck.length === 0) {
+      setPhase("guess");
+      setPassAvailable(false);
+      return;
+    }
+    const newDeck = [...deck];
+    const card = newDeck.shift()!;
+    setDeck(newDeck);
+    setDrawnCard(card);
+    setShowDrawnPreview(true);
+    playSfx(sfx.click);
+  }, [turn, phase, deck, playSfx]);
+
+  const afterPreview = useCallback(() => {
+    setShowDrawnPreview(false);
+    setPhase("guess");
+    setPassAvailable(false);
+  }, []);
+
+  const selectTarget = useCallback((idx: number) => {
+    if (turn !== "player" || phase !== "guess") return;
+    if (ai.hand[idx].revealed) return;
+    setSelectedTarget(idx);
+    setGuessTargetIdx(idx);
+    setShowGuessModal(true);
+  }, [turn, phase, ai.hand]);
+
+  const submitGuess = useCallback((num: number) => {
+    setShowGuessModal(false);
+    if (guessTargetIdx === null) return;
+    const targetCard = ai.hand[guessTargetIdx];
+    const correct = targetCard.number === num;
+    playSfx(correct ? sfx.correct : sfx.wrong);
+
+    if (correct) {
+      const newAiHand = ai.hand.map((c, i) =>
+        i === guessTargetIdx ? { ...c, revealed: true } : c
+      );
+      setAi({ hand: newAiHand });
+      showToastMsg({ correct: true, guesser: "你", num });
+      setSelectedTarget(null);
+      setGuessTargetIdx(null);
+
+      let newPlayerHand = player.hand;
+      if (drawnCard) {
+        newPlayerHand = sortDaVinciHand([...player.hand, { ...drawnCard, revealed: false }]);
+        setPlayer({ hand: newPlayerHand });
+        setDrawnCard(null);
+      }
+
+      const w = checkWinAfterReveal(newPlayerHand, newAiHand);
+      if (w) {
+        setPhase("gameover");
+        setWinner(w);
+        return;
+      }
+      setPassAvailable(true);
+      setPhase("guess");
+    } else {
+      showToastMsg({ correct: false, guesser: "你", num, actual: targetCard.number });
+      let newPlayerHand = player.hand;
+      if (drawnCard) {
+        newPlayerHand = sortDaVinciHand([...player.hand, { ...drawnCard, revealed: true }]);
+        setPlayer({ hand: newPlayerHand });
+        setDrawnCard(null);
+      } else {
+        const hiddenIdx = newPlayerHand.findIndex((c) => !c.revealed);
+        if (hiddenIdx >= 0) {
+          newPlayerHand = newPlayerHand.map((c, i) =>
+            i === hiddenIdx ? { ...c, revealed: true } : c
+          );
+          setPlayer({ hand: newPlayerHand });
+        }
+      }
+      setSelectedTarget(null);
+      setGuessTargetIdx(null);
+
+      const w = checkWinAfterReveal(newPlayerHand, ai.hand);
+      if (w) {
+        setPhase("gameover");
+        setWinner(w);
+        return;
+      }
+      setTurn("ai");
+      setPhase("opponent-turn");
+      setPassAvailable(false);
+      setAiThinking(true);
+    }
+  }, [guessTargetIdx, ai, player, drawnCard, playSfx, showToastMsg, checkWinAfterReveal]);
+
+  const playerPass = useCallback(() => {
+    if (turn !== "player" || !passAvailable) return;
+    let newPlayerHand = player.hand;
+    if (drawnCard) {
+      newPlayerHand = sortDaVinciHand([...player.hand, { ...drawnCard, revealed: false }]);
+      setPlayer({ hand: newPlayerHand });
+      setDrawnCard(null);
+    }
+    setPassAvailable(false);
+    setSelectedTarget(null);
+    setTurn("ai");
+    setPhase("opponent-turn");
+    setAiThinking(true);
+    playSfx(sfx.click);
+  }, [turn, passAvailable, player, drawnCard, playSfx]);
+
+  const aiPickGuess = useCallback((pHand: DaVinciCard[], aiHand: DaVinciCard[]): { targetIdx: number; number: number } => {
+    const hidden = pHand.map((c, i) => ({ c, i })).filter(x => !x.c.revealed);
+    if (hidden.length === 0) return { targetIdx: 0, number: 0 };
+
+    const usedNumbers = new Set<number>();
+    [...pHand, ...aiHand].forEach(c => {
+      if (c.revealed) usedNumbers.add(c.number);
+    });
+    aiHand.forEach(c => usedNumbers.add(c.number));
+
+    const avail = Array.from({ length: 12 }, (_, i) => i).filter(n => !usedNumbers.has(n));
+
+    const target = hidden[rand(0, hidden.length - 1)];
+    const targetIdx = target.i;
+    const targetCard = target.c;
+
+    const sameColor = pHand
+      .map((c, i) => ({ c, i }))
+      .filter(x => x.c.color === targetCard.color);
+    const lowerBound = sameColor
+      .filter(x => x.c.revealed && x.i < targetIdx)
+      .reduce((m, x) => Math.max(m, x.c.number), -1);
+    const upperBound = sameColor
+      .filter(x => x.c.revealed && x.i > targetIdx)
+      .reduce((m, x) => Math.min(m, x.c.number), 12);
+    const candidates = avail.filter(n => n > lowerBound && n < upperBound);
+    const pool = candidates.length > 0 ? candidates : avail;
+
+    let number: number;
+    if (Math.random() < aiConfig.mistakeRate) {
+      const wrongPool = Array.from({ length: 12 }, (_, i) => i).filter(n => !pool.includes(n));
+      number = wrongPool.length > 0 ? wrongPool[rand(0, wrongPool.length - 1)] : pool[rand(0, pool.length - 1)];
+    } else {
+      number = pool[rand(0, pool.length - 1)];
+    }
+
+    if (aiConfig.reasonChance > 0 && candidates.length === 1 && Math.random() < aiConfig.reasonChance) {
+      number = candidates[0];
+    }
+
+    return { targetIdx, number };
+  }, [aiConfig]);
+
+  useEffect(() => {
+    if (phase !== "opponent-turn" || turn !== "ai" || winner) return;
+
+    let cancelled = false;
+
+    const delay = (ms: number) => new Promise<void>((r) => {
+      timerRef.current = window.setTimeout(() => { if (!cancelled) r(); }, ms);
+    });
+
+    const runAi = async () => {
+      let curDeck = [...deck];
+      let curDrawn: DaVinciCard | null = null;
+      if (curDeck.length > 0) {
+        await delay(rand(aiConfig.delay[0], aiConfig.delay[1]));
+        if (cancelled) return;
+        curDrawn = curDeck.shift()!;
+        setDeck(curDeck);
+        setDrawnCard(curDrawn);
+        playSfx(sfx.click);
+      } else {
+        await delay(400);
+        if (cancelled) return;
+      }
+
+      let curAiHand = ai.hand;
+      let curPlayerHand = player.hand;
+      let continueGuessing = true;
+      let hasDrawnCard = !!curDrawn;
+
+      while (continueGuessing && !cancelled) {
+        await delay(rand(aiConfig.delay[0], aiConfig.delay[1]));
+        if (cancelled) return;
+
+        const guess = aiPickGuess(curPlayerHand, curAiHand);
+        const targetCard = curPlayerHand[guess.targetIdx];
+        const correct = targetCard.number === guess.number;
+        playSfx(correct ? sfx.correct : sfx.wrong);
+
+        if (correct) {
+          curPlayerHand = curPlayerHand.map((c, i) =>
+            i === guess.targetIdx ? { ...c, revealed: true } : c
+          );
+          setPlayer({ hand: curPlayerHand });
+          showToastMsg({ correct: true, guesser: "AI", num: guess.number });
+
+          if (hasDrawnCard && curDrawn) {
+            curAiHand = sortDaVinciHand([...curAiHand, { ...curDrawn, revealed: false }]);
+            setAi({ hand: curAiHand });
+            curDrawn = null;
+            hasDrawnCard = false;
+          }
+
+          const w = checkWinAfterReveal(curPlayerHand, curAiHand);
+          if (w) {
+            setWinner(w);
+            setPhase("gameover");
+            setDrawnCard(null);
+            setAiThinking(false);
+            return;
+          }
+          const hiddenLeft = curPlayerHand.filter(c => !c.revealed).length;
+          if (hiddenLeft === 0) { continueGuessing = false; break; }
+          if (Math.random() > aiConfig.continueChance) continueGuessing = false;
+        } else {
+          showToastMsg({ correct: false, guesser: "AI", num: guess.number, actual: targetCard.number });
+          if (hasDrawnCard && curDrawn) {
+            curAiHand = sortDaVinciHand([...curAiHand, { ...curDrawn, revealed: true }]);
+            setAi({ hand: curAiHand });
+            curDrawn = null;
+            hasDrawnCard = false;
+          } else {
+            const hiddenIdx = curAiHand.findIndex((c) => !c.revealed);
+            if (hiddenIdx >= 0) {
+              curAiHand = curAiHand.map((c, i) => i === hiddenIdx ? { ...c, revealed: true } : c);
+              setAi({ hand: curAiHand });
+            }
+          }
+          const w = checkWinAfterReveal(curPlayerHand, curAiHand);
+          if (w) {
+            setWinner(w);
+            setPhase("gameover");
+            setDrawnCard(null);
+            setAiThinking(false);
+            return;
+          }
+          continueGuessing = false;
+        }
+      }
+
+      if (hasDrawnCard && curDrawn) {
+        curAiHand = sortDaVinciHand([...curAiHand, { ...curDrawn, revealed: false }]);
+        setAi({ hand: curAiHand });
+        curDrawn = null;
+        hasDrawnCard = false;
+      }
+
+      if (cancelled) return;
+      setDrawnCard(null);
+      setAiThinking(false);
+      setTurn("player");
+      setPhase("draw");
+    };
+
+    runAi();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, turn]);
+
+  if (phase === "idle") {
+    return (
+      <div className="paper-bg h-[100dvh] overflow-y-auto flex flex-col items-center px-5 py-8 relative">
+        <div className="w-full max-w-md flex flex-col items-center relative z-10">
+          <div className="mt-4 mb-2 text-center animate-bounce-in">
+            <h1 className="font-display text-4xl text-ink leading-tight">🔐 达芬奇密码 · vs AI</h1>
+            <p className="font-body text-ink-muted text-sm mt-2">
+              破译对手所有手牌，成为密码大师！
+            </p>
+          </div>
+
+          <div className="w-full bg-white rounded-blob shadow-card border-3 border-ink p-5 mt-4 animate-slide-up">
+            <p className="text-sm text-ink/70 leading-relaxed mb-4">
+              每人 4 张手牌（黑/白 0-11），按颜色+数字从小到大排列。<br/>
+              回合：摸牌 → 猜对手任一张牌的数字 → 猜对可继续猜或结束回合 → 猜错则自己刚摸的牌倒下亮出。<br/>
+              破译对手所有牌即获胜！
+            </p>
+
+            <div className="mb-4">
+              <p className="font-display text-ink text-sm mb-2">难度选择</p>
+              <div className="grid grid-cols-2 gap-2">
+                {DIFFICULTY_LIST.map((d) => (
+                  <button
+                    key={d.key}
+                    onClick={() => setDifficulty(d.key)}
+                    className={`py-2.5 rounded-doodle border-2 font-display text-sm transition-all flex items-center justify-center gap-1.5 ${
+                      difficulty === d.key
+                        ? "bg-coral text-white border-ink shadow-soft"
+                        : "bg-white text-ink border-ink/30"
+                    }`}
+                  >
+                    <span>{d.icon}</span>
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button
+              onClick={startGame}
+              className="w-full btn-press bg-coral text-white font-display text-lg rounded-doodle border-3 border-ink py-3 shadow-pop flex items-center justify-center gap-2 hover:brightness-110 active:scale-95 transition-all"
+            >
+              <Sparkles size={20} /> 开始游戏
+            </button>
+            <button
+              onClick={() => { playSfx(sfx.click); navigate("/"); }}
+              className="btn-press w-full py-2 mt-3 text-ink-muted font-body text-sm"
+            >
+              ← 返回首页
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === "gameover" && winner) {
+    const iWin = winner === "player";
+    return (
+      <div className="paper-bg h-[100dvh] overflow-y-auto flex flex-col items-center justify-center px-5 py-8">
+        <div className="w-full max-w-md text-center">
+          <div className={`text-6xl font-display mb-3 ${iWin ? "text-mint" : "text-coral"}`}>
+            {iWin ? "🎉 你赢了！" : "😈 AI 获胜"}
+          </div>
+          {iWin && <Confetti />}
+          <div className="bg-white rounded-blob border-3 border-ink shadow-card p-4 mb-4">
+            <h4 className="font-display mb-3">最终手牌</h4>
+            <div className="mb-3">
+              <div className="text-xs text-ink/60 mb-1.5">你（{player.hand.filter(c=>c.revealed).length} 张倒下）</div>
+              <div className="flex gap-1.5 justify-center flex-wrap">
+                {player.hand.map((c) => <DVCardTile key={c.id} card={c} isMine compact />)}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-ink/60 mb-1.5">AI（{ai.hand.filter(c=>c.revealed).length} 张倒下）</div>
+              <div className="flex gap-1.5 justify-center flex-wrap">
+                {ai.hand.map((c) => <DVCardTile key={c.id} card={c} isMine compact />)}
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={startGame}
+            className="w-full btn-press bg-coral text-white font-display rounded-doodle border-3 border-ink py-3 shadow-pop flex items-center justify-center gap-2 hover:brightness-110 active:scale-95 transition-all mb-2"
+          >
+            <RotateCcw size={18} /> 再来一局
+          </button>
+          <button
+            onClick={() => { playSfx(sfx.click); navigate("/"); }}
+            className="w-full btn-press bg-white text-ink font-display rounded-doodle border-3 border-ink py-3 flex items-center justify-center gap-2 hover:bg-cream active:scale-95 transition-all"
+          >
+            <Home size={18} /> 返回首页
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const playerHidden = player.hand.filter(c => !c.revealed).length;
+  const aiHidden = ai.hand.filter(c => !c.revealed).length;
+  const isPlayerTurn = turn === "player";
+  const statusText = isPlayerTurn
+    ? (phase === "draw" ? "你的回合 · 点击摸牌" : passAvailable ? "猜对了！继续猜或结束回合" : "你的回合 · 点 AI 的一张牌来猜")
+    : "AI 思考中...";
+
+  return (
+    <div className="paper-bg h-[100dvh] flex flex-col overflow-hidden">
+      <div className="flex-shrink-0 px-4 py-2.5 flex items-center justify-between border-b-2 border-ink-muted/20 bg-white/50">
+        <span className="font-display text-ink text-sm">🔐 达芬奇密码 · vs AI</span>
+        <button
+          onClick={() => { playSfx(sfx.click); navigate("/"); }}
+          className="btn-press text-ink-muted text-xs font-body flex items-center gap-1 hover:text-ink"
+        >
+          <Home size={14} /> 退出
+        </button>
+      </div>
+
+      <div className="flex-shrink-0 px-4 py-2 flex items-center justify-between text-xs text-ink/70">
+        <span>牌库：{deck.length}</span>
+        <span className={`font-display ${isPlayerTurn ? "text-mint" : "text-coral"}`}>{statusText}</span>
+        <span>难度：{getDifficultyConfig(difficulty).label}</span>
+      </div>
+
+      <div className="flex-shrink-0 px-4 py-3 bg-cream/40">
+        <div className="flex items-center gap-2 mb-2">
+          <div className={`w-9 h-9 rounded-full bg-gradient-to-br from-slate-600 to-slate-800 border-2 border-ink flex items-center justify-center text-white font-bold ${!isPlayerTurn ? "ring-2 ring-coral animate-pulse" : ""}`}>
+            AI
+          </div>
+          <div className="text-sm">
+            <div className="font-display">AI</div>
+            <div className="text-[11px] text-ink/60">剩余 {aiHidden} / {ai.hand.length} 张未破译</div>
+          </div>
+          {aiThinking && <Loader2 size={16} className="animate-spin text-ink/50 ml-auto" />}
+        </div>
+        <div className="flex gap-1.5 justify-center flex-wrap">
+          {ai.hand.map((c, i) => (
+            <DVCardTile
+              key={c.id}
+              card={c}
+              isMine={false}
+              isSelected={selectedTarget === i}
+              isNew={c.revealed}
+              clickable={isPlayerTurn && phase === "guess" && !c.revealed}
+              onClick={() => selectTarget(i)}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-3 overflow-y-auto min-h-0">
+        {isPlayerTurn && drawnCard && phase === "guess" && (
+          <div className="mb-3 flex flex-col items-center">
+            <div className="text-xs text-ink/60 mb-1">你摸到的新牌</div>
+            <div className="flex items-center gap-3">
+              <div className={`${DV_COLOR_STYLES[drawnCard.color].bg} ${DV_COLOR_STYLES[drawnCard.color].text} ${DV_COLOR_STYLES[drawnCard.color].border} border-[3px] rounded-xl shadow-card flex flex-col items-center justify-center`} style={{ width: 64, height: 90 }}>
+                <span className="text-[11px] opacity-70">{DV_COLOR_STYLES[drawnCard.color].label}</span>
+                <span className="text-2xl font-black mt-1">{drawnCard.number}</span>
+              </div>
+              <Eye className="text-ink/40" size={20} />
+              <span className="text-xs text-ink/50 max-w-[100px]">只有你能看到。猜对暗置入手牌，猜错则倒下亮出。</span>
+            </div>
+          </div>
+        )}
+
+        {isPlayerTurn && phase === "draw" && (
+          <button
+            onClick={playerDraw}
+            className="btn-press bg-gradient-to-br from-mint to-teal-400 text-white font-display text-xl rounded-3xl border-3 border-ink px-8 py-5 shadow-pop flex items-center gap-3 hover:brightness-110 active:scale-95 transition-all"
+          >
+            <Sparkles size={24} /> 摸一张牌
+          </button>
+        )}
+
+        {isPlayerTurn && phase === "guess" && passAvailable && (
+          <div className="flex gap-3 mt-3">
+            <button
+              onClick={playerPass}
+              className="btn-press bg-white text-ink font-display rounded-full border-3 border-ink px-6 py-2.5 shadow-pop flex items-center gap-2 hover:bg-cream active:scale-95 transition-all"
+            >
+              <ArrowRight size={18} /> 结束回合
+            </button>
+          </div>
+        )}
+
+        {isPlayerTurn && phase === "guess" && !passAvailable && !drawnCard && deck.length === 0 && (
+          <div className="text-sm text-ink/60 text-center">牌库已空，请继续猜牌</div>
+        )}
+      </div>
+
+      <div className="flex-shrink-0 px-4 py-3 bg-white border-t-3 border-ink">
+        <div className="flex gap-1.5 justify-center flex-wrap mb-2">
+          {player.hand.map((c) => (
+            <DVCardTile key={c.id} card={c} isMine />
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <div className={`w-9 h-9 rounded-full bg-gradient-to-br from-coral to-rose-400 border-2 border-ink flex items-center justify-center text-white font-bold ${isPlayerTurn ? "ring-2 ring-mint animate-pulse" : ""}`}>
+            <User size={18} />
+          </div>
+          <div className="text-sm">
+            <div className="font-display">你</div>
+            <div className="text-[11px] text-ink/60">剩余 {playerHidden} / {player.hand.length} 张未破译</div>
+          </div>
+          <button
+            onClick={startGame}
+            className="ml-auto w-8 h-8 rounded-full border-2 border-ink/30 flex items-center justify-center text-ink/60 hover:bg-cream"
+            title="重新开始"
+          >
+            <RotateCcw size={15} />
+          </button>
+        </div>
+      </div>
+
+      {showDrawnPreview && drawnCard && (
+        <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-[fadeIn_0.2s]">
+          <div className="bg-white rounded-3xl p-7 shadow-pop flex flex-col items-center gap-4 animate-[popIn_0.3s_ease-out]">
+            <h3 className="text-xl font-bold text-ink">你摸到了一张新牌</h3>
+            <p className="text-sm text-ink/60">将其保密，准备猜 AI 的牌</p>
+            <div className={`${DV_COLOR_STYLES[drawnCard.color].bg} ${DV_COLOR_STYLES[drawnCard.color].text} ${DV_COLOR_STYLES[drawnCard.color].border} border-[3px] rounded-2xl shadow-card flex flex-col items-center justify-center`} style={{ width: 84, height: 120 }}>
+              <span className="text-sm opacity-70">{DV_COLOR_STYLES[drawnCard.color].label}</span>
+              <span className="text-4xl font-black">{drawnCard.number}</span>
+            </div>
+            <button
+              onClick={afterPreview}
+              className="flex items-center gap-2 bg-mint text-white font-bold rounded-full px-6 py-2.5 shadow-pop hover:brightness-110 active:scale-95 transition-all"
+            >
+              知道了 <Check className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showGuessModal && guessTargetIdx !== null && (
+        <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-[fadeIn_0.2s] p-4">
+          <div className="bg-cream rounded-3xl p-6 shadow-pop max-w-sm w-full">
+            <h3 className="text-xl font-bold text-ink text-center mb-1">猜一个数字</h3>
+            <p className="text-sm text-ink/60 text-center mb-4">
+              这是一张 {DV_COLOR_STYLES[ai.hand[guessTargetIdx].color].label} 牌，猜 0-11 之间的数字
+            </p>
+            <div className="grid grid-cols-6 gap-2 mb-4">
+              {Array.from({ length: 12 }, (_, i) => i).map((n) => {
+                const cardColor = ai.hand[guessTargetIdx]?.color;
+                const btnStyle = cardColor === "black"
+                  ? "bg-slate-900 text-white border-slate-700"
+                  : cardColor === "white"
+                    ? "bg-white text-slate-900 border-slate-300"
+                    : "bg-white text-ink border-ink/20";
+                return (
+                  <button
+                    key={n}
+                    onClick={() => submitGuess(n)}
+                    className={`h-11 rounded-lg border-2 font-bold text-lg transition-all ${btnStyle} hover:scale-105 active:scale-95`}
+                  >
+                    {n}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => { setShowGuessModal(false); setSelectedTarget(null); setGuessTargetIdx(null); }}
+              className="w-full py-2.5 rounded-full border-2 border-ink/20 text-ink/70 font-bold hover:bg-ink/5 active:scale-95 transition-all"
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className={`fixed top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 rounded-2xl px-6 py-4 shadow-pop text-center animate-[popIn_0.3s_ease-out] ${toast.correct ? "bg-mint" : "bg-coral"} text-white`}>
+          <div className="text-2xl font-black mb-1">{toast.correct ? "破译成功！" : "破译失败！"}</div>
+          <div className="text-sm opacity-90">
+            {toast.guesser} 猜 <b className="text-lg">{toast.num}</b>
+            {!toast.correct && toast.actual !== undefined && <>，实际是 <b className="text-lg">{toast.actual}</b></>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -60,7 +60,7 @@ export function HeartCardView({ card, isNew = false, ownerSide }: { card: HeartC
 
 function FruitCluster({ fruit, count }: { fruit: HeartFruit; count: number }) {
   const emoji = FRUIT_EMOJI[fruit];
-  // 1个直接显示，2个竖排，3-4个2x2，5个1大4小
+  // 1个居中，2个竖排，3-4个四角排列
   if (count === 1) {
     return <span className="text-3xl leading-none">{emoji}</span>;
   }
@@ -81,24 +81,13 @@ function FruitCluster({ fruit, count }: { fruit: HeartFruit; count: number }) {
       </div>
     );
   }
-  if (count === 4) {
-    return (
-      <div className="grid grid-cols-2 gap-0.5 place-items-center">
-        <span className="text-xl leading-none">{emoji}</span>
-        <span className="text-xl leading-none">{emoji}</span>
-        <span className="text-xl leading-none">{emoji}</span>
-        <span className="text-xl leading-none">{emoji}</span>
-      </div>
-    );
-  }
-  // 5个
+  // 4个：四角排列
   return (
-    <div className="grid grid-cols-2 gap-0.5 place-items-center relative">
-      <span className="text-lg leading-none">{emoji}</span>
-      <span className="text-lg leading-none">{emoji}</span>
-      <span className="text-lg leading-none">{emoji}</span>
-      <span className="text-lg leading-none">{emoji}</span>
-      <span className="text-lg leading-none col-span-2 -mt-0.5">{emoji}</span>
+    <div className="grid grid-cols-2 gap-0.5 place-items-center">
+      <span className="text-xl leading-none">{emoji}</span>
+      <span className="text-xl leading-none">{emoji}</span>
+      <span className="text-xl leading-none">{emoji}</span>
+      <span className="text-xl leading-none">{emoji}</span>
     </div>
   );
 }

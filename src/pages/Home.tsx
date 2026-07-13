@@ -15,6 +15,7 @@ const SOLO_GAME_OPTIONS: { gameType: GameType; emoji: string; name: string; desc
   { gameType: "heart-attack", emoji: "🔔", name: "德国心脏病", desc: "眼疾手快拍铃" },
   { gameType: "co-op-drawing", emoji: "✏️", name: "合作画画", desc: "命题作画自评" },
   { gameType: "emoji-guessing", emoji: "😎", name: "表情包猜词", desc: "看 emoji 猜词" },
+  { gameType: "davinci-code", emoji: "🔐", name: "达芬奇密码", desc: "破译对手密码" },
 ];
 
 // 20 个形容词 + 20 个名词，用于随机昵称生成
@@ -184,7 +185,7 @@ export default function Home() {
             <div className="h-1 w-16 bg-coral rounded-full" />
           </div>
           <p className="font-body text-ink-muted text-sm mt-3">
-            5 款游戏 · 双人联机 · 手机即可玩
+            6 款游戏 · 双人联机 · 手机即可玩
           </p>
         </div>
 
@@ -269,30 +270,27 @@ export default function Home() {
                   playSfx(sfx.uiTick);
                 }}
               />
-              {/* 第 5 个卡片跨两列，横向布局保持视觉平衡 */}
               <GameCard
                 icon={<Smile size={18} />}
                 emoji="😎"
                 title="表情包猜词"
-                desc="看 emoji 猜词"
+                desc="看emoji猜词"
                 selected={gameType === "emoji-guessing"}
                 onClick={() => {
                   setGameType("emoji-guessing");
                   playSfx(sfx.uiTick);
                 }}
-                wide
               />
               <GameCard
                 icon={<span className="text-base">🔐</span>}
                 emoji="🔐"
                 title="达芬奇密码"
-                desc="数字推理破译"
+                desc="数字推理"
                 selected={gameType === "davinci-code"}
                 onClick={() => {
                   setGameType("davinci-code");
                   playSfx(sfx.uiTick);
                 }}
-                wide
               />
             </div>
           </div>
@@ -440,7 +438,7 @@ export default function Home() {
         {/* 玩法说明：5 个游戏总览 */}
         <div className="w-full mt-6 mb-8">
           <h2 className="font-display text-ink text-lg text-center mb-3">
-            5 款游戏怎么玩？
+            6 款游戏怎么玩？
           </h2>
           <div className="space-y-2">
             {GAME_OVERVIEW.map((g) => (
