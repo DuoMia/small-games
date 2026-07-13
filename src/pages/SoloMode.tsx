@@ -1412,12 +1412,13 @@ function generateSoloHeartDeck(difficulty: Difficulty): HeartCard[] {
     const shuffled = [...HEART_FRUITS].sort(() => Math.random() - 0.5);
     const chosenFruits = shuffled.slice(0, numTypes);
     const items: import("@/lib/types").HeartFruitItem[] = [];
-    let remaining = minFruitsOnCard + Math.floor(Math.random() * (maxFruitsOnCard - minFruitsOnCard + 1));
+    // 每张牌水果总数上限 4，每个水果也最多 4 个
+    let remaining = Math.min(4, minFruitsOnCard + Math.floor(Math.random() * (maxFruitsOnCard - minFruitsOnCard + 1)));
     for (let i = 0; i < chosenFruits.length; i++) {
       const isLast = i === chosenFruits.length - 1;
-      const maxHere = isLast ? remaining : Math.max(1, remaining - (chosenFruits.length - i - 1));
+      const maxHere = isLast ? remaining : Math.max(1, Math.min(4, remaining - (chosenFruits.length - i - 1)));
       const minHere = isLast ? remaining : 1;
-      const c = minHere + Math.floor(Math.random() * (maxHere - minHere + 1));
+      const c = Math.min(4, minHere + Math.floor(Math.random() * (maxHere - minHere + 1)));
       items.push({ fruit: chosenFruits[i], count: c });
       remaining -= c;
     }
@@ -1525,6 +1526,7 @@ function SoloHeartAttack() {
   }, []);
 
   const startGame = useCallback(() => {
+    clearAiTimers();
     const fullDeck = generateSoloHeartDeck(difficulty);
     const half = Math.floor(fullDeck.length / 2);
     setMyDeck(fullDeck.slice(0, half));
@@ -1539,7 +1541,7 @@ function SoloHeartAttack() {
     setNewCardIdx(-1);
     setStage("playing");
     playSfx(sfx.click);
-  }, [difficulty, playSfx]);
+  }, [difficulty, playSfx, clearAiTimers]);
 
   const handleFlip = useCallback(() => {
     if (currentTurn !== "me" || myDeck.length === 0 || gameOver) return;
@@ -1679,6 +1681,12 @@ function SoloHeartAttack() {
         aiFlipTimerRef.current = setTimeout(() => {
           handleFlip();
         }, AUTO_FLIP_MS);
+      } else if (currentTurn === "me" && myDeck.length === 0 && aiDeck.length > 0) {
+        // 我的牌堆空了，切换到 AI 继续
+        setCurrentTurn("ai");
+      } else if (currentTurn === "ai" && aiDeck.length === 0 && myDeck.length > 0) {
+        // AI 的牌堆空了，切换到我继续
+        setCurrentTurn("me");
       }
     }
   }, [table, currentTurn, stage, gameOver, aiDeck.length, myDeck.length, difficulty, clearAiTimers, doAiFlip, doAiRing, doAiWrongRing, handleFlip]);
@@ -1881,7 +1889,6 @@ function SoloHeartAttack() {
   }
 
   /* ============ 游戏中 ============ */
-  const fruitSums = getSoloHeartFruitSums(table);
   const canRing = hasSoloHeartFruitFive(table) && table.length > 0;
   const canFlip = currentTurn === "me" && myDeck.length > 0 && !gameOver;
   const myNickname = "我";
@@ -1921,26 +1928,6 @@ function SoloHeartAttack() {
         <div className="font-display text-[10px] text-ink-muted bg-white rounded-full px-2 py-1 border border-ink/20">
           已翻 {totalFlipped}
         </div>
-      </div>
-
-      {/* 水果计数条 */}
-      <div className="flex-shrink-0 px-3 py-2 grid grid-cols-4 gap-2">
-        {HEART_FRUITS.map((fruit) => {
-          const FRUIT_EMOJI: Record<HeartFruit, string> = { apple: "🍎", banana: "🍌", cherry: "🍒", lemon: "🍋" };
-          const sum = fruitSums[fruit];
-          const isTarget = sum === 5;
-          return (
-            <div
-              key={fruit}
-              className={`rounded-xl border-2 p-1.5 flex items-center justify-center gap-1 transition-all ${
-                isTarget ? "bg-sun border-ink shadow-pop" : "bg-white/80 border-ink/30"
-              } ${isTarget ? "animate-pulse" : ""}`}
-            >
-              <span className="text-lg leading-none">{FRUIT_EMOJI[fruit]}</span>
-              <span className={`font-display text-base font-bold ${isTarget ? "text-coral" : "text-ink"}`}>{sum}</span>
-            </div>
-          );
-        })}
       </div>
 
       {/* 主区域 */}

@@ -216,7 +216,9 @@ function HeartPlaying({ roomId }: { roomId: string }) {
       autoFlipTimerRef.current = null;
     }
     if (!heartState) return;
-    if (heartState.myTurn && heartState.myDeckCount > 0) {
+    // 轮到我时自动翻牌；即使我的牌堆空了也要调用 flip，
+    // 让后端切换回合或触发游戏结束
+    if (heartState.myTurn) {
       autoFlipTimerRef.current = window.setTimeout(() => {
         playSfx(sfx.click);
         heartFlip(roomId);
@@ -248,14 +250,6 @@ function HeartPlaying({ roomId }: { roomId: string }) {
   const isHost = room?.hostId === myId;
   const diffCfg = getDifficultyConfig(heartState.difficulty as any);
   const diffLabel = DIFFICULTY_LABEL[heartState.difficulty] || "中等";
-
-  // 计算桌面水果总数（用于顶部小条）
-  const fruitSums: Record<HeartFruit, number> = { apple: 0, banana: 0, cherry: 0, lemon: 0 };
-  heartState.tableCards.forEach((tc) => {
-    tc.card.fruits.forEach((fi) => {
-      fruitSums[fi.fruit] += fi.count;
-    });
-  });
 
   const canRing = heartState.canRing;
   const canFlip = heartState.myTurn && heartState.myDeckCount > 0;
@@ -321,25 +315,6 @@ function HeartPlaying({ roomId }: { roomId: string }) {
         <div className="font-display text-[10px] text-ink-muted bg-white rounded-full px-2 py-1 border border-ink/20">
           已翻 {heartState.totalFlipped}
         </div>
-      </div>
-
-      {/* 水果计数条 */}
-      <div className="flex-shrink-0 px-3 py-2 grid grid-cols-4 gap-2">
-        {(Object.keys(FRUIT_EMOJI) as HeartFruit[]).map((fruit) => {
-          const sum = fruitSums[fruit];
-          const isTarget = sum === 5;
-          return (
-            <div
-              key={fruit}
-              className={`rounded-xl border-2 p-1.5 flex items-center justify-center gap-1 transition-all ${
-                isTarget ? "bg-sun border-ink shadow-pop" : "bg-white/80 border-ink/30"
-              } ${isTarget ? "animate-pulse" : ""}`}
-            >
-              <span className="text-lg leading-none">{FRUIT_EMOJI[fruit]}</span>
-              <span className={`font-display text-base font-bold ${isTarget ? "text-coral" : "text-ink"}`}>{sum}</span>
-            </div>
-          );
-        })}
       </div>
 
       {/* 主区域 */}

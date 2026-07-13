@@ -836,12 +836,13 @@ class RoomManagerClass {
       const shuffled = [...fruits].sort(() => Math.random() - 0.5);
       const chosenFruits = shuffled.slice(0, numTypes);
       const items: HeartFruitItem[] = [];
-      let remaining = minFruitsOnCard + Math.floor(Math.random() * (maxFruitsOnCard - minFruitsOnCard + 1));
+      // 每张牌水果总数上限 4，每个水果也最多 4 个
+      let remaining = Math.min(4, minFruitsOnCard + Math.floor(Math.random() * (maxFruitsOnCard - minFruitsOnCard + 1)));
       for (let i = 0; i < chosenFruits.length; i++) {
         const isLast = i === chosenFruits.length - 1;
-        const maxHere = isLast ? remaining : Math.max(1, remaining - (chosenFruits.length - i - 1));
+        const maxHere = isLast ? remaining : Math.max(1, Math.min(4, remaining - (chosenFruits.length - i - 1)));
         const minHere = isLast ? remaining : 1;
-        const c = minHere + Math.floor(Math.random() * (maxHere - minHere + 1));
+        const c = Math.min(4, minHere + Math.floor(Math.random() * (maxHere - minHere + 1)));
         items.push({ fruit: chosenFruits[i], count: c });
         remaining -= c;
       }
@@ -996,7 +997,10 @@ class RoomManagerClass {
         room.state.heartCurrentFlipperId = opponent.id;
         return { ok: true, room };
       }
-      // 双方都没牌了
+      // 双方都没牌了，检查游戏是否结束
+      if (this.checkHeartGameOver(room)) {
+        return { ok: true, room };
+      }
       return { ok: false, error: "牌堆已空" };
     }
 
@@ -1021,6 +1025,9 @@ class RoomManagerClass {
         room.state.heartCurrentFlipperId = null; // 双方都没牌
       }
     }
+
+    // 翻牌后检查游戏是否结束（双方牌堆都空且桌面无水果=5）
+    this.checkHeartGameOver(room);
 
     return { ok: true, room };
   }
@@ -2075,9 +2082,12 @@ class RoomManagerClass {
 
     const myHand = (room.state.dvHands[socketId] || []).map((c) => ({ ...c }));
     const oppHandRaw = room.state.dvHands[opponent.id] || [];
+    // 游戏结束时展示对方所有牌的真实数字，避免结算页出现 -1
+    const isGameOver = !!room.state.dvGameOver;
     const opponentHand = oppHandRaw.map((c) => ({
       ...c,
-      number: c.revealed ? c.number : -1, // 未亮牌隐藏数字
+      number: (c.revealed || isGameOver) ? c.number : -1,
+      revealed: c.revealed || isGameOver,
     }));
 
     const myDrawn = room.state.dvDrawn?.[socketId] || null;

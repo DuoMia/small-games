@@ -468,13 +468,11 @@ function DaVinciPlaying({ roomId }: { roomId: string }) {
       {/* 猜牌结果 Toast */}
       {showResult && dvResult && <ResultToast result={dvResult} />}
 
-      {/* 对方摸牌提示 */}
+      {/* 对方摸牌提示（小型非全局提示，显示在顶部对方区域下方） */}
       {showOpponentDrew && dvOppDrewColor && (
-        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 bg-white/90 rounded-2xl px-5 py-3 shadow-pop text-center animate-[popIn_0.3s]">
-          <div className="text-sm text-ink/60">{opponent.nickname} 摸了一张</div>
-          <div className={`inline-block mt-1 px-3 py-1 rounded-lg font-bold ${dvOppDrewColor === "black" ? "bg-slate-900 text-white" : "bg-white text-slate-900 border-2 border-slate-300"}`}>
-            {dvOppDrewColor === "black" ? "黑色" : "白色"}牌
-          </div>
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-20 bg-white/90 rounded-full px-3 py-1 shadow-soft text-center animate-[popIn_0.3s] flex items-center gap-1.5">
+          <span className="text-xs text-ink/60">{opponent.nickname} 摸了一张</span>
+          <span className={`inline-block w-4 h-4 rounded ${dvOppDrewColor === "black" ? "bg-slate-900" : "bg-white border-2 border-slate-300"}`} />
         </div>
       )}
 

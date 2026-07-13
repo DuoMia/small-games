@@ -492,6 +492,20 @@ export function registerSocketHandlers(io: Io) {
         return;
       }
       const room = result.room;
+      // 翻牌后可能游戏结束（双方牌堆都空且桌面无水果=5）
+      if (room.state.heartGameOver) {
+        io.to(roomId).emit("game:state", {
+          phase: room.state.phase,
+          currentRound: room.state.currentRound,
+        });
+        room.players.forEach((p) => {
+          const overData = RoomManager.getHeartGameOverData(room, p.id);
+          if (overData) {
+            io.to(p.id).emit("heart:game-over", overData);
+          }
+        });
+        return;
+      }
       // 广播最新状态给双方（视角不同）
       room.players.forEach((p) => {
         const view = RoomManager.getHeartStateView(room, p.id);
