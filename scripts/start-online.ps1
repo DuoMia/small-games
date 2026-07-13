@@ -98,6 +98,25 @@ function Start-Backend {
         Pop-Location
     }
 
+    # 启动前检查端口是否被占用（常见原因：上次异常退出残留的 node 进程）
+    # 如果端口已被占用，新启动的 node 会因 EADDRINUSE 立即崩溃，表现为"启动后直接停止"
+    $existing = Get-NetTCPConnection -LocalPort $BackEndPort -State Listen -ErrorAction SilentlyContinue
+    if ($existing) {
+        $stalePid = $existing[0].OwningProcess
+        Write-Log "端口 $BackEndPort 被占用（PID: $stalePid），正在清理残留进程..."
+        try {
+            Stop-Process -Id $stalePid -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Milliseconds 800
+        } catch {}
+        # 二次确认
+        $stillOcc = Get-NetTCPConnection -LocalPort $BackEndPort -State Listen -ErrorAction SilentlyContinue
+        if ($stillOcc) {
+            Write-Log "错误: 端口 $BackEndPort 仍被占用，无法启动后端"
+            return
+        }
+        Write-Log "残留进程已清理"
+    }
+
     Write-Log "正在启动后端服务..."
     $env:PORT = $BackEndPort
     if ($script:pagesDomain) {
@@ -146,12 +165,35 @@ function Start-Backend {
     $p = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "npx tsx api/server.ts" -WorkingDirectory $ProjectRoot -WindowStyle Hidden -PassThru
     $script:backendPid = $p.Id
     Write-Log "后端服务已启动 (PID: $($p.Id), 端口: $BackEndPort)"
+
+    # 等待 2 秒后检查进程是否仍然存活
+    # 如果端口冲突或启动报错，cmd /c 会立即退出，这里能及时反馈
+    Start-Sleep -Seconds 2
+    if (Is-ProcessRunning $script:backendPid) {
+        Write-Log "后端服务运行正常"
+    } else {
+        Write-Log "错误: 后端服务启动后立即退出，请检查 api/server.ts 是否有报错"
+        $script:backendPid = 0
+    }
     Update-Status
 }
 
 function Stop-Backend {
     if (-not (Is-ProcessRunning $script:backendPid)) {
         Write-Log "后端服务未在运行"
+        # 即使脚本记录的 PID 已失效，端口可能仍被孤儿 node 进程占用
+        # 尝试清理端口上的残留进程，避免下次启动失败
+        $existing = Get-NetTCPConnection -LocalPort $BackEndPort -State Listen -ErrorAction SilentlyContinue
+        if ($existing) {
+            $stalePid = $existing[0].OwningProcess
+            Write-Log "发现端口 $BackEndPort 仍有残留进程 (PID: $stalePid)，正在清理..."
+            try {
+                Stop-Process -Id $stalePid -Force -ErrorAction SilentlyContinue
+                Start-Sleep -Milliseconds 500
+                Write-Log "残留进程已清理"
+            } catch {}
+        }
+        Update-Status
         return
     }
     Write-Log "正在停止后端服务..."
@@ -236,6 +278,17 @@ function Start-Admin {
         Pop-Location
     }
 
+    # 启动前检查端口是否被占用（与后端同样的问题：残留进程导致 EADDRINUSE）
+    $existing = Get-NetTCPConnection -LocalPort $script:AdminPort -State Listen -ErrorAction SilentlyContinue
+    if ($existing) {
+        $stalePid = $existing[0].OwningProcess
+        Write-Log "端口 $($script:AdminPort) 被占用（PID: $stalePid），正在清理残留进程..."
+        try {
+            Stop-Process -Id $stalePid -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Milliseconds 800
+        } catch {}
+    }
+
     # 加载 scripts/.env 中的 GLM_API_KEY（AI 扩展功能依赖此 key）
     # 复用后端的加载逻辑：强制 UTF-8 读取，用 SetEnvironmentVariable 设到进程级
     $EnvFile = Join-Path $PSScriptRoot ".env"
@@ -267,13 +320,30 @@ function Start-Admin {
 
     # 等待 2 秒让服务启动，然后打开浏览器
     Start-Sleep -Seconds 2
-    Start-Process "http://127.0.0.1:$($script:AdminPort)"
+    if (Is-ProcessRunning $script:adminPid) {
+        Start-Process "http://127.0.0.1:$($script:AdminPort)"
+    } else {
+        Write-Log "错误: 管理后台启动后立即退出，请检查 api/admin/server.ts 是否有报错"
+        $script:adminPid = 0
+    }
     Update-Status
 }
 
 function Stop-Admin {
     if (-not (Is-ProcessRunning $script:adminPid)) {
         Write-Log "管理后台未在运行"
+        # 清理端口上的残留进程
+        $existing = Get-NetTCPConnection -LocalPort $script:AdminPort -State Listen -ErrorAction SilentlyContinue
+        if ($existing) {
+            $stalePid = $existing[0].OwningProcess
+            Write-Log "发现端口 $($script:AdminPort) 仍有残留进程 (PID: $stalePid)，正在清理..."
+            try {
+                Stop-Process -Id $stalePid -Force -ErrorAction SilentlyContinue
+                Start-Sleep -Milliseconds 500
+                Write-Log "残留进程已清理"
+            } catch {}
+        }
+        Update-Status
         return
     }
     Write-Log "正在停止管理后台..."
