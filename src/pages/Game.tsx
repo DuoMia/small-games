@@ -10,6 +10,7 @@ import TelepathyGame from "@/game/TelepathyGame";
 import HeartAttackGame from "@/game/HeartAttackGame";
 import CoOpDrawing from "@/game/CoOpDrawing";
 import EmojiGuessing from "@/game/EmojiGuessing";
+import DaVinciGame from "@/game/DaVinciGame";
 
 export default function Game() {
   const { roomId } = useParams<{ roomId: string }>();
@@ -56,6 +57,11 @@ export default function Game() {
   // 表情包猜词：统一交给 EmojiGuessing 处理
   if (room.gameType === "emoji-guessing") {
     return <EmojiGuessing roomId={roomId} />;
+  }
+
+  // 达芬奇密码：统一交给 DaVinciGame 处理
+  if (room.gameType === "davinci-code") {
+    return <DaVinciGame roomId={roomId} />;
   }
 
   // 画词记忆：原有逻辑

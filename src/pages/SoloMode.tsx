@@ -43,6 +43,8 @@ import telepathyPacks from "../../api/data/telepathy-questions.json";
 import drawingPrompts from "../../api/data/drawing-prompts.json";
 import emojiPuzzles from "../../api/data/emoji-puzzles.json";
 import type { GameType, HeartCard, HeartFruit } from "@/lib/types";
+import { HeartCardView, CardBack } from "@/game/HeartAttackGame";
+import Confetti from "@/components/Confetti";
 
 // ============ 单人模式分发器 ============
 // 根据路由 /solo/:gameType 渲染不同的单人游戏组件
@@ -52,6 +54,7 @@ const SOLO_GAME_NAMES: Record<GameType, string> = {
   "heart-attack": "德国心脏病",
   "co-op-drawing": "合作画画",
   "emoji-guessing": "表情包猜词",
+  "davinci-code": "达芬奇密码（双人）",
 };
 
 const SOLO_GAME_EMOJI: Record<GameType, string> = {
@@ -60,6 +63,7 @@ const SOLO_GAME_EMOJI: Record<GameType, string> = {
   "heart-attack": "🔔",
   "co-op-drawing": "✏️",
   "emoji-guessing": "😎",
+  "davinci-code": "🔐",
 };
 
 export default function SoloMode() {
@@ -1369,39 +1373,58 @@ interface SoloHeartTableCard {
   card: HeartCard;
   owner: "me" | "ai";
 }
-const SOLO_HEART_DECK_TOTAL = 60;
-const SOLO_HEART_AI_RING_MIN = 800; // AI 拍铃最短延迟（毫秒）
-const SOLO_HEART_AI_RING_MAX = 2000; // AI 拍铃最长延迟（毫秒）
-const SOLO_HEART_AI_FLIP_MIN = 1000; // AI 翻牌最短延迟（毫秒）
-const SOLO_HEART_AI_FLIP_MAX = 1500; // AI 翻牌最长延迟（毫秒）
 
-// 水果 emoji 映射
-const SOLO_HEART_FRUIT_EMOJI: Record<HeartFruit, string> = {
-  apple: "🍎",
-  banana: "🍌",
-  cherry: "🍒",
-  lemon: "🍋",
-};
+const HEART_FRUITS: HeartFruit[] = ["apple", "banana", "cherry", "lemon"];
+const SOLO_HEART_DECK_TOTAL = 56;
 
-// 水果中文名
-const SOLO_HEART_FRUIT_NAME: Record<HeartFruit, string> = {
-  apple: "苹果",
-  banana: "香蕉",
-  cherry: "樱桃",
-  lemon: "柠檬",
-};
+function getSoloHeartAITiming(difficulty: Difficulty) {
+  if (difficulty === "easy") {
+    return { flipMin: 1200, flipMax: 2500, ringMin: 1200, ringMax: 2500, mistakeChance: 0.25 };
+  }
+  if (difficulty === "hard" || difficulty === "nightmare") {
+    return { flipMin: 500, flipMax: 1200, ringMin: 500, ringMax: 1200, mistakeChance: 0.05 };
+  }
+  return { flipMin: 800, flipMax: 1800, ringMin: 800, ringMax: 1800, mistakeChance: 0.12 };
+}
 
-/** 生成 60 张牌的牌堆（4 种水果 × 15 张，count 随机 1-5），Fisher-Yates 洗牌 */
-function generateSoloHeartDeck(): HeartCard[] {
-  const fruits: HeartFruit[] = ["apple", "banana", "cherry", "lemon"];
+function getSoloHeartPenaltyCards(difficulty: Difficulty): number {
+  return (difficulty === "hard" || difficulty === "nightmare") ? 2 : 1;
+}
+
+/** 生成混合水果牌堆（根据难度），逻辑与后端 generateHeartDeck 一致 */
+function generateSoloHeartDeck(difficulty: Difficulty): HeartCard[] {
+  let minFruitTypes = 1, maxFruitTypes = 2;
+  let minFruitsOnCard = 1, maxFruitsOnCard = 4;
+  let deckSize = SOLO_HEART_DECK_TOTAL;
+  if (difficulty === "normal") {
+    minFruitTypes = 2; maxFruitTypes = 3;
+    minFruitsOnCard = 2; maxFruitsOnCard = 5;
+  } else if (difficulty === "hard" || difficulty === "nightmare") {
+    minFruitTypes = 2; maxFruitTypes = 4;
+    minFruitsOnCard = 3; maxFruitsOnCard = 5;
+  }
+
   const deck: HeartCard[] = [];
-  // 每种水果 15 张，count 在 1-5 之间随机
-  fruits.forEach((f) => {
-    for (let i = 0; i < 15; i++) {
-      deck.push({ fruit: f, count: 1 + Math.floor(Math.random() * 5) });
+  const makeRandomCard = (): HeartCard => {
+    const numTypes = minFruitTypes + Math.floor(Math.random() * (maxFruitTypes - minFruitTypes + 1));
+    const shuffled = [...HEART_FRUITS].sort(() => Math.random() - 0.5);
+    const chosenFruits = shuffled.slice(0, numTypes);
+    const items: import("@/lib/types").HeartFruitItem[] = [];
+    let remaining = minFruitsOnCard + Math.floor(Math.random() * (maxFruitsOnCard - minFruitsOnCard + 1));
+    for (let i = 0; i < chosenFruits.length; i++) {
+      const isLast = i === chosenFruits.length - 1;
+      const maxHere = isLast ? remaining : Math.max(1, remaining - (chosenFruits.length - i - 1));
+      const minHere = isLast ? remaining : 1;
+      const c = minHere + Math.floor(Math.random() * (maxHere - minHere + 1));
+      items.push({ fruit: chosenFruits[i], count: c });
+      remaining -= c;
     }
-  });
-  // Fisher-Yates 洗牌
+    return { fruits: items };
+  };
+
+  for (let i = 0; i < deckSize; i++) {
+    deck.push(makeRandomCard());
+  }
   for (let i = deck.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [deck[i], deck[j]] = [deck[j], deck[i]];
@@ -1409,12 +1432,20 @@ function generateSoloHeartDeck(): HeartCard[] {
   return deck;
 }
 
-/** 判断桌面上是否有任意水果总数恰好为 5 */
-function hasSoloHeartFruitFive(table: SoloHeartTableCard[]): boolean {
+/** 计算桌面水果总数 */
+function getSoloHeartFruitSums(table: SoloHeartTableCard[]): Record<HeartFruit, number> {
   const sums: Record<HeartFruit, number> = { apple: 0, banana: 0, cherry: 0, lemon: 0 };
   for (const item of table) {
-    sums[item.card.fruit] += item.card.count;
+    for (const fi of item.card.fruits) {
+      sums[fi.fruit] += fi.count;
+    }
   }
+  return sums;
+}
+
+/** 判断桌面上是否有任意水果总数恰好为 5 */
+function hasSoloHeartFruitFive(table: SoloHeartTableCard[]): boolean {
+  const sums = getSoloHeartFruitSums(table);
   return (Object.values(sums) as number[]).some((s) => s === 5);
 }
 
@@ -1430,294 +1461,352 @@ function SoloHeartAttack() {
   );
 
   const [stage, setStage] = useState<"intro" | "playing" | "result">("intro");
-  // 我的牌堆、AI 牌堆
+  const [difficulty, setDifficulty] = useState<Difficulty>(DEFAULT_DIFFICULTY);
+  const diffCfg = getDifficultyConfig(difficulty);
   const [myDeck, setMyDeck] = useState<HeartCard[]>([]);
   const [aiDeck, setAiDeck] = useState<HeartCard[]>([]);
-  // 赢到的牌数
   const [myWon, setMyWon] = useState(0);
   const [aiWon, setAiWon] = useState(0);
-  // 桌面牌
   const [table, setTable] = useState<SoloHeartTableCard[]>([]);
-  // 本轮是否已翻
-  const [myFlipped, setMyFlipped] = useState(false);
-  const [aiFlipped, setAiFlipped] = useState(false);
-  // 拍铃结果提示
-  const [resultFlash, setResultFlash] = useState<{ type: "correct" | "wrong"; by: "me" | "ai" } | null>(null);
-  // 游戏结束信息
-  const [gameOver, setGameOver] = useState<{ winner: "me" | "ai" | "draw" } | null>(null);
+  const [currentTurn, setCurrentTurn] = useState<"me" | "ai">("me");
+  const [totalFlipped, setTotalFlipped] = useState(0);
+  const [resultFlash, setResultFlash] = useState<{ type: "correct" | "wrong"; by: "me" | "ai"; penaltyCards?: number } | null>(null);
+  const [gameOver, setGameOver] = useState<{ winner: "me" | "ai" | "draw"; myWon: number; aiWon: number } | null>(null);
+  const [newCardIdx, setNewCardIdx] = useState<number>(-1);
 
-  // AI 定时器引用
   const aiFlipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const aiRingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const newCardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tableRef = useRef<SoloHeartTableCard[]>([]);
+  const gameOverRef = useRef<boolean>(false);
 
-  // 清理所有定时器
+  useEffect(() => { tableRef.current = table; }, [table]);
+  useEffect(() => { gameOverRef.current = !!gameOver; }, [gameOver]);
+
   const clearAiTimers = useCallback(() => {
-    if (aiFlipTimerRef.current) {
-      clearTimeout(aiFlipTimerRef.current);
-      aiFlipTimerRef.current = null;
-    }
-    if (aiRingTimerRef.current) {
-      clearTimeout(aiRingTimerRef.current);
-      aiRingTimerRef.current = null;
-    }
+    if (aiFlipTimerRef.current) { clearTimeout(aiFlipTimerRef.current); aiFlipTimerRef.current = null; }
+    if (aiRingTimerRef.current) { clearTimeout(aiRingTimerRef.current); aiRingTimerRef.current = null; }
   }, []);
 
   useEffect(() => {
     return () => {
       clearAiTimers();
       if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+      if (newCardTimerRef.current) clearTimeout(newCardTimerRef.current);
     };
   }, [clearAiTimers]);
 
-  const startGame = () => {
-    // 生成 60 张牌，30/30 均分
-    const fullDeck = generateSoloHeartDeck();
-    setMyDeck(fullDeck.slice(0, 30));
-    setAiDeck(fullDeck.slice(30));
-    setMyWon(0);
-    setAiWon(0);
-    setTable([]);
-    setMyFlipped(false);
-    setAiFlipped(false);
-    setResultFlash(null);
-    setGameOver(null);
-    setStage("playing");
-    playSfx(sfx.click);
-  };
-
-  // 检查游戏是否结束（任一牌堆为空）
-  const checkGameOver = (myDeckCount: number, aiDeckCount: number, myWonCount: number, aiWonCount: number): { winner: "me" | "ai" | "draw" } | null => {
-    if (myDeckCount === 0 || aiDeckCount === 0) {
-      if (myWonCount > aiWonCount) return { winner: "me" };
-      if (aiWonCount > myWonCount) return { winner: "ai" };
-      return { winner: "draw" };
-    }
-    return null;
-  };
-
-  // 显示拍铃结果提示
-  const showFlash = (type: "correct" | "wrong", by: "me" | "ai") => {
-    setResultFlash({ type, by });
+  const showFlash = useCallback((type: "correct" | "wrong", by: "me" | "ai", penaltyCards?: number) => {
+    setResultFlash({ type, by, penaltyCards });
     if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
     flashTimerRef.current = setTimeout(() => {
       setResultFlash(null);
       flashTimerRef.current = null;
-    }, 1500);
-  };
-
-  // 推进到下一轮（双方都翻完且无人拍铃）
-  const advanceNextRound = useCallback(() => {
-    setMyFlipped(false);
-    setAiFlipped(false);
+    }, 1800);
   }, []);
 
-  // 玩家翻牌
-  const handleFlip = () => {
-    if (myFlipped || myDeck.length === 0 || gameOver) return;
+  const checkAndSetGameOver = useCallback((
+    md: HeartCard[], ad: HeartCard[], mw: number, aw: number, tbl: SoloHeartTableCard[]
+  ): { winner: "me" | "ai" | "draw"; myWon: number; aiWon: number } | null => {
+    const allEmpty = md.length === 0 && ad.length === 0;
+    if (allEmpty && !hasSoloHeartFruitFive(tbl)) {
+      let winner: "me" | "ai" | "draw" = "draw";
+      if (mw > aw) winner = "me";
+      else if (aw > mw) winner = "ai";
+      const result = { winner, myWon: mw, aiWon: aw };
+      setGameOver(result);
+      setStage("result");
+      return result;
+    }
+    return null;
+  }, []);
+
+  const startGame = useCallback(() => {
+    const fullDeck = generateSoloHeartDeck(difficulty);
+    const half = Math.floor(fullDeck.length / 2);
+    setMyDeck(fullDeck.slice(0, half));
+    setAiDeck(fullDeck.slice(half));
+    setMyWon(0);
+    setAiWon(0);
+    setTable([]);
+    setCurrentTurn("me");
+    setTotalFlipped(0);
+    setResultFlash(null);
+    setGameOver(null);
+    setNewCardIdx(-1);
+    setStage("playing");
+    playSfx(sfx.click);
+  }, [difficulty, playSfx]);
+
+  const handleFlip = useCallback(() => {
+    if (currentTurn !== "me" || myDeck.length === 0 || gameOver) return;
     playSfx(sfx.click);
     const newDeck = [...myDeck];
     const card = newDeck.pop()!;
     const newTable = [...table, { card, owner: "me" as const }];
     setMyDeck(newDeck);
     setTable(newTable);
-    setMyFlipped(true);
+    setTotalFlipped((n) => n + 1);
+    setNewCardIdx(newTable.length - 1);
+    if (newCardTimerRef.current) clearTimeout(newCardTimerRef.current);
+    newCardTimerRef.current = setTimeout(() => setNewCardIdx(-1), 400);
 
-    // 检查游戏结束
-    const over = checkGameOver(newDeck.length, aiDeck.length, myWon, aiWon);
+    const over = checkAndSetGameOver(newDeck, aiDeck, myWon, aiWon, newTable);
     if (over) {
-      setGameOver(over);
-      setStage("result");
       playSfx(over.winner === "me" ? sfx.win : over.winner === "ai" ? sfx.lose : sfx.roundEnd);
       return;
     }
 
-    // 如果 AI 也已翻牌且桌面无 fruit=5，推进下一轮
-    if (aiFlipped && !hasSoloHeartFruitFive(newTable)) {
-      setTimeout(() => advanceNextRound(), 600);
+    if (aiDeck.length > 0) {
+      setCurrentTurn("ai");
+    } else if (newDeck.length > 0) {
+      setCurrentTurn("me");
+    } else {
+      setCurrentTurn("ai");
     }
-  };
+  }, [currentTurn, myDeck, aiDeck, table, gameOver, myWon, aiWon, playSfx, checkAndSetGameOver]);
 
-  // AI 自动翻牌（延迟 1-1.5 秒）
-  const scheduleAiFlip = useCallback(() => {
-    if (aiFlipped || aiDeck.length === 0 || gameOver) return;
-    const delay = SOLO_HEART_AI_FLIP_MIN + Math.random() * (SOLO_HEART_AI_FLIP_MAX - SOLO_HEART_AI_FLIP_MIN);
-    aiFlipTimerRef.current = setTimeout(() => {
-      const newAiDeck = [...aiDeck];
+  const doAiFlip = useCallback(() => {
+    setAiDeck((prevAiDeck) => {
+      if (prevAiDeck.length === 0) {
+        setCurrentTurn((curTurn) => {
+          return myDeck.length > 0 ? "me" : curTurn;
+        });
+        return prevAiDeck;
+      }
+      const newAiDeck = [...prevAiDeck];
       const card = newAiDeck.pop()!;
-      const newTable = [...table, { card, owner: "ai" as const }];
-      setAiDeck(newAiDeck);
-      setTable(newTable);
-      setAiFlipped(true);
+      setTable((prevTable) => {
+        const newTable = [...prevTable, { card, owner: "ai" as const }];
+        setNewCardIdx(newTable.length - 1);
+        if (newCardTimerRef.current) clearTimeout(newCardTimerRef.current);
+        newCardTimerRef.current = setTimeout(() => setNewCardIdx(-1), 400);
+        setTotalFlipped((n) => n + 1);
+        setMyDeck((curMy) => {
+          setMyWon((mw) => {
+            setAiWon((aw) => {
+              const over = checkAndSetGameOver(curMy, newAiDeck, mw, aw, newTable);
+              if (over) {
+                playSfx(over.winner === "me" ? sfx.win : over.winner === "ai" ? sfx.lose : sfx.roundEnd);
+              }
+              return aw;
+            });
+            return mw;
+          });
+          return curMy;
+        });
+        if (newAiDeck.length === 0) {
+          setCurrentTurn(myDeck.length > 0 ? "me" : "ai");
+        } else {
+          setCurrentTurn("me");
+        }
+        return newTable;
+      });
+      return newAiDeck;
+    });
+  }, [myDeck.length, checkAndSetGameOver, playSfx]);
 
-      // 检查游戏结束
-      const over = checkGameOver(myDeck.length, newAiDeck.length, myWon, aiWon);
-      if (over) {
-        setGameOver(over);
-        setStage("result");
-        playSfx(over.winner === "me" ? sfx.win : over.winner === "ai" ? sfx.lose : sfx.roundEnd);
-        return;
+  const doAiRing = useCallback(() => {
+    const curTable = tableRef.current;
+    if (!hasSoloHeartFruitFive(curTable)) return;
+    const wonCount = curTable.length;
+    showFlash("correct", "ai");
+    playSfx(sfx.correct);
+    const newAw = aiWon + wonCount;
+    setAiWon(newAw);
+    setTable([]);
+    if (myDeck.length > 0) setCurrentTurn("me");
+    else if (aiDeck.length > 0) setCurrentTurn("ai");
+    const over = checkAndSetGameOver(myDeck, aiDeck, myWon, newAw, []);
+    if (over) {
+      playSfx(over.winner === "me" ? sfx.win : over.winner === "ai" ? sfx.lose : sfx.roundEnd);
+    }
+  }, [myDeck, aiDeck, myWon, aiWon, showFlash, playSfx, checkAndSetGameOver]);
+
+  const doAiWrongRing = useCallback(() => {
+    if (gameOverRef.current) return;
+    if (hasSoloHeartFruitFive(tableRef.current)) return;
+    playSfx(sfx.wrong);
+    showFlash("wrong", "ai", 1);
+
+    let newMd = [...myDeck];
+    let newAd = [...aiDeck];
+    const penalty = 1;
+    for (let i = 0; i < penalty; i++) {
+      if (newAd.length > 0) {
+        const card = newAd.pop()!;
+        newMd = [card, ...newMd];
       }
+    }
+    setMyDeck(newMd);
+    setAiDeck(newAd);
+    if (currentTurn === "ai" && newAd.length === 0 && newMd.length > 0) {
+      setCurrentTurn("me");
+    }
+    const over = checkAndSetGameOver(newMd, newAd, myWon, aiWon, table);
+    if (over) {
+      playSfx(over.winner === "me" ? sfx.win : over.winner === "ai" ? sfx.lose : sfx.roundEnd);
+    }
+  }, [myDeck, aiDeck, myWon, aiWon, table, currentTurn, playSfx, showFlash, checkAndSetGameOver]);
 
-      // 如果我也已翻牌且桌面无 fruit=5，推进下一轮
-      if (myFlipped && !hasSoloHeartFruitFive(newTable)) {
-        setTimeout(() => advanceNextRound(), 600);
-      }
-    }, delay);
-  }, [aiFlipped, aiDeck, table, myDeck, myWon, aiWon, gameOver, myFlipped, playSfx, advanceNextRound]);
-
-  // AI 检查是否需要拍铃（桌面有 fruit=5 时延迟 800-2000ms 拍铃）
-  const scheduleAiRing = useCallback(() => {
-    if (gameOver) return;
-    if (!hasSoloHeartFruitFive(table)) return;
-    const delay = SOLO_HEART_AI_RING_MIN + Math.random() * (SOLO_HEART_AI_RING_MAX - SOLO_HEART_AI_RING_MIN);
-    aiRingTimerRef.current = setTimeout(() => {
-      // 再次检查（玩家可能已先拍铃）
-      if (!hasSoloHeartFruitFive(table)) return;
-      // AI 拍铃正确
-      showFlash("correct", "ai");
-      playSfx(sfx.correct);
-      const wonCount = table.length;
-      setAiWon((w) => w + wonCount);
-      setTable([]);
-      setMyFlipped(false);
-      setAiFlipped(false);
-      // 检查游戏结束
-      const over = checkGameOver(myDeck.length, aiDeck.length, myWon, aiWon + wonCount);
-      if (over) {
-        setGameOver(over);
-        setStage("result");
-        playSfx(over.winner === "me" ? sfx.win : over.winner === "ai" ? sfx.lose : sfx.roundEnd);
-      }
-    }, delay);
-  }, [gameOver, table, myDeck, aiDeck, myWon, aiWon, playSfx]);
-
-  // 桌面变化时，检查 AI 行为
   useEffect(() => {
     if (stage !== "playing" || gameOver) return;
-    // 桌面有 fruit=5：调度 AI 拍铃
+    clearAiTimers();
+
+    const timing = getSoloHeartAITiming(difficulty);
+
     if (hasSoloHeartFruitFive(table)) {
-      scheduleAiRing();
+      let delay = timing.ringMin + Math.random() * (timing.ringMax - timing.ringMin);
+      if (Math.random() < timing.mistakeChance) delay *= 2.0;
+      aiRingTimerRef.current = setTimeout(() => {
+        doAiRing();
+      }, delay);
     } else {
-      // 桌面无 fruit=5：如果 AI 未翻牌，调度 AI 翻牌
-      if (!aiFlipped && aiDeck.length > 0) {
-        scheduleAiFlip();
+      if (Math.random() < timing.mistakeChance * 0.3 && table.length >= 3) {
+        const wrongDelay = 600 + Math.random() * 900;
+        aiRingTimerRef.current = setTimeout(() => doAiWrongRing(), wrongDelay);
+      }
+      if (currentTurn === "ai" && aiDeck.length > 0) {
+        const delay = timing.flipMin + Math.random() * (timing.flipMax - timing.flipMin);
+        aiFlipTimerRef.current = setTimeout(() => {
+          doAiFlip();
+        }, delay);
       }
     }
-    return () => {
-      // 清理 AI 拍铃定时器（避免重复）
-      if (aiRingTimerRef.current) {
-        clearTimeout(aiRingTimerRef.current);
-        aiRingTimerRef.current = null;
-      }
-    };
-  }, [table, stage, gameOver, aiFlipped, aiDeck.length, scheduleAiRing, scheduleAiFlip]);
+  }, [table, currentTurn, stage, gameOver, aiDeck.length, myDeck.length, difficulty, clearAiTimers, doAiFlip, doAiRing, doAiWrongRing]);
 
-  // 玩家拍铃
-  const handleRing = () => {
+  const handleRing = useCallback(() => {
     if (gameOver) return;
     playSfx(sfx.click);
-    // 清理 AI 拍铃定时器
-    if (aiRingTimerRef.current) {
-      clearTimeout(aiRingTimerRef.current);
-      aiRingTimerRef.current = null;
-    }
+    clearAiTimers();
+
     const isCorrect = hasSoloHeartFruitFive(table);
+    const penaltyCards = getSoloHeartPenaltyCards(difficulty);
+
     if (isCorrect) {
-      // 正确拍铃：赢得桌面所有牌
+      const wonCount = table.length;
       showFlash("correct", "me");
       playSfx(sfx.correct);
-      const wonCount = table.length;
-      setMyWon((w) => w + wonCount);
+      const newMw = myWon + wonCount;
+      setMyWon(newMw);
       setTable([]);
-      setMyFlipped(false);
-      setAiFlipped(false);
-      // 检查游戏结束
-      const over = checkGameOver(myDeck.length, aiDeck.length, myWon + wonCount, aiWon);
+      setCurrentTurn("ai");
+      const over = checkAndSetGameOver(myDeck, aiDeck, newMw, aiWon, []);
       if (over) {
-        setGameOver(over);
-        setStage("result");
         playSfx(over.winner === "me" ? sfx.win : over.winner === "ai" ? sfx.lose : sfx.roundEnd);
       }
     } else {
-      // 错误拍铃：给 AI 1 张牌
-      showFlash("wrong", "me");
+      showFlash("wrong", "me", penaltyCards);
       playSfx(sfx.wrong);
-      if (myDeck.length > 0) {
-        const newMyDeck = [...myDeck];
-        const card = newMyDeck.pop()!;
-        setMyDeck(newMyDeck);
-        setAiDeck((d) => [card, ...d]);
-        // 检查游戏结束
-        const over = checkGameOver(newMyDeck.length, aiDeck.length + 1, myWon, aiWon);
-        if (over) {
-          setGameOver(over);
-          setStage("result");
-          playSfx(over.winner === "me" ? sfx.win : over.winner === "ai" ? sfx.lose : sfx.roundEnd);
+      let newMyDeck = [...myDeck];
+      let newAiDeck = [...aiDeck];
+      let given = 0;
+      for (let i = 0; i < penaltyCards; i++) {
+        if (newMyDeck.length > 0) {
+          const card = newMyDeck.pop()!;
+          newAiDeck = [card, ...newAiDeck];
+          given++;
         }
       }
+      setMyDeck(newMyDeck);
+      setAiDeck(newAiDeck);
+      if (currentTurn === "me" && newMyDeck.length === 0 && newAiDeck.length > 0) {
+        setCurrentTurn("ai");
+      }
+      const over = checkAndSetGameOver(newMyDeck, newAiDeck, myWon, aiWon, table);
+      if (over) {
+        playSfx(over.winner === "me" ? sfx.win : over.winner === "ai" ? sfx.lose : sfx.roundEnd);
+      }
     }
-  };
+  }, [gameOver, table, myDeck, aiDeck, myWon, aiWon, currentTurn, difficulty, playSfx, clearAiTimers, showFlash, checkAndSetGameOver]);
+
+  const DIFF_LABEL: Record<string, string> = { easy: "简单", normal: "中等", hard: "困难", nightmare: "噩梦" };
 
   /* ============ 介绍页 ============ */
   if (stage === "intro") {
     return (
-      <div className="paper-bg h-[100dvh] overflow-y-auto flex flex-col items-center px-5 py-8 relative">
+      <div className="paper-bg h-[100dvh] overflow-y-auto flex flex-col items-center px-5 py-8 relative select-none">
         <div className="absolute top-10 left-5 text-6xl animate-float opacity-20">🔔</div>
         <div className="absolute top-20 right-5 text-5xl animate-float opacity-20" style={{ animationDelay: "1s" }}>🍎</div>
-        <div className="absolute bottom-20 left-8 text-5xl animate-float opacity-20" style={{ animationDelay: "2s" }}>🍌</div>
+        <div className="absolute bottom-20 left-8 text-5xl animate-float opacity-20" style={{ animationDelay: "2s" }}>🍋</div>
         <div className="absolute bottom-32 right-10 text-4xl animate-float opacity-20" style={{ animationDelay: "0.5s" }}>🍒</div>
 
         <div className="w-full max-w-md flex flex-col items-center relative z-10">
           <div className="mt-8 mb-2 text-center animate-bounce-in">
-            <h1 className="font-display text-5xl text-ink leading-tight">德国心脏病 · 单人游玩</h1>
+            <h1 className="font-display text-5xl text-ink leading-tight">德国心脏病 · 单人</h1>
             <div className="mt-1 flex items-center justify-center gap-2">
-              <div className="h-1 w-16 bg-coral rounded-full" />
-              <Bell size={20} className="text-coral" />
-              <div className="h-1 w-16 bg-coral rounded-full" />
+              <div className="h-1 w-16 bg-sun rounded-full" />
+              <Bell size={20} className="text-sun" />
+              <div className="h-1 w-16 bg-sun rounded-full" />
             </div>
             <p className="font-body text-ink-muted text-sm mt-3">
-              对战 AI · 60 张牌 · 凑齐 5 个水果拍铃
+              对战 AI · 混合水果 · 凑齐 5 个拍铃
             </p>
           </div>
 
           <div className="w-full bg-white rounded-blob shadow-card border-3 border-ink p-6 mt-6 animate-slide-up">
             <div className="space-y-3 mb-5">
-              <div className="flex items-center gap-3 bg-mint rounded-doodle p-3 border-2 border-ink shadow-soft">
-                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-coral border-2 border-ink font-display text-white">1</div>
+              <div className="flex items-center gap-3 bg-mint/30 rounded-doodle p-3 border-2 border-ink shadow-soft">
+                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-sun border-2 border-ink font-display text-ink">1</div>
                 <div className="flex-1">
-                  <div className="font-display text-ink">翻牌</div>
-                  <div className="text-xs text-ink-muted">双方各持 30 张牌，每轮各翻一张到桌面</div>
+                  <div className="font-display text-ink">轮流翻牌</div>
+                  <div className="text-xs text-ink-muted">玩家与 AI 轮流翻牌到桌面，牌含混合水果</div>
                 </div>
               </div>
-              <div className="flex items-center gap-3 bg-sun rounded-doodle p-3 border-2 border-ink shadow-soft">
+              <div className="flex items-center gap-3 bg-sun/40 rounded-doodle p-3 border-2 border-ink shadow-soft">
                 <div className="flex items-center justify-center w-10 h-10 rounded-full bg-ink border-2 border-ink font-display text-cream">2</div>
                 <div className="flex-1">
-                  <div className="font-display text-ink">拍铃</div>
+                  <div className="font-display text-ink">抢拍铃铛</div>
                   <div className="text-xs text-ink-muted">桌面任一水果总数 = 5 时拍铃，赢得桌面所有牌</div>
                 </div>
               </div>
               <div className="flex items-center gap-3 bg-coral-light rounded-doodle p-3 border-2 border-ink shadow-soft">
-                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-mint border-2 border-ink font-display text-ink">3</div>
+                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-coral border-2 border-ink font-display text-white">3</div>
                 <div className="flex-1">
-                  <div className="font-display text-ink">胜负</div>
-                  <div className="text-xs text-ink-muted">任一方牌堆耗尽，牌多者获胜；拍错给对手 1 张牌</div>
+                  <div className="font-display text-ink">分出胜负</div>
+                  <div className="text-xs text-ink-muted">牌堆耗尽时牌多者胜；拍错给对手牌（困难罚 2 张）</div>
                 </div>
               </div>
             </div>
 
+            <div className="mb-4">
+              <p className="font-display text-ink text-sm mb-2">难度选择</p>
+              <div className="grid grid-cols-3 gap-2">
+                {(["easy", "normal", "hard"] as Difficulty[]).map((d) => {
+                  const cfg = getDifficultyConfig(d);
+                  return (
+                    <button
+                      key={d}
+                      onClick={() => { setDifficulty(d); playSfx(sfx.uiTick); }}
+                      className={`py-2.5 rounded-doodle border-2 font-display text-sm transition-all flex flex-col items-center gap-0.5 ${
+                        difficulty === d
+                          ? `${cfg.color} border-ink shadow-soft`
+                          : "bg-white text-ink border-ink/30"
+                      }`}
+                    >
+                      <span>{cfg.icon}</span>
+                      {cfg.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-center text-xs text-ink-muted mt-2">
+                {difficulty === "easy" && "1-2种水果/牌 · AI反应较慢"}
+                {difficulty === "normal" && "2-3种水果/牌 · AI反应适中"}
+                {difficulty === "hard" && "2-4种水果/牌 · AI反应快 · 拍错罚2张"}
+              </p>
+            </div>
+
             <button
               onClick={startGame}
-              className="btn-press w-full py-4 bg-coral text-white font-display text-xl rounded-doodle shadow-pop border-2 border-ink flex items-center justify-center gap-2"
+              className="btn-press w-full py-4 bg-gradient-to-b from-yellow-300 to-yellow-500 text-ink font-display text-xl rounded-2xl shadow-pop border-[3px] border-ink flex items-center justify-center gap-2"
             >
               <Bell size={22} />
               开始挑战
             </button>
             <button
-              onClick={() => {
-                playSfx(sfx.click);
-                navigate("/");
-              }}
+              onClick={() => { playSfx(sfx.click); navigate("/"); }}
               className="btn-press w-full py-2 mt-3 text-ink-muted font-body text-sm"
             >
               ← 返回首页
@@ -1733,47 +1822,48 @@ function SoloHeartAttack() {
     const won = gameOver.winner === "me";
     const isDraw = gameOver.winner === "draw";
     return (
-      <div className="paper-bg h-[100dvh] overflow-y-auto flex flex-col items-center justify-center px-5 py-8">
-        <div className="w-full max-w-md bg-white rounded-blob shadow-card border-3 border-ink p-6 text-center animate-bounce-in">
-          <div className="text-6xl mb-3 animate-float">{won ? "🎉" : isDraw ? "🤝" : "😅"}</div>
+      <div className="paper-bg h-[100dvh] overflow-y-auto flex flex-col items-center justify-center px-5 py-8 relative">
+        {won && <div className="absolute inset-0 pointer-events-none"><Confetti /></div>}
+        <div className="w-full max-w-md bg-white rounded-blob shadow-card border-3 border-ink p-6 text-center animate-bounce-in relative z-10">
+          <div className="text-6xl mb-3 animate-float">{won ? "🏆" : isDraw ? "🤝" : "😅"}</div>
           <h2 className={`font-display text-3xl mb-1 ${won ? "text-mint" : isDraw ? "text-sun" : "text-coral"}`}>
             {won ? "你赢了！" : isDraw ? "平局！" : "你输了"}
           </h2>
+          <p className="font-body text-ink-muted text-sm mb-1">
+            难度：{diffCfg.icon} {DIFF_LABEL[difficulty]}
+          </p>
           <p className="font-body text-ink-muted text-sm mb-4">
-            {won ? "眼疾手快，赢得所有牌" : isDraw ? "双方牌数相同" : "下次再战"}
+            {won ? "眼疾手快！" : isDraw ? "势均力敌" : "再来一局？"}
           </p>
 
           <div className="bg-cream rounded-doodle border-2 border-ink p-4 mb-4">
-            <div className="flex items-center gap-1.5 mb-2">
+            <div className="flex items-center gap-1.5 mb-2 justify-center">
               <Trophy size={14} className="text-sun" />
-              <span className="font-display text-ink text-xs">最终牌数</span>
+              <span className="font-display text-ink text-xs">最终赢牌数</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="text-center flex-1">
-                <div className="text-[10px] text-ink-muted mb-1">我</div>
-                <div className="font-display text-3xl text-mint">{myWon}</div>
+                <div className="text-[10px] text-ink-muted mb-1 font-display">我</div>
+                <div className="font-display text-4xl text-mint">{myWon}</div>
               </div>
-              <div className="font-display text-2xl text-ink-muted px-3">VS</div>
+              <div className="font-display text-3xl text-ink-muted px-3">VS</div>
               <div className="text-center flex-1">
-                <div className="text-[10px] text-ink-muted mb-1">AI</div>
-                <div className="font-display text-3xl text-coral">{aiWon}</div>
+                <div className="text-[10px] text-ink-muted mb-1 font-display">AI</div>
+                <div className="font-display text-4xl text-coral">{aiWon}</div>
               </div>
             </div>
           </div>
 
           <button
             onClick={startGame}
-            className="btn-press w-full py-4 bg-coral text-white font-display text-xl rounded-doodle shadow-pop border-2 border-ink flex items-center justify-center gap-2 mb-3"
+            className="btn-press w-full py-4 bg-gradient-to-b from-yellow-300 to-yellow-500 text-ink font-display text-xl rounded-2xl shadow-pop border-[3px] border-ink flex items-center justify-center gap-2 mb-3"
           >
             <RotateCcw size={22} />
             再来一局
           </button>
           <button
-            onClick={() => {
-              playSfx(sfx.click);
-              navigate("/");
-            }}
-            className="btn-press w-full py-3 bg-white text-ink font-display text-lg rounded-doodle border-2 border-ink shadow-soft flex items-center justify-center gap-2"
+            onClick={() => { playSfx(sfx.click); navigate("/"); }}
+            className="btn-press w-full py-3 bg-white text-ink font-display text-lg rounded-2xl border-[3px] border-ink shadow-soft flex items-center justify-center gap-2"
           >
             <Home size={20} />
             返回首页
@@ -1784,159 +1874,197 @@ function SoloHeartAttack() {
   }
 
   /* ============ 游戏中 ============ */
-  // 桌面水果总数统计
-  const fruitSums: Record<HeartFruit, number> = { apple: 0, banana: 0, cherry: 0, lemon: 0 };
-  table.forEach((tc) => {
-    fruitSums[tc.card.fruit] += tc.card.count;
-  });
-  const canRing = hasSoloHeartFruitFive(table);
-  const canFlip = !myFlipped && myDeck.length > 0;
+  const fruitSums = getSoloHeartFruitSums(table);
+  const canRing = hasSoloHeartFruitFive(table) && table.length > 0;
+  const canFlip = currentTurn === "me" && myDeck.length > 0 && !gameOver;
+  const myNickname = "我";
+  const aiNickname = "AI";
 
   return (
-    <div className="paper-bg h-[100dvh] flex flex-col overflow-hidden">
-      {/* 顶栏 */}
-      <div className="flex-shrink-0 px-4 py-2.5 flex items-center justify-between border-b-2 border-ink-muted/20 bg-white/50">
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-base">🔔</span>
-          <span className="font-display text-ink text-sm">德国心脏病 · 单人</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="font-display text-xs bg-mint text-ink px-2 py-1 rounded-full border-2 border-ink">
-            我 {myWon}
-          </span>
-          <span className="font-display text-xs bg-coral-light text-ink px-2 py-1 rounded-full border-2 border-ink">
-            AI {aiWon}
-          </span>
-        </div>
-      </div>
+    <div className="paper-bg h-[100dvh] flex flex-col overflow-hidden select-none">
+      <style>{`
+        @keyframes flipIn {
+          0% { transform: rotateY(90deg) scale(0.8); opacity: 0; }
+          100% { transform: rotateY(0) scale(1); opacity: 1; }
+        }
+        @keyframes shakeBell {
+          0%,100% { transform: rotate(0); }
+          20% { transform: rotate(-20deg); }
+          40% { transform: rotate(15deg); }
+          60% { transform: rotate(-10deg); }
+          80% { transform: rotate(5deg); }
+        }
+      `}</style>
 
-      {/* 牌堆信息 */}
-      <div className="flex-shrink-0 px-4 py-2 flex items-center justify-between border-b-2 border-ink-muted/10 bg-cream/40">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-ink-muted font-display">我的牌堆</span>
-          <span className="font-display text-xs text-ink bg-white border-2 border-ink rounded-full px-2 py-0.5">
-            {myDeck.length}
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="font-display text-xs text-ink bg-white border-2 border-ink rounded-full px-2 py-0.5">
-            {aiDeck.length}
-          </span>
-          <span className="text-[10px] text-ink-muted font-display">AI 牌堆</span>
-        </div>
-      </div>
-
-      {/* 桌面区域 */}
-      <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-        {/* 水果总数统计 */}
-        <div className="flex-shrink-0 grid grid-cols-4 gap-2 px-3 py-3">
-          {(Object.keys(SOLO_HEART_FRUIT_EMOJI) as HeartFruit[]).map((fruit) => {
-            const sum = fruitSums[fruit];
-            const isTarget = sum === 5;
-            return (
-              <div
-                key={fruit}
-                className={`rounded-doodle border-2 p-2 flex flex-col items-center justify-center transition-all ${
-                  isTarget
-                    ? "bg-sun border-ink shadow-pop animate-bounce-in"
-                    : "bg-white/70 border-ink/30"
-                }`}
-              >
-                <div className="text-2xl leading-none">{SOLO_HEART_FRUIT_EMOJI[fruit]}</div>
-                <div
-                  className={`font-display text-lg mt-1 ${
-                    isTarget ? "text-coral animate-pulse" : "text-ink"
-                  }`}
-                >
-                  {sum}
-                </div>
-                <div className="text-[9px] text-ink-muted">/5</div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* 桌面牌 */}
-        <div className="flex-1 overflow-y-auto px-3 pb-2 min-h-0">
-          <div className="text-[10px] text-ink-muted font-display mb-1.5">
-            桌面牌（{table.length}）
+      {/* 顶部栏 */}
+      <div className="flex-shrink-0 px-3 py-2 flex items-center justify-between bg-white/60 border-b-2 border-ink/10">
+        <button onClick={() => { playSfx(sfx.click); navigate("/"); }} className="btn-press bg-white border-2 border-ink rounded-full px-3 py-1 font-display text-xs flex items-center gap-1 shadow-soft">
+          <Home size={14} />
+          退出
+        </button>
+        <div className="flex flex-col items-center">
+          <div className="flex items-center gap-1.5">
+            <span className="text-lg">🔔</span>
+            <span className="font-display text-ink text-sm font-bold">德国心脏病</span>
+            <span className={`font-display text-[10px] px-1.5 py-0.5 rounded-full border border-ink ${diffCfg.color}`}>
+              {DIFF_LABEL[difficulty]}
+            </span>
           </div>
-          {table.length === 0 ? (
-            <div className="text-center py-6 text-ink-muted text-xs italic">
-              还没有翻开的牌，点击下方"翻牌"开始
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-2">
-              {table.map((tc, idx) => (
-                <div
-                  key={idx}
-                  className={`rounded-doodle border-2 p-2 flex flex-col items-center animate-bounce-in ${
-                    tc.owner === "me" ? "bg-mint/30 border-ink" : "bg-coral-light border-ink"
-                  }`}
-                >
-                  <div className="text-[9px] text-ink-muted mb-0.5">
-                    {tc.owner === "me" ? "我" : "AI"}
-                  </div>
-                  <div className="grid grid-cols-3 gap-0.5 mb-1">
-                    {Array.from({ length: tc.card.count }).map((_, i) => (
-                      <span key={i} className="text-base leading-none">
-                        {SOLO_HEART_FRUIT_EMOJI[tc.card.fruit]}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="text-[10px] font-display text-ink">
-                    {SOLO_HEART_FRUIT_NAME[tc.card.fruit]} ×{tc.card.count}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+        </div>
+        <div className="font-display text-[10px] text-ink-muted bg-white rounded-full px-2 py-1 border border-ink/20">
+          已翻 {totalFlipped}
         </div>
       </div>
 
-      {/* 拍铃结果提示 */}
+      {/* 水果计数条 */}
+      <div className="flex-shrink-0 px-3 py-2 grid grid-cols-4 gap-2">
+        {HEART_FRUITS.map((fruit) => {
+          const FRUIT_EMOJI: Record<HeartFruit, string> = { apple: "🍎", banana: "🍌", cherry: "🍒", lemon: "🍋" };
+          const sum = fruitSums[fruit];
+          const isTarget = sum === 5;
+          return (
+            <div
+              key={fruit}
+              className={`rounded-xl border-2 p-1.5 flex items-center justify-center gap-1 transition-all ${
+                isTarget ? "bg-sun border-ink shadow-pop" : "bg-white/80 border-ink/30"
+              } ${isTarget ? "animate-pulse" : ""}`}
+            >
+              <span className="text-lg leading-none">{FRUIT_EMOJI[fruit]}</span>
+              <span className={`font-display text-base font-bold ${isTarget ? "text-coral" : "text-ink"}`}>{sum}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 主区域 */}
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+        {/* AI栏 */}
+        <div className="flex-shrink-0 px-3 py-1 flex items-center justify-between">
+          <div className="flex flex-col items-center gap-1 relative">
+            <div className={`relative ${currentTurn === "ai" ? "animate-bounce" : ""}`}>
+              <div className={`w-14 h-14 rounded-full bg-coral/20 border-[3px] border-ink shadow-card flex items-center justify-center font-display text-xl text-ink`}>
+                AI
+              </div>
+              {aiWon > 0 && (
+                <div className="absolute -bottom-1 -right-1 min-w-[22px] h-[22px] px-1 rounded-full bg-ink text-white font-display text-xs flex items-center justify-center border-2 border-white shadow">
+                  {aiWon}
+                </div>
+              )}
+            </div>
+            <span className="font-display text-xs text-coral max-w-[64px] truncate">AI对手</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-display text-xs text-ink-muted">{aiDeck.length}</span>
+            <CardBack count={aiDeck.length} size="md" highlight={currentTurn === "ai"} />
+          </div>
+        </div>
+
+        {/* 桌面牌区 */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-3 py-2">
+          <div className="w-full h-full flex flex-wrap gap-2 justify-center content-start">
+            {table.length === 0 ? (
+              <div className="w-full h-full flex items-center justify-center">
+                <div className="text-center text-ink-muted font-display text-sm">
+                  <Bell size={32} className="mx-auto mb-2 opacity-30" />
+                  <p>等待翻牌...</p>
+                  <p className="text-[10px] mt-1">某水果凑齐 5 个时赶紧拍铃！</p>
+                </div>
+              </div>
+            ) : (
+              table.map((tc, idx) => (
+                <div key={idx} className="flex flex-col items-center gap-0.5">
+                  <HeartCardView
+                    card={tc.card}
+                    isNew={idx === newCardIdx}
+                    ownerSide={tc.owner === "me" ? "me" : "opp"}
+                  />
+                  <span className={`text-[9px] font-display ${tc.owner === "me" ? "text-mint" : "text-coral"}`}>
+                    {tc.owner === "me" ? myNickname : aiNickname}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* 我的栏 */}
+        <div className="flex-shrink-0 px-3 py-1 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CardBack count={myDeck.length} size="md" highlight={canFlip} onClick={canFlip ? handleFlip : undefined} />
+            <span className="font-display text-xs text-ink-muted">{myDeck.length}</span>
+          </div>
+          <div className="flex flex-col items-center gap-1 relative">
+            <div className={`relative ${currentTurn === "me" ? "animate-bounce" : ""}`}>
+              <div className={`w-14 h-14 rounded-full bg-mint border-[3px] border-ink shadow-card flex items-center justify-center font-display text-xl text-ink`}>
+                我
+              </div>
+              <div className="absolute -bottom-0.5 -left-0.5 w-4 h-4 rounded-full bg-mint border-2 border-white" />
+              {myWon > 0 && (
+                <div className="absolute -bottom-1 -right-1 min-w-[22px] h-[22px] px-1 rounded-full bg-ink text-white font-display text-xs flex items-center justify-center border-2 border-white shadow">
+                  {myWon}
+                </div>
+              )}
+            </div>
+            <span className="font-display text-xs text-mint max-w-[64px] truncate">我</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 结果提示 */}
       {resultFlash && (
-        <div className="flex-shrink-0 px-4 py-2 animate-bounce-in">
+        <div className="flex-shrink-0 px-4 pb-1 animate-bounce-in">
           <div
-            className={`rounded-doodle border-2 border-ink px-3 py-2 text-center font-display text-sm ${
+            className={`rounded-2xl border-[3px] border-ink px-4 py-2 text-center font-display text-sm shadow-pop ${
               resultFlash.type === "correct"
-                ? resultFlash.by === "me" ? "bg-mint text-ink" : "bg-coral text-white"
+                ? resultFlash.by === "me" ? "bg-mint text-ink" : "bg-coral/80 text-white"
                 : "bg-coral text-white"
             }`}
           >
-            {resultFlash.type === "correct" ? "✓ " : "✗ "}
-            {resultFlash.by === "me" ? "你" : "AI"}
-            {resultFlash.type === "correct"
-              ? resultFlash.by === "me" ? " 拍铃正确，赢得桌面所有牌！" : " 拍铃正确，AI 赢得桌面所有牌"
-              : " 拍铃错误，给对手 1 张牌！"}
+            {resultFlash.type === "correct" ? (
+              <>🔔 {resultFlash.by === "me" ? "你" : "AI"} 拍铃正确，赢得桌面所有牌！</>
+            ) : (
+              <>❌ {resultFlash.by === "me" ? "你" : "AI"} 拍错了，给对手 {resultFlash.penaltyCards ?? 1} 张牌</>
+            )}
           </div>
         </div>
       )}
 
-      {/* 底部操作区 */}
-      <div className="flex-shrink-0 bg-white border-t-2 border-ink px-3 py-3">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleFlip}
-            disabled={!canFlip}
-            className="btn-press flex-1 py-3 bg-sun text-ink font-display text-sm rounded-doodle border-2 border-ink shadow-soft disabled:opacity-40 flex items-center justify-center gap-1.5"
-          >
-            {myFlipped ? "已翻牌" : "翻牌"}
-          </button>
+      {/* 底部拍铃区 */}
+      <div className="flex-shrink-0 bg-white border-t-2 border-ink/10 px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+        <div className="flex items-center gap-3">
+          {/* 翻牌提示/按钮 */}
+          <div className="w-24 flex-shrink-0">
+            {canFlip ? (
+              <button
+                onClick={handleFlip}
+                className="btn-press w-full py-3 bg-sun text-ink font-display text-sm rounded-2xl border-[3px] border-ink shadow-soft active:scale-95"
+              >
+                翻牌
+              </button>
+            ) : (
+              <div className="w-full py-3 text-center font-display text-xs text-ink-muted">
+                {myDeck.length === 0 ? "牌堆空了" : currentTurn === "ai" ? "AI翻牌中" : "等待..."}
+              </div>
+            )}
+          </div>
+
+          {/* 大拍铃按钮 */}
           <button
             onClick={handleRing}
-            className={`btn-press flex-shrink-0 w-24 h-14 rounded-doodle border-2 border-ink font-display text-base flex items-center justify-center gap-1.5 transition-all ${
+            disabled={table.length === 0}
+            className={`btn-press flex-1 h-16 rounded-full border-[3px] border-ink font-display text-xl flex items-center justify-center gap-2 shadow-pop transition-all ${
               canRing
-                ? "bg-coral text-white shadow-pop animate-pulse"
-                : "bg-coral text-white shadow-soft"
-            }`}
+                ? "bg-gradient-to-b from-yellow-300 to-yellow-500 text-ink animate-pulse"
+                : "bg-gradient-to-b from-yellow-200 to-yellow-400 text-ink/80"
+            } disabled:opacity-50`}
+            style={canRing ? { animation: "shakeBell 0.5s infinite" } : undefined}
           >
-            <Bell size={20} />
+            <Bell size={28} />
             拍铃
           </button>
         </div>
-        <div className="text-center text-[10px] text-ink-muted mt-1.5">
-          {canRing ? "桌上有水果凑齐 5 个！快拍铃！" : "桌面任一水果总数 = 5 时可拍铃"}
+        <div className="text-center text-[10px] text-ink-muted mt-1.5 font-display">
+          {canRing ? "🔔 水果凑齐 5 个！快拍！" : table.length === 0 ? "先翻牌开始" : "桌面任一水果总数 = 5 时拍铃"}
         </div>
       </div>
     </div>

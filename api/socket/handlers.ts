@@ -154,6 +154,20 @@ export function registerSocketHandlers(io: Io) {
         return;
       }
 
+      if (room.gameType === "davinci-code") {
+        io.to(roomId).emit("game:state", {
+          phase: room.state.phase,
+          currentRound: room.state.currentRound,
+        });
+        room.players.forEach((p) => {
+          const view = RoomManager.getDaVinciStateView(room, p.id);
+          if (view) {
+            io.to(p.id).emit("dv:state", view);
+          }
+        });
+        return;
+      }
+
       io.to(roomId).emit("game:state", {
         phase: room.state.phase,
         currentRound: room.state.currentRound,
@@ -369,6 +383,20 @@ export function registerSocketHandlers(io: Io) {
         return;
       }
 
+      if (room.gameType === "davinci-code") {
+        io.to(roomId).emit("game:state", {
+          phase: room.state.phase,
+          currentRound: room.state.currentRound,
+        });
+        room.players.forEach((p) => {
+          const view = RoomManager.getDaVinciStateView(room, p.id);
+          if (view) {
+            io.to(p.id).emit("dv:state", view);
+          }
+        });
+        return;
+      }
+
       io.to(roomId).emit("game:state", {
         phase: room.state.phase,
         currentRound: room.state.currentRound,
@@ -464,12 +492,6 @@ export function registerSocketHandlers(io: Io) {
         return;
       }
       const room = result.room;
-      // 双方都翻完后，如果桌面无 fruit=5，自动推进到下一轮
-      const allFlipped = room.players.every((p) => room.state.heartFlipped?.[p.id]);
-      if (allFlipped) {
-        const advanced = RoomManager.nextHeartRound(roomId);
-        if (advanced) room.state = advanced.state;
-      }
       // 广播最新状态给双方（视角不同）
       room.players.forEach((p) => {
         const view = RoomManager.getHeartStateView(room, p.id);
@@ -491,6 +513,7 @@ export function registerSocketHandlers(io: Io) {
         type: result.type,
         ringerId: result.ringerId,
         ringerNickname: result.ringerNickname,
+        penaltyCards: result.penaltyCards,
       });
       // 如果游戏结束
       if (result.gameOver) {
@@ -671,6 +694,117 @@ export function registerSocketHandlers(io: Io) {
         drawTime: DRAW_TIME,
         wordDuration: WORD_DURATION,
         totalQuestions: q?.totalQuestions ?? 10,
+      });
+    });
+
+    // ---------- 达芬奇密码 ----------
+
+    socket.on("dv:draw", ({ roomId }) => {
+      const result = RoomManager.dvDrawCard(roomId, socket.id);
+      if (result.ok === false) {
+        socket.emit("room:error", { message: result.error });
+        return;
+      }
+      const { room, drawnCard } = result;
+      io.to(roomId).emit("dv:drew", {
+        playerId: socket.id,
+        color: drawnCard.color,
+        number: drawnCard.number,
+        isSelf: true,
+      });
+      // 给对方只发颜色（不发数字）
+      const opp = room.players.find((p) => p.id !== socket.id);
+      if (opp) {
+        io.to(opp.id).emit("dv:drew", {
+          playerId: socket.id,
+          color: drawnCard.color,
+          isSelf: false,
+        });
+      }
+      // 延迟广播最新状态
+      setTimeout(() => {
+        const current = RoomManager.getRoom(roomId);
+        if (current && current.gameType === "davinci-code") {
+          current.players.forEach((p) => {
+            const view = RoomManager.getDaVinciStateView(current, p.id);
+            if (view) {
+              io.to(p.id).emit("dv:state", view);
+            }
+          });
+        }
+      }, 800);
+    });
+
+    socket.on("dv:guess", ({ roomId, targetId, cardIndex, number }) => {
+      const result = RoomManager.dvGuess(roomId, socket.id, targetId, cardIndex, number);
+      if (result.ok === false) {
+        socket.emit("room:error", { message: result.error });
+        return;
+      }
+      const room = result.room;
+      const r = result.result;
+      const gameOver = !!room.state.dvGameOver;
+      io.to(roomId).emit("dv:guess-result", { ...r, gameOver });
+      if (gameOver) {
+        io.to(roomId).emit("game:state", {
+          phase: room.state.phase,
+          currentRound: room.state.currentRound,
+        });
+        room.players.forEach((p) => {
+          const over = RoomManager.getDaVinciGameOverData(room, p.id);
+          if (over) {
+            io.to(p.id).emit("dv:game-over", over);
+          }
+        });
+        return;
+      }
+      // 延迟广播状态（让结果先展示）
+      setTimeout(() => {
+        const current = RoomManager.getRoom(roomId);
+        if (current && current.gameType === "davinci-code") {
+          current.players.forEach((p) => {
+            const view = RoomManager.getDaVinciStateView(current, p.id);
+            if (view) {
+              io.to(p.id).emit("dv:state", view);
+            }
+          });
+        }
+      }, 1200);
+    });
+
+    socket.on("dv:pass", ({ roomId }) => {
+      const result = RoomManager.dvPass(roomId, socket.id);
+      if (result.ok === false) {
+        socket.emit("room:error", { message: result.error });
+        return;
+      }
+      const room = result.room;
+      io.to(roomId).emit("dv:passed", { playerId: socket.id });
+      setTimeout(() => {
+        const current = RoomManager.getRoom(roomId);
+        if (current && current.gameType === "davinci-code") {
+          current.players.forEach((p) => {
+            const view = RoomManager.getDaVinciStateView(current, p.id);
+            if (view) {
+              io.to(p.id).emit("dv:state", view);
+            }
+          });
+        }
+      }, 500);
+    });
+
+    socket.on("dv:restart", ({ roomId }) => {
+      const room = RoomManager.restartDaVinci(roomId, socket.id);
+      if (!room) return;
+      io.to(roomId).emit("game:state", {
+        phase: room.state.phase,
+        currentRound: room.state.currentRound,
+      });
+      room.players.forEach((p) => {
+        const view = RoomManager.getDaVinciStateView(room, p.id);
+        if (view) {
+          io.to(p.id).emit("dv:state", view);
+        }
       });
     });
 

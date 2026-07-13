@@ -9,8 +9,8 @@ export type GamePhase =
   | "ROUND_RESULT"
   | "GAME_OVER";
 
-// 游戏类型：画词记忆 / 默契考验 / 德国心脏病 / 合作画画 / 表情包猜词
-export type GameType = "draw-memory" | "telepathy" | "heart-attack" | "co-op-drawing" | "emoji-guessing";
+// 游戏类型：画词记忆 / 默契考验 / 德国心脏病 / 合作画画 / 表情包猜词 / 达芬奇密码
+export type GameType = "draw-memory" | "telepathy" | "heart-attack" | "co-op-drawing" | "emoji-guessing" | "davinci-code";
 
 export interface PlayerView {
   id: string;
@@ -98,37 +98,43 @@ export interface TelepathyRevealData {
 // 水果类型：苹果 / 香蕉 / 樱桃 / 柠檬
 export type HeartFruit = "apple" | "banana" | "cherry" | "lemon";
 
-// 单张牌：一种水果 + 数量（1-5）
-export interface HeartCard {
+// 单张牌：混合水果，1-4种水果组合
+export interface HeartFruitItem {
   fruit: HeartFruit;
   count: number;
 }
 
-// 桌面上的牌（含归属，用于前端展示左右两张）
+export interface HeartCard {
+  fruits: HeartFruitItem[];
+}
+
+// 桌面上的牌（含归属）
 export interface HeartTableCard {
   card: HeartCard;
   owner: string; // 出牌玩家 playerId
 }
 
-// 德国心脏病状态下发（按玩家视角，myDeckCount/opponentDeckCount 区分）
+// 德国心脏病状态下发（按玩家视角）
 export interface HeartStateData {
-  myDeckCount: number; // 我的牌堆剩余张数
-  myWonCount: number; // 我赢到的牌数
+  myDeckCount: number;
+  myWonCount: number;
   opponentDeckCount: number;
   opponentWonCount: number;
-  tableCards: HeartTableCard[]; // 桌面上所有牌
-  myFlipped: boolean; // 本轮我是否已翻牌
-  opponentFlipped: boolean;
-  canRing: boolean; // 桌面是否有水果总数=5（可拍铃）
+  tableCards: HeartTableCard[];
+  myTurn: boolean;
+  opponentTurn: boolean;
+  currentFlipperId: string | null;
+  canRing: boolean;
+  totalFlipped: number;
+  difficulty: string;
 }
 
 // 单次拍铃结果
 export interface HeartResultData {
   type: "correct" | "wrong";
-  ringerId: string; // 拍铃玩家
+  ringerId: string;
   ringerNickname: string;
-  // correct: 拍铃者赢得桌面所有牌
-  // wrong: 拍铃者给对手 1 张牌
+  penaltyCards?: number;
 }
 
 // 游戏结束数据
@@ -136,7 +142,7 @@ export interface HeartGameOverData {
   winnerId: string | null;
   myWon: number;
   opponentWon: number;
-  reason: "deck-empty"; // 牌堆耗尽
+  reason: "deck-empty" | "all-empty";
 }
 
 // ===== 合作画画（同时画 + AI 评分）=====
@@ -203,4 +209,43 @@ export interface EmojiRevealData {
   opponentScore: number;
   myTotal: number;
   opponentTotal: number;
+}
+
+// ===== 达芬奇密码 =====
+
+export type DaVinciColor = "black" | "white";
+
+export interface DaVinciCard {
+  id: string;
+  color: DaVinciColor;
+  number: number; // 0-11, 对手未亮牌时为 -1
+  revealed: boolean;
+}
+
+export interface DaVinciStateData {
+  myHand: DaVinciCard[];
+  opponentHand: DaVinciCard[];
+  deckCount: number;
+  myDrawnCard: DaVinciCard | null;
+  opponentDrawn: boolean;
+  myTurn: boolean;
+  phase: "draw" | "guess" | "end";
+  canContinue: boolean;
+}
+
+export interface DaVinciResultData {
+  correct: boolean;
+  guesserId: string;
+  guesserNickname: string;
+  targetId: string;
+  targetCardIndex: number;
+  guessedNumber: number;
+  actualNumber?: number;
+}
+
+export interface DaVinciGameOverData {
+  winnerId: string | null;
+  winnerNickname: string;
+  myRevealed: number;
+  opponentRevealed: number;
 }

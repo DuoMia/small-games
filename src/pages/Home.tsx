@@ -45,6 +45,7 @@ const GAME_TYPE_INFO: Record<GameType, { name: string; emoji: string }> = {
   "heart-attack": { name: "德国心脏病", emoji: "🔔" },
   "co-op-drawing": { name: "合作画画", emoji: "✏️" },
   "emoji-guessing": { name: "表情包猜词", emoji: "😎" },
+  "davinci-code": { name: "达芬奇密码", emoji: "🔐" },
 };
 
 // 5 个游戏的玩法简介（用于玩法说明区域）
@@ -54,6 +55,7 @@ const GAME_OVERVIEW: { emoji: string; name: string; desc: string; color: string 
   { emoji: "🔔", name: "德国心脏病", desc: "眼疾手快 · 拍铃抢牌", color: "bg-mint" },
   { emoji: "✏️", name: "合作画画", desc: "接龙共创 · 双人合作", color: "bg-sun" },
   { emoji: "😎", name: "表情包猜词", desc: "看 emoji 猜词 · 10 题 PK", color: "bg-coral-light" },
+  { emoji: "🔐", name: "达芬奇密码", desc: "数字推理 · 破译对手", color: "bg-mint" },
 ];
 
 // 相对时间格式化：刚刚 / X 分钟前 / X 小时前 / X 天前
@@ -276,6 +278,18 @@ export default function Home() {
                 selected={gameType === "emoji-guessing"}
                 onClick={() => {
                   setGameType("emoji-guessing");
+                  playSfx(sfx.uiTick);
+                }}
+                wide
+              />
+              <GameCard
+                icon={<span className="text-base">🔐</span>}
+                emoji="🔐"
+                title="达芬奇密码"
+                desc="数字推理破译"
+                selected={gameType === "davinci-code"}
+                onClick={() => {
+                  setGameType("davinci-code");
                   playSfx(sfx.uiTick);
                 }}
                 wide

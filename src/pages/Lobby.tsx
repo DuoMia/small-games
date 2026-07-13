@@ -46,6 +46,7 @@ export default function Lobby() {
   const isHeartAttack = gameType === "heart-attack";
   const isCoOp = gameType === "co-op-drawing";
   const isEmoji = gameType === "emoji-guessing";
+  const isDaVinci = gameType === "davinci-code";
 
   // 当前选中的题包信息
   const currentPack = (telepathyPacks as TelepathyPack[]).find(
@@ -143,11 +144,11 @@ export default function Lobby() {
         <div className="w-full mb-4 text-center">
           <span
             className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border-2 border-ink font-display text-sm ${
-              isTelepathy ? "bg-coral-light text-ink" : isHeartAttack ? "bg-mint text-ink" : isCoOp ? "bg-sun text-ink" : isEmoji ? "bg-coral-light text-ink" : "bg-sun text-ink"
+              isTelepathy ? "bg-coral-light text-ink" : isHeartAttack ? "bg-mint text-ink" : isCoOp ? "bg-sun text-ink" : isEmoji ? "bg-coral-light text-ink" : isDaVinci ? "bg-mint text-ink" : "bg-sun text-ink"
             }`}
           >
-            <span>{isTelepathy ? "💕" : isHeartAttack ? "🔔" : isCoOp ? "✏️" : isEmoji ? "😎" : "🎨"}</span>
-            {isTelepathy ? "默契考验" : isHeartAttack ? "德国心脏病" : isCoOp ? "合作画画" : isEmoji ? "表情包猜词" : "画词记忆"}
+            <span>{isTelepathy ? "💕" : isHeartAttack ? "🔔" : isCoOp ? "✏️" : isEmoji ? "😎" : isDaVinci ? "🔐" : "🎨"}</span>
+            {isTelepathy ? "默契考验" : isHeartAttack ? "德国心脏病" : isCoOp ? "合作画画" : isEmoji ? "表情包猜词" : isDaVinci ? "达芬奇密码" : "画词记忆"}
           </span>
         </div>
 
@@ -193,12 +194,40 @@ export default function Lobby() {
             </p>
           </div>
         ) : isHeartAttack ? (
-          // 德国心脏病：无需配置，显示玩法提示
-          <div className="w-full bg-white rounded-doodle border-2 border-ink p-4 mb-6 shadow-soft text-center">
-            <div className="text-4xl mb-2">🔔</div>
-            <p className="font-display text-ink text-sm mb-1">德国心脏病</p>
-            <p className="text-xs text-ink-muted">
-              4 种水果 · 凑齐 5 个拍铃 · 60 张牌对战
+          <div className="w-full bg-white rounded-doodle border-2 border-ink p-4 mb-6 shadow-soft">
+            <p className="font-display text-ink text-sm mb-2 flex items-center justify-between">
+              <span>难度选择</span>
+              {!isHost && <span className="text-xs text-ink-muted">房主设置</span>}
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {(["easy", "normal", "hard"] as const).map((d) => {
+                const cfg = getDifficultyConfig(d);
+                return (
+                  <button
+                    key={d}
+                    disabled={!isHost}
+                    onClick={() => {
+                      if (roomId && isHost) {
+                        setDifficulty(roomId, d);
+                        playSfx(sfx.uiTick);
+                      }
+                    }}
+                    className={`py-2.5 rounded-doodle border-2 font-display text-sm transition-all flex flex-col items-center gap-0.5 ${
+                      difficulty === d
+                        ? `${cfg.color} border-ink shadow-soft`
+                        : "bg-white text-ink border-ink/30"
+                    } ${!isHost ? "cursor-not-allowed opacity-70" : "btn-press"}`}
+                  >
+                    <span>{cfg.icon}</span>
+                    {cfg.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-center text-xs text-ink-muted mt-2">
+              {difficulty === "easy" && "1-2种水果/牌，牌面简单，适合新手"}
+              {difficulty === "normal" && "2-3种水果/牌，中等难度"}
+              {difficulty === "hard" && "2-4种水果/牌，拍错罚2张，挑战高手"}
             </p>
           </div>
         ) : isCoOp ? (
@@ -261,6 +290,15 @@ export default function Lobby() {
             <p className="font-display text-ink text-sm mb-1">表情包猜词</p>
             <p className="text-xs text-ink-muted">
               看emoji组合猜词语 · 双人PK · 共 10 题
+            </p>
+          </div>
+        ) : isDaVinci ? (
+          // 达芬奇密码：无需配置
+          <div className="w-full bg-white rounded-doodle border-2 border-ink p-4 mb-6 shadow-soft text-center">
+            <div className="text-4xl mb-2">🔐</div>
+            <p className="font-display text-ink text-sm mb-1">达芬奇密码</p>
+            <p className="text-xs text-ink-muted">
+              24 张黑白数字牌 · 轮流摸牌猜数字 · 破译对方所有牌获胜
             </p>
           </div>
         ) : (
@@ -380,7 +418,7 @@ export default function Lobby() {
         {/* 规则提示 */}
         <div className="w-full mt-6 bg-cream-dark rounded-doodle p-4 border-2 border-ink-muted">
           <p className="font-display text-ink text-sm mb-2">
-            {isTelepathy ? "💕 默契考验规则" : isHeartAttack ? "🔔 德国心脏病规则" : isCoOp ? "✏️ 合作画画规则" : isEmoji ? "🎯 表情包猜词规则" : "📋 游戏规则"}
+            {isTelepathy ? "💕 默契考验规则" : isHeartAttack ? "🔔 德国心脏病规则" : isCoOp ? "✏️ 合作画画规则" : isEmoji ? "🎯 表情包猜词规则" : isDaVinci ? "🔐 达芬奇密码规则" : "📋 游戏规则"}
           </p>
           {isTelepathy ? (
             <ul className="text-xs text-ink-muted space-y-1">
@@ -393,12 +431,11 @@ export default function Lobby() {
             </ul>
           ) : isHeartAttack ? (
             <ul className="text-xs text-ink-muted space-y-1">
-              <li>· 4 种水果（🍎🍌🍒🍋），每张牌 1-5 个同种水果</li>
-              <li>· 双方各持 30 张牌，每轮各翻一张</li>
-              <li>· 桌面任一水果总数恰好为 5 时，可拍铃</li>
-              <li>· 拍铃正确：赢得桌面所有牌</li>
-              <li>· 拍铃错误：给对手 1 张牌</li>
-              <li>· 任一玩家牌堆耗尽，牌多者获胜</li>
+              <li>· 4 种水果（🍎🍌🍒🍋），每张牌含混合水果（1-5个）</li>
+              <li>· 双方牌堆均分，轮流翻牌到桌面中央</li>
+              <li>· 桌面任一水果总数恰好为 5 时，先拍铃者赢牌</li>
+              <li>· 拍铃正确：赢得桌面所有牌；错误：给对手{difficulty === "hard" ? " 2" : " 1"}张牌</li>
+              <li>· 双方牌堆耗尽，赢牌多者获胜</li>
             </ul>
           ) : isCoOp ? (
             <ul className="text-xs text-ink-muted space-y-1">
@@ -417,6 +454,15 @@ export default function Lobby() {
               <li>· 答案不区分大小写、忽略空格</li>
               <li>· 题库覆盖成语/电影/动物/食物/网络梗等</li>
               <li>· 10 题总分高者获胜，平局也算</li>
+            </ul>
+          ) : isDaVinci ? (
+            <ul className="text-xs text-ink-muted space-y-1">
+              <li>· 24 张牌：黑/白各 12 张（数字 0-11）</li>
+              <li>· 每人发 4 张，按左小右大排序立在自己面前</li>
+              <li>· 回合流程：摸一张新牌 → 猜对手任意一张的数字</li>
+              <li>· 猜对：该牌亮出，可继续猜或结束回合</li>
+              <li>· 猜错：自己刚摸的牌倒下（亮出）插入手牌，回合结束</li>
+              <li>· 先破译对方所有牌者获胜</li>
             </ul>
           ) : (
             <ul className="text-xs text-ink-muted space-y-1">

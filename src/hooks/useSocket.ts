@@ -41,6 +41,12 @@ export function useSocketConnection() {
     setEmojiReveal,
     setRoundResult,
     setGameOver,
+    setDaVinciState,
+    setDaVinciResult,
+    setDaVinciGameOver,
+    setDvOppDrewColor,
+    setDvSelfDrewCard,
+    setDvPassedPlayerId,
   } = useGameStore();
   const { sfxEnabled } = useAudioStore();
 
@@ -200,6 +206,35 @@ export function useSocketConnection() {
       }
     };
 
+    // ---- 达芬奇密码事件 ----
+    const onDvState = (s) => setDaVinciState(s);
+    const onDvDrew = (data: { playerId: string; color: "black" | "white"; number?: number; isSelf: boolean }) => {
+      if (data.isSelf && typeof data.number === "number") {
+        setDvSelfDrewCard({ color: data.color, number: data.number });
+      } else if (!data.isSelf) {
+        setDvOppDrewColor(data.color);
+      }
+    };
+    const onDvGuessResult = (r) => {
+      setDaVinciResult(r);
+      playSfx(r.correct ? sfx.correct : sfx.wrong);
+    };
+    const onDvPassed = (data: { playerId: string }) => {
+      setDvPassedPlayerId(data.playerId);
+      playSfx(sfx.uiTick);
+    };
+    const onDvGameOver = (g) => {
+      setDaVinciGameOver(g);
+      const myId = useGameStore.getState().myId;
+      if (g.winnerId && g.winnerId === myId) {
+        playSfx(sfx.win);
+      } else if (g.winnerId === null) {
+        playSfx(sfx.roundEnd);
+      } else {
+        playSfx(sfx.lose);
+      }
+    };
+
     const onRoundResult = (r) => {
       setRoundResult(r);
       playSfx(sfx.roundEnd);
@@ -251,6 +286,11 @@ export function useSocketConnection() {
     socket.on("emoji:question", onEmojiQuestion);
     socket.on("emoji:opponent-answered", onEmojiOpponentAnswered);
     socket.on("emoji:reveal", onEmojiReveal);
+    socket.on("dv:state", onDvState);
+    socket.on("dv:drew", onDvDrew);
+    socket.on("dv:guess-result", onDvGuessResult);
+    socket.on("dv:passed", onDvPassed);
+    socket.on("dv:game-over", onDvGameOver);
     socket.on("round:result", onRoundResult);
     socket.on("game:over", onGameOver);
     socket.on("player:left", onPlayerLeft);
@@ -288,6 +328,11 @@ export function useSocketConnection() {
       socket.off("emoji:question", onEmojiQuestion);
       socket.off("emoji:opponent-answered", onEmojiOpponentAnswered);
       socket.off("emoji:reveal", onEmojiReveal);
+      socket.off("dv:state", onDvState);
+      socket.off("dv:drew", onDvDrew);
+      socket.off("dv:guess-result", onDvGuessResult);
+      socket.off("dv:passed", onDvPassed);
+      socket.off("dv:game-over", onDvGameOver);
       socket.off("round:result", onRoundResult);
       socket.off("game:over", onGameOver);
       socket.off("player:left", onPlayerLeft);
@@ -353,6 +398,12 @@ export function useRoomActions() {
       socket.emit("emoji:submit", { roomId, questionIndex, guess }),
     emojiNext: (roomId: string) => socket.emit("emoji:next", { roomId }),
     emojiRestart: (roomId: string) => socket.emit("emoji:restart", { roomId }),
+    // 达芬奇密码
+    dvDraw: (roomId: string) => socket.emit("dv:draw", { roomId }),
+    dvGuess: (roomId: string, targetId: string, cardIndex: number, number: number) =>
+      socket.emit("dv:guess", { roomId, targetId, cardIndex, number }),
+    dvPass: (roomId: string) => socket.emit("dv:pass", { roomId }),
+    dvRestart: (roomId: string) => socket.emit("dv:restart", { roomId }),
     cleanup: () => disconnectSocket(),
   };
 }

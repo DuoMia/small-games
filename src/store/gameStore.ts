@@ -21,6 +21,9 @@ import type {
   CoOpOrientation,
   EmojiQuestionData,
   EmojiRevealData,
+  DaVinciStateData,
+  DaVinciResultData,
+  DaVinciGameOverData,
 } from "@/lib/types";
 
 interface GameState {
@@ -70,6 +73,16 @@ interface GameState {
   emojiOpponentAnswered: boolean;
   emojiReveal: EmojiRevealData | null;
 
+  // 达芬奇密码
+  dvState: DaVinciStateData | null;
+  dvResult: DaVinciResultData | null;
+  dvGameOver: DaVinciGameOverData | null;
+  // 对方摸牌动画提示（仅对方摸了一张牌，颜色已知）
+  dvOppDrewColor: "black" | "white" | null;
+  // 自己摸牌动画（摸了一张新牌，等待查看）
+  dvSelfDrewCard: { color: "black" | "white"; number: number } | null;
+  dvPassedPlayerId: string | null;
+
   // 结算
   roundResult: RoundResultData | null;
   gameOver: GameOverData | null;
@@ -107,6 +120,13 @@ interface GameState {
   setEmojiQuestion: (q: EmojiQuestionData | null) => void;
   setEmojiOpponentAnswered: () => void;
   setEmojiReveal: (r: EmojiRevealData | null) => void;
+  // 达芬奇密码
+  setDaVinciState: (s: DaVinciStateData | null) => void;
+  setDaVinciResult: (r: DaVinciResultData | null) => void;
+  setDaVinciGameOver: (g: DaVinciGameOverData | null) => void;
+  setDvOppDrewColor: (c: "black" | "white" | null) => void;
+  setDvSelfDrewCard: (c: { color: "black" | "white"; number: number } | null) => void;
+  setDvPassedPlayerId: (id: string | null) => void;
   setRoundResult: (r: RoundResultData | null) => void;
   setGameOver: (g: GameOverData | null) => void;
   reset: () => void;
@@ -145,6 +165,13 @@ export const useGameStore = create<GameState>((set) => ({
   emojiQuestion: null,
   emojiOpponentAnswered: false,
   emojiReveal: null,
+  // 达芬奇密码
+  dvState: null,
+  dvResult: null,
+  dvGameOver: null,
+  dvOppDrewColor: null,
+  dvSelfDrewCard: null,
+  dvPassedPlayerId: null,
   roundResult: null,
   gameOver: null,
 
@@ -216,6 +243,20 @@ export const useGameStore = create<GameState>((set) => ({
     }),
   setEmojiOpponentAnswered: () => set({ emojiOpponentAnswered: true }),
   setEmojiReveal: (r) => set({ emojiReveal: r }),
+  // 达芬奇密码
+  setDaVinciState: (s) =>
+    set({
+      dvState: s,
+      dvResult: null,
+      dvOppDrewColor: null,
+      dvSelfDrewCard: null,
+      dvPassedPlayerId: null,
+    }),
+  setDaVinciResult: (r) => set({ dvResult: r }),
+  setDaVinciGameOver: (g) => set({ dvGameOver: g }),
+  setDvOppDrewColor: (c) => set({ dvOppDrewColor: c }),
+  setDvSelfDrewCard: (c) => set({ dvSelfDrewCard: c }),
+  setDvPassedPlayerId: (id) => set({ dvPassedPlayerId: id }),
   setRoundResult: (r) => set({ roundResult: r }),
   setGameOver: (g) => set({ gameOver: g }),
   reset: () =>
@@ -247,6 +288,12 @@ export const useGameStore = create<GameState>((set) => ({
       emojiQuestion: null,
       emojiOpponentAnswered: false,
       emojiReveal: null,
+      dvState: null,
+      dvResult: null,
+      dvGameOver: null,
+      dvOppDrewColor: null,
+      dvSelfDrewCard: null,
+      dvPassedPlayerId: null,
       roundResult: null,
       gameOver: null,
     }),

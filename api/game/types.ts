@@ -10,8 +10,8 @@ export type GamePhase =
   | "ROUND_RESULT"
   | "GAME_OVER";
 
-// 游戏类型：画词记忆 / 默契考验 / 德国心脏病 / 合作画画 / 表情包猜词
-export type GameType = "draw-memory" | "telepathy" | "heart-attack" | "co-op-drawing" | "emoji-guessing";
+// 游戏类型：画词记忆 / 默契考验 / 德国心脏病 / 合作画画 / 表情包猜词 / 达芬奇密码
+export type GameType = "draw-memory" | "telepathy" | "heart-attack" | "co-op-drawing" | "emoji-guessing" | "davinci-code";
 
 // 表情包猜词单题结构
 export interface EmojiPuzzle {
@@ -25,10 +25,40 @@ export interface EmojiPuzzle {
 // 德国心脏病水果类型
 export type HeartFruit = "apple" | "banana" | "cherry" | "lemon";
 
-// 德国心脏病单张牌
-export interface HeartCard {
+// 水果条目（混合水果牌中每种水果及数量）
+export interface HeartFruitItem {
   fruit: HeartFruit;
-  count: number; // 1-5
+  count: number;
+}
+
+// 德国心脏病单张牌（混合水果，可能有1-4种水果组合）
+export interface HeartCard {
+  fruits: HeartFruitItem[];
+}
+
+// ===== 达芬奇密码 =====
+
+// 达芬奇密码牌颜色
+export type DaVinciColor = "black" | "white";
+
+// 达芬奇密码单张牌
+export interface DaVinciCard {
+  id: string;
+  color: DaVinciColor;
+  number: number; // 0-11
+  revealed: boolean; // 是否已被破译（倒下/亮出）
+}
+
+// 达芬奇密码猜牌结果
+export interface DaVinciGuessResult {
+  correct: boolean;
+  guesserId: string;
+  guesserNickname: string;
+  targetId: string; // 被猜的玩家
+  targetCardIndex: number; // 被猜牌的位置索引
+  guessedNumber: number;
+  actualNumber?: number; // 猜错时显示实际数字
+  gameOver?: boolean;
 }
 
 // 合作画画单笔笔画
@@ -93,9 +123,11 @@ export interface GameState {
   // 德国心脏病专用字段
   heartDeck?: Record<string, HeartCard[]>; // playerId -> 牌堆（剩余可翻的牌）
   heartWon?: Record<string, number>; // playerId -> 赢到的牌数
-  heartTable?: { card: HeartCard; owner: string }[]; // 桌面上的牌
-  heartFlipped?: Record<string, boolean>; // 本轮各玩家是否已翻牌
-  heartLastResult?: { type: "correct" | "wrong"; ringerId: string; ringerNickname: string } | null;
+  heartTable?: { card: HeartCard; owner: string }[]; // 桌面上累积的牌
+  heartFlipped?: Record<string, boolean>; // 本轮各玩家是否已翻牌（兼容字段，实际用currentFlipperId）
+  heartCurrentFlipperId?: string; // 当前轮到谁翻牌
+  heartTotalFlipped?: number; // 已翻出的总牌数（用于显示）
+  heartLastResult?: { type: "correct" | "wrong"; ringerId: string; ringerNickname: string; penaltyCards?: number } | null;
   heartGameOver?: boolean;
   // 合作画画专用字段（同时画 + AI 评分玩法）
   coOpPrompt?: string; // 当前命题
@@ -113,6 +145,16 @@ export interface GameState {
   emojiScores?: Record<string, number>; // playerId -> 本题得分
   emojiRevealed?: boolean; // 是否已揭晓
   emojiTotalScores?: Record<string, number>; // playerId -> 累计总分
+  // 达芬奇密码专用字段
+  dvDeck?: DaVinciCard[]; // 剩余牌堆（面朝下）
+  dvHands?: Record<string, DaVinciCard[]>; // playerId -> 手牌（已排序）
+  dvDrawn?: Record<string, DaVinciCard | null>; // playerId -> 刚摸的临时牌（未放入手牌）
+  dvCurrentPlayerId?: string; // 当前回合玩家
+  dvPhase?: "draw" | "guess" | "end"; // draw=待摸牌, guess=待猜牌, end=游戏结束
+  dvLastResult?: DaVinciGuessResult | null; // 上次猜牌结果
+  dvContinues?: boolean; // 猜对后是否继续猜（不摸牌）
+  dvGameOver?: boolean;
+  dvWinnerId?: string | null;
 }
 
 export interface Room {
@@ -187,6 +229,11 @@ export interface ClientToServerEvents {
   "emoji:submit": (data: { roomId: string; questionIndex: number; guess: string }) => void;
   "emoji:next": (data: { roomId: string }) => void;
   "emoji:restart": (data: { roomId: string }) => void;
+  // 达芬奇密码
+  "dv:draw": (data: { roomId: string }) => void;
+  "dv:guess": (data: { roomId: string; targetId: string; cardIndex: number; number: number }) => void;
+  "dv:pass": (data: { roomId: string }) => void;
+  "dv:restart": (data: { roomId: string }) => void;
 }
 
 export interface ServerToClientEvents {
@@ -217,12 +264,15 @@ export interface ServerToClientEvents {
     opponentDeckCount: number;
     opponentWonCount: number;
     tableCards: { card: HeartCard; owner: string }[];
-    myFlipped: boolean;
-    opponentFlipped: boolean;
+    myTurn: boolean;
+    opponentTurn: boolean;
+    currentFlipperId: string | null;
     canRing: boolean;
+    totalFlipped: number;
+    difficulty: string;
   }) => void;
-  "heart:result": (data: { type: "correct" | "wrong"; ringerId: string; ringerNickname: string }) => void;
-  "heart:game-over": (data: { winnerId: string | null; myWon: number; opponentWon: number; reason: "deck-empty" }) => void;
+  "heart:result": (data: { type: "correct" | "wrong"; ringerId: string; ringerNickname: string; penaltyCards?: number }) => void;
+  "heart:game-over": (data: { winnerId: string | null; myWon: number; opponentWon: number; reason: "deck-empty" | "all-empty" }) => void;
   // 合作画画（同时画 + AI 评分）
   "coop:prompt": (data: { prompt: string; orientation: "landscape" | "portrait" }) => void;
   "coop:orientation-changed": (data: { orientation: "landscape" | "portrait" }) => void;
@@ -236,4 +286,19 @@ export interface ServerToClientEvents {
   "emoji:question": (data: { questionIndex: number; emoji: string; category: string; totalQuestions: number; timeLimit: number }) => void;
   "emoji:opponent-answered": (data: { questionIndex: number }) => void;
   "emoji:reveal": (data: { questionIndex: number; myGuess: string; opponentGuess: string; answer: string; myCorrect: boolean; opponentCorrect: boolean; myScore: number; opponentScore: number; myTotal: number; opponentTotal: number }) => void;
+  // 达芬奇密码
+  "dv:state": (data: {
+    myHand: DaVinciCard[];
+    opponentHand: DaVinciCard[]; // opponentHand 中未亮的牌 number 不展示，用 -1 标记
+    deckCount: number;
+    myDrawnCard: DaVinciCard | null;
+    opponentDrawn: boolean;
+    myTurn: boolean;
+    phase: "draw" | "guess" | "end";
+    canContinue: boolean; // 猜对后可选择继续猜
+  }) => void;
+  "dv:drew": (data: { playerId: string; color: DaVinciColor; number?: number; isSelf: boolean }) => void;
+  "dv:guess-result": (data: DaVinciGuessResult & { gameOver?: boolean }) => void;
+  "dv:passed": (data: { playerId: string }) => void;
+  "dv:game-over": (data: { winnerId: string | null; winnerNickname: string; myRevealed: number; opponentRevealed: number }) => void;
 }

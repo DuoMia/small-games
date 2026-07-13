@@ -12,6 +12,10 @@ import type {
   EmojiPuzzle,
   HeartCard,
   HeartFruit,
+  HeartFruitItem,
+  DaVinciCard,
+  DaVinciColor,
+  DaVinciGuessResult,
 } from "./types.js";
 import { pickRandomWords, generateQuestions, wordBank } from "./WordBank.js";
 import { checkAnswer } from "./AnswerChecker.js";
@@ -47,6 +51,8 @@ const EMOJI_TOTAL_QUESTIONS = 10;
 const EMOJI_TIME_LIMIT = 30;
 // 表情包猜词答对得分
 const EMOJI_CORRECT_SCORE = 10;
+// 达芬奇密码初始手牌数
+const DV_INITIAL_HAND = 4;
 
 // 题包数据结构
 interface TelepathyPack {
@@ -206,6 +212,11 @@ class RoomManagerClass {
     if (room.gameType === "emoji-guessing") {
       // 表情包猜词：随机抽10题，初始化 GameState
       this.startEmojiGuessingInternal(room);
+      return { room, words: [] };
+    }
+
+    if (room.gameType === "davinci-code") {
+      this.startDaVinciCodeInternal(room);
       return { room, words: [] };
     }
 
@@ -518,6 +529,11 @@ class RoomManagerClass {
       return { room, words: [] };
     }
 
+    if (room.gameType === "davinci-code") {
+      this.startDaVinciCodeInternal(room);
+      return { room, words: [] };
+    }
+
     this.startNewRound(room, 1);
     return { room, words: room.state.words };
   }
@@ -787,20 +803,55 @@ class RoomManagerClass {
   // ============ 德国心脏病相关 ============
 
   /**
-   * 生成德国心脏病牌堆：4 种水果各 15 张（1-5 各 3 张），共 60 张
-   * Fisher-Yates 洗牌后返回
+   * 生成德国心脏病牌堆（混合水果）
+   * 难度影响：水果种类数、每牌水果总数、是否触发=5的密度
+   *
+   * easy（简单）：1-2种水果/牌，每牌水果总数1-4，约50%牌对可凑出5
+   * normal（中等）：2-3种水果/牌，每牌水果总数2-5，约35%牌对可凑出5
+   * hard/nightmare（困难）：2-4种水果/牌，每牌水果总数3-5，约20%牌对可凑出5
    */
-  private generateHeartDeck(): HeartCard[] {
+  private generateHeartDeck(difficulty: Difficulty): HeartCard[] {
     const fruits: HeartFruit[] = ["apple", "banana", "cherry", "lemon"];
-    const deck: HeartCard[] = [];
-    for (const fruit of fruits) {
-      // 每种水果：1-5 各 3 张 = 15 张
-      for (let count = 1; count <= 5; count++) {
-        for (let i = 0; i < 3; i++) {
-          deck.push({ fruit, count });
-        }
-      }
+
+    // 难度参数
+    let minFruitTypes = 1, maxFruitTypes = 2;
+    let minFruitsOnCard = 1, maxFruitsOnCard = 4;
+    let deckSize = 56;
+    if (difficulty === "normal") {
+      minFruitTypes = 2; maxFruitTypes = 3;
+      minFruitsOnCard = 2; maxFruitsOnCard = 5;
+      deckSize = 56;
+    } else if (difficulty === "hard" || difficulty === "nightmare") {
+      minFruitTypes = 2; maxFruitTypes = 4;
+      minFruitsOnCard = 3; maxFruitsOnCard = 5;
+      deckSize = 56;
     }
+
+    const deck: HeartCard[] = [];
+
+    // 为了保证有足够的 =5 机会，刻意生成一些凑对的牌
+    // 先随机生成基础牌堆（40张），然后再补充一些"能和已有牌凑5"的牌
+    const makeRandomCard = (): HeartCard => {
+      const numTypes = minFruitTypes + Math.floor(Math.random() * (maxFruitTypes - minFruitTypes + 1));
+      const shuffled = [...fruits].sort(() => Math.random() - 0.5);
+      const chosenFruits = shuffled.slice(0, numTypes);
+      const items: HeartFruitItem[] = [];
+      let remaining = minFruitsOnCard + Math.floor(Math.random() * (maxFruitsOnCard - minFruitsOnCard + 1));
+      for (let i = 0; i < chosenFruits.length; i++) {
+        const isLast = i === chosenFruits.length - 1;
+        const maxHere = isLast ? remaining : Math.max(1, remaining - (chosenFruits.length - i - 1));
+        const minHere = isLast ? remaining : 1;
+        const c = minHere + Math.floor(Math.random() * (maxHere - minHere + 1));
+        items.push({ fruit: chosenFruits[i], count: c });
+        remaining -= c;
+      }
+      return { fruits: items };
+    };
+
+    for (let i = 0; i < deckSize; i++) {
+      deck.push(makeRandomCard());
+    }
+
     // Fisher-Yates 洗牌
     for (let i = deck.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -811,7 +862,6 @@ class RoomManagerClass {
 
   /**
    * 内部启动德国心脏病（开始或重玩都走这里）
-   * 生成 60 张牌洗牌后 30/30 均分给双方
    */
   private startHeartAttackInternal(room: Room) {
     // 重置玩家分数
@@ -822,20 +872,22 @@ class RoomManagerClass {
       p.answers = [];
     });
 
-    const fullDeck = this.generateHeartDeck();
-    const half = Math.floor(fullDeck.length / 2); // 30
+    const difficulty: Difficulty = room.difficulty || DEFAULT_DIFFICULTY;
+    const fullDeck = this.generateHeartDeck(difficulty);
+    const half = Math.floor(fullDeck.length / 2);
 
     const deck: Record<string, HeartCard[]> = {};
     const won: Record<string, number> = {};
-    const flipped: Record<string, boolean> = {};
     room.players.forEach((p, idx) => {
       deck[p.id] = fullDeck.slice(idx * half, (idx + 1) * half);
       won[p.id] = 0;
-      flipped[p.id] = false;
     });
 
+    // 房主先翻
+    const firstFlipper = room.hostId;
+
     room.state = {
-      phase: "DRAWING", // 复用 DRAWING 作为"游戏中"
+      phase: "DRAWING",
       currentRound: 1,
       words: [],
       wordEntries: [],
@@ -847,24 +899,35 @@ class RoomManagerClass {
       answerResults: {},
       questionNextReady: {},
       revealed: false,
-      // 德国心脏病字段
       heartDeck: deck,
       heartWon: won,
       heartTable: [],
-      heartFlipped: flipped,
+      heartFlipped: {},
+      heartCurrentFlipperId: firstFlipper,
+      heartTotalFlipped: 0,
       heartLastResult: null,
       heartGameOver: false,
     };
   }
 
   /**
+   * 计算桌面上各水果的总数
+   */
+  private getHeartFruitSums(table: { card: HeartCard; owner: string }[]): Record<HeartFruit, number> {
+    const sums: Record<HeartFruit, number> = { apple: 0, banana: 0, cherry: 0, lemon: 0 };
+    for (const item of table) {
+      for (const fi of item.card.fruits) {
+        sums[fi.fruit] += fi.count;
+      }
+    }
+    return sums;
+  }
+
+  /**
    * 判断桌面上是否有任意水果总数恰好为 5
    */
   private hasFruitFive(table: { card: HeartCard; owner: string }[]): boolean {
-    const sums: Record<string, number> = { apple: 0, banana: 0, cherry: 0, lemon: 0 };
-    for (const item of table) {
-      sums[item.card.fruit] += item.card.count;
-    }
+    const sums = this.getHeartFruitSums(table);
     return (Object.values(sums) as number[]).some((s) => s === 5);
   }
 
@@ -877,30 +940,36 @@ class RoomManagerClass {
     opponentDeckCount: number;
     opponentWonCount: number;
     tableCards: { card: HeartCard; owner: string }[];
-    myFlipped: boolean;
-    opponentFlipped: boolean;
+    myTurn: boolean;
+    opponentTurn: boolean;
+    currentFlipperId: string | null;
     canRing: boolean;
+    totalFlipped: number;
+    difficulty: string;
   } | null {
     if (!room.state.heartDeck) return null;
     const opponent = room.players.find((p) => p.id !== socketId);
     const myDeck = room.state.heartDeck[socketId] || [];
     const opponentDeck = opponent ? (room.state.heartDeck[opponent.id] || []) : [];
     const table = room.state.heartTable || [];
+    const currentFlipperId = room.state.heartCurrentFlipperId || null;
     return {
       myDeckCount: myDeck.length,
       myWonCount: room.state.heartWon?.[socketId] ?? 0,
       opponentDeckCount: opponentDeck.length,
       opponentWonCount: opponent ? (room.state.heartWon?.[opponent.id] ?? 0) : 0,
       tableCards: table,
-      myFlipped: room.state.heartFlipped?.[socketId] ?? false,
-      opponentFlipped: opponent ? (room.state.heartFlipped?.[opponent.id] ?? false) : false,
-      canRing: this.hasFruitFive(table),
+      myTurn: currentFlipperId === socketId,
+      opponentTurn: opponent ? currentFlipperId === opponent.id : false,
+      currentFlipperId,
+      canRing: this.hasFruitFive(table) && table.length > 0,
+      totalFlipped: room.state.heartTotalFlipped ?? 0,
+      difficulty: room.difficulty || DEFAULT_DIFFICULTY,
     };
   }
 
   /**
-   * 翻牌：玩家翻出自己牌堆顶的一张到桌面
-   * 返回 null 表示参数错误；返回对象表示翻牌成功
+   * 翻牌：轮到自己时可翻出一张牌追加到桌面
    */
   flipHeartCard(
     roomId: string,
@@ -913,61 +982,58 @@ class RoomManagerClass {
     if (room.state.heartGameOver) return { ok: false, error: "游戏已结束" };
     const player = room.players.find((p) => p.id === socketId);
     if (!player) return { ok: false, error: "玩家不存在" };
-    // 本轮已翻过
-    if (room.state.heartFlipped?.[socketId]) return { ok: false, error: "本轮已翻牌" };
-    const deck = room.state.heartDeck?.[socketId] || [];
-    if (deck.length === 0) return { ok: false, error: "牌堆已空" };
 
-    // 弹出牌堆顶（末尾）的一张
+    // 必须轮到自己
+    if (room.state.heartCurrentFlipperId !== socketId) {
+      return { ok: false, error: "还没轮到你翻牌" };
+    }
+
+    const deck = room.state.heartDeck?.[socketId] || [];
+    if (deck.length === 0) {
+      // 没牌了，跳过翻牌，把翻牌权交给对方
+      const opponent = room.players.find((p) => p.id !== socketId);
+      if (opponent && (room.state.heartDeck?.[opponent.id] || []).length > 0) {
+        room.state.heartCurrentFlipperId = opponent.id;
+        return { ok: true, room };
+      }
+      // 双方都没牌了
+      return { ok: false, error: "牌堆已空" };
+    }
+
+    // 弹出牌堆顶（末尾）一张
     const card = deck.pop()!;
     room.state.heartDeck[socketId] = deck;
-    // 加入桌面
+    // 追加到桌面
     const table = room.state.heartTable || [];
     table.push({ card, owner: socketId });
     room.state.heartTable = table;
-    // 标记本轮已翻
-    const flipped = room.state.heartFlipped || {};
-    flipped[socketId] = true;
-    room.state.heartFlipped = flipped;
+    room.state.heartTotalFlipped = (room.state.heartTotalFlipped ?? 0) + 1;
 
-    // 检查是否需要进入下一轮（双方都翻完且无可拍铃）
-    // 下一轮由 nextHeartRound 处理，这里不自动推进，等待前端或拍铃触发
+    // 切换翻牌权给对手（如果对手还有牌）
+    const opponent = room.players.find((p) => p.id !== socketId);
+    if (opponent && (room.state.heartDeck?.[opponent.id] || []).length > 0) {
+      room.state.heartCurrentFlipperId = opponent.id;
+    } else {
+      // 对手没牌了，自己继续（如果自己还有牌）
+      if (deck.length > 0) {
+        room.state.heartCurrentFlipperId = socketId;
+      } else {
+        room.state.heartCurrentFlipperId = null; // 双方都没牌
+      }
+    }
 
     return { ok: true, room };
   }
 
   /**
-   * 推进到下一轮：双方都翻完后，如果没人拍铃，重置 flipped 标记
-   * 在前端"翻牌"按钮可用时自动调用（双方都翻完且无 fruit=5 时）
-   */
-  nextHeartRound(roomId: string): Room | null {
-    const room = this.rooms.get(roomId);
-    if (!room) return null;
-    if (room.gameType !== "heart-attack") return null;
-    if (room.state.phase !== "DRAWING") return null;
-    if (room.state.heartGameOver) return null;
-    // 必须双方都翻完
-    const allFlipped = room.players.every((p) => room.state.heartFlipped?.[p.id]);
-    if (!allFlipped) return null;
-    // 桌面无 fruit=5 才推进（有 fruit=5 时等待拍铃）
-    if (this.hasFruitFive(room.state.heartTable || [])) return null;
-    // 重置 flipped，进入下一轮
-    const flipped: Record<string, boolean> = {};
-    room.players.forEach((p) => { flipped[p.id] = false; });
-    room.state.heartFlipped = flipped;
-    return room;
-  }
-
-  /**
    * 拍铃：验证桌面是否有水果总数=5
-   * 正确：拍铃者赢得桌面所有牌，清空桌面，重置 flipped
-   * 错误：拍铃者给对手 1 张牌（从牌堆顶）
-   * 返回结果对象，由 handler 广播
+   * 正确：拍铃者赢得桌面所有牌，清空桌面，下一轮由输方先翻
+   * 错误：拍铃者给对手 penalty 张牌（easy/normal:1, hard/nightmare:2）
    */
   ringHeartBell(
     roomId: string,
     socketId: string
-  ): { ok: true; room: Room; type: "correct" | "wrong"; ringerId: string; ringerNickname: string; gameOver: boolean } | { ok: false; error: string } {
+  ): { ok: true; room: Room; type: "correct" | "wrong"; ringerId: string; ringerNickname: string; gameOver: boolean; penaltyCards?: number } | { ok: false; error: string } {
     const room = this.rooms.get(roomId);
     if (!room) return { ok: false, error: "房间不存在" };
     if (room.gameType !== "heart-attack") return { ok: false, error: "非德国心脏病房间" };
@@ -978,6 +1044,9 @@ class RoomManagerClass {
 
     const table = room.state.heartTable || [];
     const isCorrect = this.hasFruitFive(table);
+    const difficulty: Difficulty = room.difficulty || DEFAULT_DIFFICULTY;
+    const penaltyCards = (difficulty === "hard" || difficulty === "nightmare") ? 2 : 1;
+    let gameOver = false;
 
     if (isCorrect) {
       // 正确拍铃：拍铃者赢得桌面所有牌
@@ -987,37 +1056,56 @@ class RoomManagerClass {
       room.state.heartWon = won;
       // 清空桌面
       room.state.heartTable = [];
-      // 重置 flipped
-      const flipped: Record<string, boolean> = {};
-      room.players.forEach((p) => { flipped[p.id] = false; });
-      room.state.heartFlipped = flipped;
       room.state.heartLastResult = { type: "correct", ringerId: socketId, ringerNickname: player.nickname };
+      // 下一轮由输方先翻（即非拍铃者先翻）
+      const opponent = room.players.find((p) => p.id !== socketId);
+      if (opponent && (room.state.heartDeck?.[opponent.id] || []).length > 0) {
+        room.state.heartCurrentFlipperId = opponent.id;
+      } else if ((room.state.heartDeck?.[socketId] || []).length > 0) {
+        room.state.heartCurrentFlipperId = socketId;
+      } else {
+        room.state.heartCurrentFlipperId = null;
+      }
     } else {
-      // 错误拍铃：给对手 1 张牌（从自己牌堆顶）
+      // 错误拍铃：给对手 penalty 张牌（从自己牌堆顶取）
       const opponent = room.players.find((p) => p.id !== socketId);
       if (!opponent) return { ok: false, error: "对手不存在" };
       const myDeck = room.state.heartDeck?.[socketId] || [];
-      if (myDeck.length > 0) {
-        const card = myDeck.pop()!;
-        room.state.heartDeck[socketId] = myDeck;
-        // 对手牌堆底部加入（保持牌堆顺序，加到开头）
-        const oppDeck = room.state.heartDeck?.[opponent.id] || [];
-        oppDeck.unshift(card);
-        room.state.heartDeck[opponent.id] = oppDeck;
+      let given = 0;
+      for (let i = 0; i < penaltyCards; i++) {
+        if (myDeck.length > 0) {
+          const card = myDeck.pop()!;
+          room.state.heartDeck[socketId] = myDeck;
+          const oppDeck = room.state.heartDeck?.[opponent.id] || [];
+          oppDeck.unshift(card);
+          room.state.heartDeck[opponent.id] = oppDeck;
+          given++;
+        }
       }
-      room.state.heartLastResult = { type: "wrong", ringerId: socketId, ringerNickname: player.nickname };
+      room.state.heartLastResult = { type: "wrong", ringerId: socketId, ringerNickname: player.nickname, penaltyCards: given };
+      // 桌面不清空，翻牌权保持当前状态
     }
 
-    // 检查游戏结束：任一玩家牌堆为空
-    const anyEmpty = room.players.some((p) => (room.state.heartDeck?.[p.id] || []).length === 0);
-    let gameOver = false;
-    if (anyEmpty) {
+    // 检查游戏结束
+    gameOver = this.checkHeartGameOver(room);
+
+    return { ok: true, room, type: isCorrect ? "correct" : "wrong", ringerId: socketId, ringerNickname: player.nickname, gameOver, penaltyCards: isCorrect ? undefined : penaltyCards };
+  }
+
+  /**
+   * 检查德国心脏病是否结束：双方牌堆都空且桌面无=5，或一方总牌数为0
+   */
+  private checkHeartGameOver(room: Room): boolean {
+    const decks = room.state.heartDeck || {};
+    const table = room.state.heartTable || [];
+    const allDeckEmpty = room.players.every((p) => (decks[p.id] || []).length === 0);
+    // 双方牌堆都空且桌面无法凑5 → 按赢牌数结算
+    if (allDeckEmpty && !this.hasFruitFive(table)) {
       room.state.heartGameOver = true;
       room.state.phase = "GAME_OVER";
-      gameOver = true;
+      return true;
     }
-
-    return { ok: true, room, type: isCorrect ? "correct" : "wrong", ringerId: socketId, ringerNickname: player.nickname, gameOver };
+    return false;
   }
 
   /**
@@ -1027,7 +1115,7 @@ class RoomManagerClass {
     winnerId: string | null;
     myWon: number;
     opponentWon: number;
-    reason: "deck-empty";
+    reason: "deck-empty" | "all-empty";
   } | null {
     if (!room.state.heartGameOver) return null;
     const opponent = room.players.find((p) => p.id !== socketId);
@@ -1039,9 +1127,9 @@ class RoomManagerClass {
     } else if (opponentWon > myWon) {
       winnerId = opponent?.id ?? null;
     } else {
-      winnerId = null; // 平局
+      winnerId = null;
     }
-    return { winnerId, myWon, opponentWon, reason: "deck-empty" };
+    return { winnerId, myWon, opponentWon, reason: "all-empty" };
   }
 
   /**
@@ -1712,6 +1800,329 @@ class RoomManagerClass {
 
   getQuestions(room: Room) {
     return room.state.questions;
+  }
+
+  // ============ 达芬奇密码相关 ============
+
+  private DV_INITIAL_HAND = 4; // 每人初始手牌数
+
+  /**
+   * 牌排序键：先数字后颜色（黑0<白0<黑1<白1...）
+   */
+  private dvCardSortKey(c: DaVinciCard): number {
+    return c.number * 2 + (c.color === "white" ? 1 : 0);
+  }
+
+  /**
+   * 生成 24 张牌（黑白各 0-11）并洗牌
+   */
+  private generateDaVinciDeck(): DaVinciCard[] {
+    const colors: DaVinciColor[] = ["black", "white"];
+    const cards: DaVinciCard[] = [];
+    let idxCounter = 0;
+    for (const color of colors) {
+      for (let n = 0; n <= 11; n++) {
+        cards.push({
+          id: `dv_${idxCounter++}`,
+          color,
+          number: n,
+          revealed: false,
+        });
+      }
+    }
+    // Fisher-Yates 洗牌
+    for (let i = cards.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [cards[i], cards[j]] = [cards[j], cards[i]];
+    }
+    return cards;
+  }
+
+  /**
+   * 初始化达芬奇密码游戏
+   */
+  private startDaVinciCodeInternal(room: Room) {
+    room.players.forEach((p) => {
+      p.totalScore = 0;
+      p.roundScore = 0;
+      p.drawings = [];
+      p.answers = [];
+    });
+
+    const deck = this.generateDaVinciDeck();
+    const hands: Record<string, DaVinciCard[]> = {};
+    const drawn: Record<string, DaVinciCard | null> = {};
+
+    // 发牌：每人 4 张
+    for (const p of room.players) {
+      const hand = deck.splice(0, DV_INITIAL_HAND);
+      hand.sort((a, b) => this.dvCardSortKey(a) - this.dvCardSortKey(b));
+      hands[p.id] = hand;
+      drawn[p.id] = null;
+    }
+
+    room.state = {
+      phase: "DRAWING",
+      currentRound: 1,
+      words: [],
+      wordEntries: [],
+      questions: [],
+      currentQuestionIndex: 0,
+      stageReady: {},
+      drawingUploaded: {},
+      answers: {},
+      answerResults: {},
+      questionNextReady: {},
+      revealed: false,
+      dvDeck: deck,
+      dvHands: hands,
+      dvDrawn: drawn,
+      dvCurrentPlayerId: room.hostId,
+      dvPhase: "draw",
+      dvLastResult: null,
+      dvContinues: false,
+      dvGameOver: false,
+      dvWinnerId: null,
+    };
+  }
+
+  /**
+   * 摸牌
+   */
+  dvDrawCard(
+    roomId: string,
+    socketId: string
+  ): { ok: true; room: Room; drawnCard: DaVinciCard } | { ok: false; error: string } {
+    const room = this.rooms.get(roomId);
+    if (!room) return { ok: false, error: "房间不存在" };
+    if (room.gameType !== "davinci-code") return { ok: false, error: "非达芬奇密码房间" };
+    if (room.state.phase !== "DRAWING") return { ok: false, error: "当前不可操作" };
+    if (room.state.dvGameOver) return { ok: false, error: "游戏已结束" };
+    if (room.state.dvCurrentPlayerId !== socketId) return { ok: false, error: "还没轮到你" };
+    if (room.state.dvPhase !== "draw") return { ok: false, error: "当前不是摸牌阶段" };
+
+    const deck = room.state.dvDeck || [];
+    if (deck.length === 0) return { ok: false, error: "牌堆已空" };
+    if (room.state.dvDrawn?.[socketId]) return { ok: false, error: "你已经摸过牌了" };
+
+    const card = deck.shift()!;
+    room.state.dvDeck = deck;
+    if (!room.state.dvDrawn) room.state.dvDrawn = {};
+    room.state.dvDrawn[socketId] = card;
+    room.state.dvPhase = "guess";
+    room.state.dvContinues = false;
+
+    return { ok: true, room, drawnCard: card };
+  }
+
+  /**
+   * 猜牌
+   */
+  dvGuess(
+    roomId: string,
+    socketId: string,
+    targetId: string,
+    cardIndex: number,
+    number: number
+  ): { ok: true; room: Room; result: DaVinciGuessResult } | { ok: false; error: string } {
+    const room = this.rooms.get(roomId);
+    if (!room) return { ok: false, error: "房间不存在" };
+    if (room.gameType !== "davinci-code") return { ok: false, error: "非达芬奇密码房间" };
+    if (room.state.phase !== "DRAWING") return { ok: false, error: "当前不可操作" };
+    if (room.state.dvGameOver) return { ok: false, error: "游戏已结束" };
+    if (room.state.dvCurrentPlayerId !== socketId) return { ok: false, error: "还没轮到你" };
+    if (room.state.dvPhase !== "guess") return { ok: false, error: "请先摸牌" };
+    if (targetId === socketId) return { ok: false, error: "不能猜自己的牌" };
+
+    const hands = room.state.dvHands || {};
+    const targetHand = hands[targetId];
+    if (!targetHand) return { ok: false, error: "目标不存在" };
+    if (cardIndex < 0 || cardIndex >= targetHand.length) return { ok: false, error: "牌位置无效" };
+
+    const targetCard = targetHand[cardIndex];
+    if (targetCard.revealed) return { ok: false, error: "该牌已被破译" };
+
+    const guesser = room.players.find((p) => p.id === socketId);
+    if (!guesser) return { ok: false, error: "玩家不存在" };
+
+    const isCorrect = targetCard.number === number;
+
+    if (isCorrect) {
+      targetCard.revealed = true;
+      room.state.dvLastResult = {
+        correct: true,
+        guesserId: socketId,
+        guesserNickname: guesser.nickname,
+        targetId,
+        targetCardIndex: cardIndex,
+        guessedNumber: number,
+      };
+
+      // 检查胜利：对手所有牌都亮了（包括手牌和可能的猜错倒下牌）
+      const targetAllRevealed = (hands[targetId] || []).every((c) => c.revealed);
+      if (targetAllRevealed) {
+        room.state.dvGameOver = true;
+        room.state.dvWinnerId = socketId;
+        room.state.dvPhase = "end";
+        return {
+          ok: true,
+          room,
+          result: { ...room.state.dvLastResult!, actualNumber: number },
+        };
+      }
+
+      // 猜对：可继续猜（不摸牌），也可以 pass
+      room.state.dvContinues = true;
+      // 继续猜时，保留 dvPhase = guess，但标记 continues
+      return {
+        ok: true,
+        room,
+        result: { ...room.state.dvLastResult!, actualNumber: number },
+      };
+    } else {
+      // 猜错：自己刚摸的牌倒下（revealed=true），插入自己手牌正确位置
+      const myDrawn = room.state.dvDrawn?.[socketId];
+      if (!myDrawn) return { ok: false, error: "你没有摸牌" };
+      myDrawn.revealed = true;
+      const myHand = hands[socketId] || [];
+      myHand.push(myDrawn);
+      myHand.sort((a, b) => this.dvCardSortKey(a) - this.dvCardSortKey(b));
+      hands[socketId] = myHand;
+      room.state.dvDrawn![socketId] = null;
+
+      room.state.dvLastResult = {
+        correct: false,
+        guesserId: socketId,
+        guesserNickname: guesser.nickname,
+        targetId,
+        targetCardIndex: cardIndex,
+        guessedNumber: number,
+        actualNumber: targetCard.number,
+      };
+
+      // 检查自己是否所有牌都亮了（包括新倒下的）
+      const meAllRevealed = (hands[socketId] || []).every((c) => c.revealed);
+      if (meAllRevealed) {
+        room.state.dvGameOver = true;
+        room.state.dvWinnerId = targetId;
+        room.state.dvPhase = "end";
+        return {
+          ok: true,
+          room,
+          result: room.state.dvLastResult!,
+        };
+      }
+
+      // 切换回合
+      room.state.dvPhase = "draw";
+      room.state.dvContinues = false;
+      room.state.dvCurrentPlayerId = targetId;
+      return { ok: true, room, result: room.state.dvLastResult! };
+    }
+  }
+
+  /**
+   * 猜对后选择 pass（结束回合）
+   */
+  dvPass(
+    roomId: string,
+    socketId: string
+  ): { ok: true; room: Room } | { ok: false; error: string } {
+    const room = this.rooms.get(roomId);
+    if (!room) return { ok: false, error: "房间不存在" };
+    if (room.gameType !== "davinci-code") return { ok: false, error: "非达芬奇密码房间" };
+    if (room.state.dvGameOver) return { ok: false, error: "游戏已结束" };
+    if (room.state.dvCurrentPlayerId !== socketId) return { ok: false, error: "还没轮到你" };
+    if (!room.state.dvContinues) return { ok: false, error: "当前不能 pass" };
+
+    // pass 时需要处理已摸的牌：将摸到的牌背面朝上插入自己手牌（不亮出）
+    const hands = room.state.dvHands || {};
+    const myDrawn = room.state.dvDrawn?.[socketId];
+    if (myDrawn) {
+      const myHand = hands[socketId] || [];
+      myHand.push({ ...myDrawn, revealed: false });
+      myHand.sort((a, b) => this.dvCardSortKey(a) - this.dvCardSortKey(b));
+      hands[socketId] = myHand;
+      room.state.dvDrawn![socketId] = null;
+    }
+
+    const opponent = room.players.find((p) => p.id !== socketId);
+    room.state.dvPhase = "draw";
+    room.state.dvContinues = false;
+    room.state.dvCurrentPlayerId = opponent ? opponent.id : socketId;
+
+    return { ok: true, room };
+  }
+
+  /**
+   * 获取达芬奇密码当前状态（按玩家视角）
+   */
+  getDaVinciStateView(room: Room, socketId: string): {
+    myHand: DaVinciCard[];
+    opponentHand: DaVinciCard[];
+    deckCount: number;
+    myDrawnCard: DaVinciCard | null;
+    opponentDrawn: boolean;
+    myTurn: boolean;
+    phase: "draw" | "guess" | "end";
+    canContinue: boolean;
+  } | null {
+    if (!room.state.dvHands) return null;
+    const opponent = room.players.find((p) => p.id !== socketId);
+    if (!opponent) return null;
+
+    const myHand = (room.state.dvHands[socketId] || []).map((c) => ({ ...c }));
+    const oppHandRaw = room.state.dvHands[opponent.id] || [];
+    const opponentHand = oppHandRaw.map((c) => ({
+      ...c,
+      number: c.revealed ? c.number : -1, // 未亮牌隐藏数字
+    }));
+
+    const myDrawn = room.state.dvDrawn?.[socketId] || null;
+    const oppDrawn = !!room.state.dvDrawn?.[opponent.id];
+
+    return {
+      myHand,
+      opponentHand,
+      deckCount: (room.state.dvDeck || []).length,
+      myDrawnCard: myDrawn ? { ...myDrawn } : null,
+      opponentDrawn: oppDrawn,
+      myTurn: room.state.dvCurrentPlayerId === socketId,
+      phase: (room.state.dvPhase as any) || "draw",
+      canContinue: !!room.state.dvContinues,
+    };
+  }
+
+  /**
+   * 获取达芬奇密码游戏结束数据
+   */
+  getDaVinciGameOverData(room: Room, socketId: string): {
+    winnerId: string | null;
+    winnerNickname: string;
+    myRevealed: number;
+    opponentRevealed: number;
+  } | null {
+    if (!room.state.dvGameOver) return null;
+    const opponent = room.players.find((p) => p.id !== socketId);
+    if (!opponent) return null;
+    const winner = room.players.find((p) => p.id === room.state.dvWinnerId);
+    const myHand = room.state.dvHands?.[socketId] || [];
+    const oppHand = room.state.dvHands?.[opponent.id] || [];
+    return {
+      winnerId: room.state.dvWinnerId || null,
+      winnerNickname: winner?.nickname || "",
+      myRevealed: myHand.filter((c) => c.revealed).length,
+      opponentRevealed: oppHand.filter((c) => c.revealed).length,
+    };
+  }
+
+  restartDaVinci(roomId: string, socketId: string): Room | null {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+    if (room.hostId !== socketId) return null;
+    if (room.gameType !== "davinci-code") return null;
+    this.startDaVinciCodeInternal(room);
+    return room;
   }
 }
 
