@@ -7,7 +7,7 @@ import { useAudioStore } from "@/store/audioStore";
 import { sfx } from "@/audio/engine";
 import Confetti from "@/components/Confetti";
 import { getDifficultyConfig } from "@/lib/difficulty";
-import type { HeartFruit, HeartFruitItem, HeartCard } from "@/lib/types";
+import type { HeartFruit, HeartCard } from "@/lib/types";
 
 const FRUIT_EMOJI: Record<HeartFruit, string> = {
   apple: "🍎",
@@ -33,71 +33,41 @@ export default function HeartAttackGame({ roomId }: { roomId: string }) {
 
 // ========== 牌面渲染（独立组件，便于单人模式复用）==========
 export function HeartCardView({ card, isNew = false, ownerSide }: { card: HeartCard; isNew?: boolean; ownerSide?: "me" | "opp" | null }) {
-  const total = card.fruits.reduce((s, f) => s + f.count, 0);
-  const numTypes = card.fruits.length;
+  const allFruits: HeartFruit[] = [];
+  for (const fi of card.fruits) {
+    for (let i = 0; i < fi.count; i++) allFruits.push(fi.fruit);
+  }
+  const total = allFruits.length;
+
+  const positions = (() => {
+    if (total === 1) return [{ x: "50%", y: "50%" }];
+    if (total === 2) return [{ x: "25%", y: "50%" }, { x: "75%", y: "50%" }];
+    if (total === 3) return [{ x: "30%", y: "25%" }, { x: "70%", y: "25%" }, { x: "50%", y: "75%" }];
+    return [{ x: "28%", y: "25%" }, { x: "72%", y: "25%" }, { x: "28%", y: "75%" }, { x: "72%", y: "75%" }];
+  })();
+
+  const emojiSize = total <= 2 ? "text-3xl" : "text-2xl";
+
   return (
     <div
-      className={`bg-white rounded-2xl border-[3px] border-ink shadow-card p-2 flex flex-col items-center justify-center ${isNew ? "animate-[flipIn_0.4s_ease-out]" : ""} ${
+      className={`bg-white rounded-2xl border-[3px] border-ink shadow-card relative ${isNew ? "animate-[flipIn_0.4s_ease-out]" : ""} ${
         ownerSide === "me" ? "ring-2 ring-mint/60" : ownerSide === "opp" ? "ring-2 ring-coral/50" : ""
       }`}
       style={{
         width: 96,
-        minHeight: 112,
+        height: 112,
         animation: isNew ? "flipIn 0.4s ease-out" : undefined,
       }}
     >
-      {/* 单种水果且总数=4：四角铺满整张牌 */}
-      {numTypes === 1 && total === 4 ? (
-        <div className="grid grid-cols-2 gap-2 w-full h-full place-items-center py-1">
-          <span className="text-2xl leading-none">{FRUIT_EMOJI[card.fruits[0].fruit]}</span>
-          <span className="text-2xl leading-none">{FRUIT_EMOJI[card.fruits[0].fruit]}</span>
-          <span className="text-2xl leading-none">{FRUIT_EMOJI[card.fruits[0].fruit]}</span>
-          <span className="text-2xl leading-none">{FRUIT_EMOJI[card.fruits[0].fruit]}</span>
-        </div>
-      ) : (
-        <div
-          className="grid gap-1 w-full place-items-center"
-          style={{ gridTemplateColumns: `repeat(${numTypes === 1 ? 1 : 2}, minmax(0, 1fr))` }}
+      {allFruits.map((fruit, i) => (
+        <span
+          key={i}
+          className={`absolute ${emojiSize} leading-none -translate-x-1/2 -translate-y-1/2 select-none`}
+          style={{ left: positions[i].x, top: positions[i].y }}
         >
-          {card.fruits.map((fi: HeartFruitItem, idx: number) => (
-            <FruitCluster key={idx} fruit={fi.fruit} count={fi.count} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function FruitCluster({ fruit, count }: { fruit: HeartFruit; count: number }) {
-  const emoji = FRUIT_EMOJI[fruit];
-  // 1个居中，2个竖排，3-4个四角排列
-  if (count === 1) {
-    return <span className="text-3xl leading-none">{emoji}</span>;
-  }
-  if (count === 2) {
-    return (
-      <div className="flex flex-col items-center gap-0.5">
-        <span className="text-2xl leading-none">{emoji}</span>
-        <span className="text-2xl leading-none">{emoji}</span>
-      </div>
-    );
-  }
-  if (count === 3) {
-    return (
-      <div className="grid grid-cols-2 gap-0.5 place-items-center">
-        <span className="text-xl leading-none">{emoji}</span>
-        <span className="text-xl leading-none">{emoji}</span>
-        <span className="text-xl leading-none col-span-2">{emoji}</span>
-      </div>
-    );
-  }
-  // 4个：四角排列
-  return (
-    <div className="grid grid-cols-2 gap-1 place-items-center">
-      <span className="text-xl leading-none">{emoji}</span>
-      <span className="text-xl leading-none">{emoji}</span>
-      <span className="text-xl leading-none">{emoji}</span>
-      <span className="text-xl leading-none">{emoji}</span>
+          {FRUIT_EMOJI[fruit]}
+        </span>
+      ))}
     </div>
   );
 }
