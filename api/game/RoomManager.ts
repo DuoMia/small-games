@@ -1100,14 +1100,12 @@ class RoomManagerClass {
   }
 
   /**
-   * 检查德国心脏病是否结束：双方牌堆都空且桌面无=5，或一方总牌数为0
+   * 检查德国心脏病是否结束：任一方牌堆为空即结束
    */
   private checkHeartGameOver(room: Room): boolean {
     const decks = room.state.heartDeck || {};
-    const table = room.state.heartTable || [];
-    const allDeckEmpty = room.players.every((p) => (decks[p.id] || []).length === 0);
-    // 双方牌堆都空且桌面无法凑5 → 按赢牌数结算
-    if (allDeckEmpty && !this.hasFruitFive(table)) {
+    const anyDeckEmpty = room.players.some((p) => (decks[p.id] || []).length === 0);
+    if (anyDeckEmpty) {
       room.state.heartGameOver = true;
       room.state.phase = "GAME_OVER";
       return true;

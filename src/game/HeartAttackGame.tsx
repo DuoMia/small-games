@@ -34,10 +34,10 @@ export default function HeartAttackGame({ roomId }: { roomId: string }) {
 // ========== 牌面渲染（独立组件，便于单人模式复用）==========
 export function HeartCardView({ card, isNew = false, ownerSide }: { card: HeartCard; isNew?: boolean; ownerSide?: "me" | "opp" | null }) {
   const total = card.fruits.reduce((s, f) => s + f.count, 0);
-  const cols = card.fruits.length === 1 ? 1 : card.fruits.length === 2 ? 2 : 2;
+  const numTypes = card.fruits.length;
   return (
     <div
-      className={`bg-white rounded-2xl border-[3px] border-ink shadow-card p-2.5 flex flex-col items-center justify-center ${isNew ? "animate-[flipIn_0.4s_ease-out]" : ""} ${
+      className={`bg-white rounded-2xl border-[3px] border-ink shadow-card p-2 flex flex-col items-center justify-center ${isNew ? "animate-[flipIn_0.4s_ease-out]" : ""} ${
         ownerSide === "me" ? "ring-2 ring-mint/60" : ownerSide === "opp" ? "ring-2 ring-coral/50" : ""
       }`}
       style={{
@@ -46,14 +46,24 @@ export function HeartCardView({ card, isNew = false, ownerSide }: { card: HeartC
         animation: isNew ? "flipIn 0.4s ease-out" : undefined,
       }}
     >
-      <div
-        className="grid gap-1 w-full place-items-center"
-        style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
-      >
-        {card.fruits.map((fi: HeartFruitItem, idx: number) => (
-          <FruitCluster key={idx} fruit={fi.fruit} count={fi.count} />
-        ))}
-      </div>
+      {/* 单种水果且总数=4：四角铺满整张牌 */}
+      {numTypes === 1 && total === 4 ? (
+        <div className="grid grid-cols-2 gap-2 w-full h-full place-items-center py-1">
+          <span className="text-2xl leading-none">{FRUIT_EMOJI[card.fruits[0].fruit]}</span>
+          <span className="text-2xl leading-none">{FRUIT_EMOJI[card.fruits[0].fruit]}</span>
+          <span className="text-2xl leading-none">{FRUIT_EMOJI[card.fruits[0].fruit]}</span>
+          <span className="text-2xl leading-none">{FRUIT_EMOJI[card.fruits[0].fruit]}</span>
+        </div>
+      ) : (
+        <div
+          className="grid gap-1 w-full place-items-center"
+          style={{ gridTemplateColumns: `repeat(${numTypes === 1 ? 1 : 2}, minmax(0, 1fr))` }}
+        >
+          {card.fruits.map((fi: HeartFruitItem, idx: number) => (
+            <FruitCluster key={idx} fruit={fi.fruit} count={fi.count} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -83,7 +93,7 @@ function FruitCluster({ fruit, count }: { fruit: HeartFruit; count: number }) {
   }
   // 4个：四角排列
   return (
-    <div className="grid grid-cols-2 gap-0.5 place-items-center">
+    <div className="grid grid-cols-2 gap-1 place-items-center">
       <span className="text-xl leading-none">{emoji}</span>
       <span className="text-xl leading-none">{emoji}</span>
       <span className="text-xl leading-none">{emoji}</span>
@@ -319,8 +329,8 @@ function HeartPlaying({ roomId }: { roomId: string }) {
 
       {/* 主区域 */}
       <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-        {/* 对手栏 */}
-        <div className="flex-shrink-0 px-3 py-1 flex items-center justify-between">
+        {/* 对手栏 - pt-3 给头像跳跃留出空间 */}
+        <div className="flex-shrink-0 px-3 pt-3 pb-1 flex items-center justify-between">
           <PlayerAvatar
             nickname={oppNickname}
             wonCount={heartState.opponentWonCount}

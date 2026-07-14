@@ -1512,8 +1512,9 @@ function SoloHeartAttack() {
   const checkAndSetGameOver = useCallback((
     md: HeartCard[], ad: HeartCard[], mw: number, aw: number, tbl: SoloHeartTableCard[]
   ): { winner: "me" | "ai" | "draw"; myWon: number; aiWon: number } | null => {
-    const allEmpty = md.length === 0 && ad.length === 0;
-    if (allEmpty && !hasSoloHeartFruitFive(tbl)) {
+    // 任一方牌堆为空即结束
+    const anyEmpty = md.length === 0 || ad.length === 0;
+    if (anyEmpty) {
       let winner: "me" | "ai" | "draw" = "draw";
       if (mw > aw) winner = "me";
       else if (aw > mw) winner = "ai";
@@ -1932,8 +1933,8 @@ function SoloHeartAttack() {
 
       {/* 主区域 */}
       <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-        {/* AI栏 */}
-        <div className="flex-shrink-0 px-3 py-1 flex items-center justify-between">
+        {/* AI栏 - pt-3 给头像跳跃留出空间 */}
+        <div className="flex-shrink-0 px-3 pt-3 pb-1 flex items-center justify-between">
           <div className="flex flex-col items-center gap-1 relative">
             <div className={`relative ${currentTurn === "ai" ? "animate-bounce" : ""}`}>
               <div className={`w-14 h-14 rounded-full bg-coral/20 border-[3px] border-ink shadow-card flex items-center justify-center font-display text-xl text-ink`}>
