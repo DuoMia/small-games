@@ -24,10 +24,10 @@ export default function WordDisplay({ roomId }: { roomId: string }) {
   const lastSecRef = useRef<number>(-1);
 
   useEffect(() => {
+    if (words.length === 0) return;
     if (currentIndex >= words.length) {
       if (!finishedRef.current) {
         finishedRef.current = true;
-        // 延迟一下再发送，让玩家看到最后一个词
         setTimeout(() => nextStage(roomId), 500);
       }
       return;
@@ -40,7 +40,6 @@ export default function WordDisplay({ roomId }: { roomId: string }) {
       const elapsed = (Date.now() - start) / 1000;
       const left = Math.max(0, wordDuration - elapsed);
       setTimeLeft(left);
-      // 滴答音效：每整秒触发
       const sec = Math.ceil(left);
       if (sec !== lastSecRef.current && sec > 0) {
         lastSecRef.current = sec;
@@ -58,7 +57,7 @@ export default function WordDisplay({ roomId }: { roomId: string }) {
 
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex, words.length, roomId, nextStage, wordDuration, sfxEnabled]);
+  }, [currentIndex, words, roomId, nextStage, wordDuration, sfxEnabled]);
 
   const isFinished = currentIndex >= words.length;
   const currentWord = !isFinished ? words[currentIndex] : "";

@@ -185,7 +185,7 @@ export const useGameStore = create<GameState>((set) => ({
       phase,
       currentRound: round ?? s.currentRound,
       ...(phase !== "QUIZ" ? { currentQuestion: null, quizResult: null, quizReveal: null, opponentAnswered: false } : {}),
-      ...(phase === "WORD_DISPLAY" || phase === "DRAWING" ? { roundResult: null, gameOver: null } : {}),
+      ...(phase === "WORD_DISPLAY" || phase === "DRAWING" ? { roundResult: null, gameOver: null, heartGameOver: null, dvGameOver: null, coOpResult: null } : {}),
       // 默契考验：离开揭晓阶段时清理 reveal 数据
       ...(phase !== "QUIZ" ? { telepathyReveal: null, telepathyOpponentChose: false } : {}),
       // 表情包猜词：离开揭晓阶段时清理 reveal 数据
@@ -212,7 +212,7 @@ export const useGameStore = create<GameState>((set) => ({
     }),
   setTelepathyReveal: (r) => set({ telepathyReveal: r }),
   setTelepathyOpponentChose: (v) => set({ telepathyOpponentChose: v }),
-  setHeartState: (s) => set({ heartState: s }),
+  setHeartState: (s) => set({ heartState: s, heartResult: null, heartGameOver: null }),
   setHeartResult: (r) => set({ heartResult: r }),
   setHeartGameOver: (g) => set({ heartGameOver: g }),
   // 合作画画
@@ -248,6 +248,7 @@ export const useGameStore = create<GameState>((set) => ({
     set({
       dvState: s,
       dvResult: null,
+      dvGameOver: null,
       dvOppDrewColor: null,
       dvSelfDrewCard: null,
       dvPassedPlayerId: null,

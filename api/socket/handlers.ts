@@ -616,10 +616,12 @@ export function registerSocketHandlers(io: Io) {
         currentRound: r.state.currentRound,
       });
       io.to(roomId).emit("coop:result", {
-        finalImage: "",
+        finalImage: image || "",
         aiScore,
         aiComment,
       });
+      const overData = RoomManager.getGameOverData(r);
+      io.to(roomId).emit("game:over", overData);
     });
 
     socket.on("coop:restart", ({ roomId }) => {
@@ -720,7 +722,8 @@ export function registerSocketHandlers(io: Io) {
         return;
       }
       const { room, drawnCard } = result;
-      io.to(roomId).emit("dv:drew", {
+      // 只发给自己（含数字）
+      socket.emit("dv:drew", {
         playerId: socket.id,
         color: drawnCard.color,
         number: drawnCard.number,
@@ -911,7 +914,7 @@ function startCoOpTimer(io: Io, roomId: string) {
           const fr = RoomManager.getRoom(roomId);
           if (fr && fr.state.phase === "ROUND_RESULT") {
             // 仍未评分，用空图触发兜底（judgeDrawing 会返回默认 5 分）
-            const res = await RoomManager.judgeCoOpDrawing(roomId, "", "");
+            const res = await RoomManager.judgeCoOpDrawing(roomId, fr.hostId, "");
             if (res) {
               io.to(roomId).emit("game:state", {
                 phase: res.room.state.phase,
@@ -922,6 +925,8 @@ function startCoOpTimer(io: Io, roomId: string) {
                 aiScore: res.aiScore,
                 aiComment: res.aiComment,
               });
+              const overData = RoomManager.getGameOverData(res.room);
+              io.to(roomId).emit("game:over", overData);
             }
           }
         }, 15000);

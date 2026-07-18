@@ -1971,6 +1971,7 @@ class RoomManagerClass {
         room.state.dvGameOver = true;
         room.state.dvWinnerId = socketId;
         room.state.dvPhase = "end";
+        room.state.phase = "GAME_OVER";
         return {
           ok: true,
           room,
@@ -2013,6 +2014,7 @@ class RoomManagerClass {
         room.state.dvGameOver = true;
         room.state.dvWinnerId = targetId;
         room.state.dvPhase = "end";
+        room.state.phase = "GAME_OVER";
         return {
           ok: true,
           room,

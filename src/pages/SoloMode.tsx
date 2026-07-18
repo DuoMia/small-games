@@ -1483,9 +1483,17 @@ function SoloHeartAttack() {
   const newCardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tableRef = useRef<SoloHeartTableCard[]>([]);
   const gameOverRef = useRef<boolean>(false);
+  const myWonRef = useRef<number>(0);
+  const aiWonRef = useRef<number>(0);
+  const myDeckRef = useRef<HeartCard[]>([]);
+  const aiDeckRef = useRef<HeartCard[]>([]);
 
   useEffect(() => { tableRef.current = table; }, [table]);
   useEffect(() => { gameOverRef.current = !!gameOver; }, [gameOver]);
+  useEffect(() => { myWonRef.current = myWon; }, [myWon]);
+  useEffect(() => { aiWonRef.current = aiWon; }, [aiWon]);
+  useEffect(() => { myDeckRef.current = myDeck; }, [myDeck]);
+  useEffect(() => { aiDeckRef.current = aiDeck; }, [aiDeck]);
 
   const clearAiTimers = useCallback(() => {
     if (aiFlipTimerRef.current) { clearTimeout(aiFlipTimerRef.current); aiFlipTimerRef.current = null; }
@@ -1575,8 +1583,9 @@ function SoloHeartAttack() {
   const doAiFlip = useCallback(() => {
     setAiDeck((prevAiDeck) => {
       if (prevAiDeck.length === 0) {
-        setCurrentTurn((curTurn) => {
-          return myDeck.length > 0 ? "me" : curTurn;
+        setMyDeck((curMy) => {
+          setCurrentTurn(curMy.length > 0 ? "me" : "ai");
+          return curMy;
         });
         return prevAiDeck;
       }
@@ -1602,7 +1611,10 @@ function SoloHeartAttack() {
           return curMy;
         });
         if (newAiDeck.length === 0) {
-          setCurrentTurn(myDeck.length > 0 ? "me" : "ai");
+          setMyDeck((curMy) => {
+            setCurrentTurn(curMy.length > 0 ? "me" : "ai");
+            return curMy;
+          });
         } else {
           setCurrentTurn("me");
         }
@@ -1610,7 +1622,7 @@ function SoloHeartAttack() {
       });
       return newAiDeck;
     });
-  }, [myDeck.length, checkAndSetGameOver, playSfx]);
+  }, [checkAndSetGameOver, playSfx]);
 
   const doAiRing = useCallback(() => {
     const curTable = tableRef.current;
@@ -1618,42 +1630,53 @@ function SoloHeartAttack() {
     const wonCount = curTable.length;
     showFlash("correct", "ai");
     playSfx(sfx.correct);
-    const newAw = aiWon + wonCount;
-    setAiWon(newAw);
     setTable([]);
-    if (myDeck.length > 0) setCurrentTurn("me");
-    else if (aiDeck.length > 0) setCurrentTurn("ai");
-    const over = checkAndSetGameOver(myDeck, aiDeck, myWon, newAw, []);
-    if (over) {
-      playSfx(over.winner === "me" ? sfx.win : over.winner === "ai" ? sfx.lose : sfx.roundEnd);
-    }
-  }, [myDeck, aiDeck, myWon, aiWon, showFlash, playSfx, checkAndSetGameOver]);
+    setAiWon((prevAw) => {
+      const newAw = prevAw + wonCount;
+      setMyDeck((curMy) => {
+        setAiDeck((curAi) => {
+          const over = checkAndSetGameOver(curMy, curAi, myWonRef.current, newAw, []);
+          if (over) {
+            playSfx(over.winner === "me" ? sfx.win : over.winner === "ai" ? sfx.lose : sfx.roundEnd);
+          }
+          if (curMy.length > 0) setCurrentTurn("me");
+          else if (curAi.length > 0) setCurrentTurn("ai");
+          return curAi;
+        });
+        return curMy;
+      });
+      return newAw;
+    });
+  }, [showFlash, playSfx, checkAndSetGameOver]);
 
   const doAiWrongRing = useCallback(() => {
     if (gameOverRef.current) return;
     if (hasSoloHeartFruitFive(tableRef.current)) return;
     playSfx(sfx.wrong);
-    showFlash("wrong", "ai", 1);
+    const penalty = getSoloHeartPenaltyCards(difficulty);
+    showFlash("wrong", "ai", penalty);
 
-    let newMd = [...myDeck];
-    let newAd = [...aiDeck];
-    const penalty = 1;
+    let newAd = [...aiDeckRef.current];
+    const penaltyCards: HeartCard[] = [];
     for (let i = 0; i < penalty; i++) {
       if (newAd.length > 0) {
-        const card = newAd.pop()!;
-        newMd = [card, ...newMd];
+        penaltyCards.push(newAd.pop()!);
       }
     }
+    const newMd = [...penaltyCards, ...myDeckRef.current];
     setMyDeck(newMd);
     setAiDeck(newAd);
-    if (currentTurn === "ai" && newAd.length === 0 && newMd.length > 0) {
-      setCurrentTurn("me");
-    }
-    const over = checkAndSetGameOver(newMd, newAd, myWon, aiWon, table);
-    if (over) {
-      playSfx(over.winner === "me" ? sfx.win : over.winner === "ai" ? sfx.lose : sfx.roundEnd);
-    }
-  }, [myDeck, aiDeck, myWon, aiWon, table, currentTurn, playSfx, showFlash, checkAndSetGameOver]);
+    setMyWon((mw) => {
+      setAiWon((aw) => {
+        const over = checkAndSetGameOver(newMd, newAd, mw, aw, tableRef.current);
+        if (over) {
+          playSfx(over.winner === "me" ? sfx.win : over.winner === "ai" ? sfx.lose : sfx.roundEnd);
+        }
+        return aw;
+      });
+      return mw;
+    });
+  }, [difficulty, playSfx, showFlash, checkAndSetGameOver]);
 
   useEffect(() => {
     if (stage !== "playing" || gameOver) return;
@@ -3207,7 +3230,7 @@ function DVCardTile({
 
 function SoloDaVinci() {
   const navigate = useNavigate();
-  const [difficulty, setDifficulty] = useState<Difficulty>("easy");
+  const [difficulty, setDifficulty] = useState<Difficulty>(DEFAULT_DIFFICULTY);
   const [phase, setPhase] = useState<DVPhase>("idle");
   const [turn, setTurn] = useState<DVTurn>("player");
   const [player, setPlayer] = useState<DVPlayerState>({ hand: [] });
@@ -3398,17 +3421,21 @@ function SoloDaVinci() {
     const hidden = pHand.map((c, i) => ({ c, i })).filter(x => !x.c.revealed);
     if (hidden.length === 0) return { targetIdx: 0, number: 0 };
 
-    const usedNumbers = new Set<number>();
-    [...pHand, ...aiHand].forEach(c => {
-      if (c.revealed) usedNumbers.add(c.number);
-    });
-    aiHand.forEach(c => usedNumbers.add(c.number));
-
-    const avail = Array.from({ length: 12 }, (_, i) => i).filter(n => !usedNumbers.has(n));
-
     const target = hidden[rand(0, hidden.length - 1)];
     const targetIdx = target.i;
     const targetCard = target.c;
+
+    const usedNumbers = new Set<number>();
+    [...pHand, ...aiHand].forEach(c => {
+      if (c.color === targetCard.color) {
+        if (c.revealed) usedNumbers.add(c.number);
+      }
+    });
+    aiHand.forEach(c => {
+      if (c.color === targetCard.color) usedNumbers.add(c.number);
+    });
+
+    const avail = Array.from({ length: 12 }, (_, i) => i).filter(n => !usedNumbers.has(n));
 
     const sameColor = pHand
       .map((c, i) => ({ c, i }))

@@ -263,6 +263,9 @@ function DaVinciPlaying({ roomId }: { roomId: string }) {
       }
       const t = setTimeout(() => setShowResult(false), 1500);
       return () => clearTimeout(t);
+    } else {
+      setShowResult(false);
+      setWrongGuesses({});
     }
   }, [dvResult]);
 
