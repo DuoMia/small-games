@@ -2051,18 +2051,13 @@ function SoloHeartAttack() {
       <div className="flex-shrink-0 bg-white border-t-2 border-ink/10 px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))]">
         {/* 自动翻牌提示 */}
         <div className="text-center text-[11px] text-ink-muted mb-2 font-body">
-          {gameOver ? "游戏结束" : canRing ? "🔔 水果凑齐 5 个！快拍！" : currentTurn === "me" ? "⏰ 3 秒后自动翻你的牌" : "⏰ 3 秒后自动翻 AI 的牌"}
+          {gameOver ? "游戏结束" : currentTurn === "me" ? "⏰ 轮到你翻牌" : "⏰ AI 回合"}
         </div>
         {/* 大拍铃按钮 */}
         <button
           onClick={handleRing}
           disabled={table.length === 0 || !!gameOver}
-          className={`btn-press w-full h-16 rounded-full border-[3px] border-ink font-display text-xl flex items-center justify-center gap-2 shadow-pop transition-all ${
-            canRing
-              ? "bg-gradient-to-b from-yellow-300 to-yellow-500 text-ink animate-pulse"
-              : "bg-gradient-to-b from-yellow-200 to-yellow-400 text-ink/80"
-          } disabled:opacity-50`}
-          style={canRing ? { animation: "shakeBell 0.5s infinite" } : undefined}
+          className={`btn-press w-full h-16 rounded-full border-[3px] border-ink font-display text-xl flex items-center justify-center gap-2 shadow-pop transition-all bg-gradient-to-b from-yellow-300 to-yellow-500 text-ink disabled:opacity-50`}
         >
           <Bell size={28} />
           拍铃

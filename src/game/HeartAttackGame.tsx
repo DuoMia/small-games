@@ -381,17 +381,12 @@ function HeartPlaying({ roomId }: { roomId: string }) {
       {/* 底部拍铃区 */}
       <div className="flex-shrink-0 bg-white border-t-2 border-ink/10 px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))]">
         <div className="text-center text-[11px] text-ink-muted mb-2 font-body">
-          {canRing ? "🔔 水果凑齐 5 个！快拍！" : canFlip ? "⏰ 3 秒后自动翻你的牌" : heartState.opponentTurn ? "⏰ 3 秒后自动翻对手的牌" : heartState.myDeckCount === 0 ? "牌堆空了" : "等待..."}
+          {canFlip ? "⏰ 轮到你翻牌" : heartState.opponentTurn ? "⏰ 对手回合" : heartState.myDeckCount === 0 ? "牌堆空了" : "观察桌面，凑齐 5 个相同水果时拍铃"}
         </div>
         <button
           onClick={handleRing}
           disabled={heartState.tableCards.length === 0}
-          className={`btn-press w-full h-16 rounded-full border-[3px] border-ink font-display text-xl flex items-center justify-center gap-2 shadow-pop transition-all ${
-            canRing
-              ? "bg-gradient-to-b from-yellow-300 to-yellow-500 text-ink animate-pulse"
-              : "bg-gradient-to-b from-yellow-200 to-yellow-400 text-ink/80"
-          } disabled:opacity-50`}
-          style={canRing ? { animation: "shakeBell 0.5s infinite, ringFlash 1s infinite" } : undefined}
+          className={`btn-press w-full h-16 rounded-full border-[3px] border-ink font-display text-xl flex items-center justify-center gap-2 shadow-pop transition-all bg-gradient-to-b from-yellow-300 to-yellow-500 text-ink disabled:opacity-50`}
         >
           <Bell size={28} />
           拍铃
